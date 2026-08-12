@@ -1,3 +1,4 @@
+# Install needed tools
 mise use k3s
 mise use kubectl
 mise use -g flux2@latest
