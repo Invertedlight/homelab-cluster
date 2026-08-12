@@ -1,0 +1,30 @@
+mise use k3s
+mise use kubectl
+mise use -g flux2@latest
+
+# Install homebrew
+sudo apt-get update
+sudo apt-get install build-essential procps curl file git -y
+
+yes "" | /usr/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.profile
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+brew --version
+brew doctor
+
+#brew install fluxcd/tap/flux
+flux check --pre
+
+
+# Install flux into the cluster
+flux bootstrap github \
+  --owner=$GITHUB_USER \
+  --repository=pi-cluster \
+  --branch=main \
+  --path=./clusters/staging \
+  --personal
+
+. "<(flux completion zsh)"

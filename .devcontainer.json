@@ -1,0 +1,6 @@
+{
+  "name": "devpod-debian-direnenv",
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "customizations": { "vscode": { "settings": {} } },
+  "postStartCommand": "cd \"${containerWorkspaceFolder}\" && if [ -f .envrc ]; then direnv allow . >/dev/null 2>&1 || true; direnv exec . /usr/bin/env >/dev/null 2>&1 || true; fi"
+}
