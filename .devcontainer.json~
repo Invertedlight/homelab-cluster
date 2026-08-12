@@ -1,0 +1,10 @@
+{
+  "name": "devpod-debian-direnenv",
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "customizations": {
+    "vscode": {
+      "settings": {}
+    }
+  },
+  "postCreateCommand": "if [ -f /${containerWorkspaceFolder}/.envrc ]; then echo 'direnv: found .envrc'; fi"
+}
