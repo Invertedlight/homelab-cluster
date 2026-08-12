@@ -1,3 +1,4 @@
 [tools]
 k3s = "latest"
+k9s = "latest"
 kubectl = "latest"
