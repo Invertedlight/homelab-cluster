@@ -16,7 +16,7 @@ eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 brew --version
 brew doctor
 
-#brew install fluxcd/tap/flux
+brew install fluxcd/tap/flux
 flux check --pre
 
 
