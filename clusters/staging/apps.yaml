@@ -11,6 +11,6 @@ spec:
   timeout: 5m
   sourceRef:
     kind: GitRepository
-    name: pi-clustert
+    name: pi-cluster
   path: ./apps/staging
   prune: true
