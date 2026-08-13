@@ -28,4 +28,4 @@ flux bootstrap github \
   --path=./clusters/staging \
   --personal
 
-. "<(flux completion zsh)"
+. <(flux completion zsh)
