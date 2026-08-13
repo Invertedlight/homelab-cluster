@@ -26,7 +26,7 @@ spec:
             allowPrivilegeExcallation: false
           volumeMounts:
             - name: linkding-data
-              mountPath: /etc/linkding-data
+              mountPath: /etc/linkding/data
       volumes:
         - name: linkding-data
           persistentVolumeClaim:
