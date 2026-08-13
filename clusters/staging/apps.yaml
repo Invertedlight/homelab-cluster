@@ -11,6 +11,6 @@ spec:
   timeout: 5m
   sourceRef:
     kind: GitRepository
-    name: pi-cluster
+    name: flux-system
   path: ./apps/staging
   prune: true
