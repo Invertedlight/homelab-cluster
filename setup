@@ -19,6 +19,7 @@ brew doctor
 brew install fluxcd/tap/flux
 flux check --pre
 
+brew install kubectx
 
 # Install flux into the cluster
 flux bootstrap github \
