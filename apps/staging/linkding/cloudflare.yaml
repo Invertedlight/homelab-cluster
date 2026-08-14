@@ -35,13 +35,13 @@ spec:
             periodSeconds: 10
           volumeMounts:
             - name: config
-              mountPath: /etc/cloudflared/config:which
+              mountPath: /etc/cloudflared/config
               readOnly: true
             # Each tunnel has an associated "credentials file" which authorizes machines
             # to run the tunnel. cloudflared will read this file from its local filesystem,
             # and it'll be stored in a k8s secret.
             - name: creds
-              mountPath: :which/etc/cloudflared/creds
+              mountPath: /etc/cloudflared/creds
               readOnly: true
       volumes:
         - name: creds
@@ -67,6 +67,7 @@ metadata:
 data:
   config.yaml: |
     # Name of the tunnel you want to run
+
     tunnel: ldpi
 
     credentials-file: /etc/cloudflared/creds/credentials.json
