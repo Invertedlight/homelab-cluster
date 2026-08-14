@@ -65,7 +65,7 @@ kind: ConfigMap
 metadata:
   name: cloudflared
 data:
-  config.yaml:
+  config.yaml: |
     # Name of the tunnel you want to run
     tunnel: ldpi
 
