@@ -30,7 +30,7 @@ spec:
       adminPassword: REDACTED_HISTORY
       ingress:
         enabled: true
-        ingressClassNAme: traefik
+        ingressClassName: traefik
         hosts:
           - grs.jameshomelab.org
 
