@@ -5,7 +5,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: ingress.jameshomelab.org
+    - host: grafana.jameshomelab.org
       http:
         paths:
           - path: /
