@@ -33,7 +33,7 @@ spec:
         ingressClassNAme: traefik
         hosts:
           - grs.jameshomelab.org
-        path: /
+
         tls:
           - secretName: grafana-tls-secret
             hosts:
