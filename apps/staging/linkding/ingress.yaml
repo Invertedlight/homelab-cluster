@@ -14,4 +14,4 @@ spec:
               service:
                 name: linkding
                 port:
-                  number: 090
+                  number: 9090
