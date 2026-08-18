@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring # Change if Grafana is in a different namespace
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
+    # Uncomment below if you use cert-manager for automatic Let's Encrypt SSL
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  rules:
+    - host: lds.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana # Must match the exact name of your internal Grafana service
+                port:
+                  number: 3000 # The internal port your service exposes (usually 80 or 3000)
+  #tls:
+  #- hosts:
+  #     - lds.jameshomelab.org
+  #    secretName: lds-jameshomelab-tls # Secret containing your SSL certificates
