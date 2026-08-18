@@ -30,7 +30,7 @@ spec:
       adminPassword: cyberyamaha
       ingress:
         enabled: true
-        ingressClassNAme: traefik
+        ingressClassName: traefik
         hosts:
           - grs.jameshomelab.org
 
