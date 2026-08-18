@@ -34,7 +34,7 @@ spec:
         hosts:
           - grs.jameshomelab.org
 
-        tls:
-          - secretName: grafana-tls-secret
-            hosts:
-              - grs.jameshomelab.org
+        tls: []
+          # - secretName: grafana-tls-secret
+          #   hosts:
+          #     - grs.jameshomelab.org
