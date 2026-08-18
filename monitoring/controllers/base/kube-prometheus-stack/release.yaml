@@ -27,4 +27,11 @@ spec:
           kind: PrometheusRule
   values:
     grafana:
-      adminPassword: james
+      adminPassword: cyberyamaha
+      ingress:
+        enabled: true
+        ingressClassNAme: traefik
+        hosts:
+          - grs.jameshomelab.org
+        path: /
+        tls: []
