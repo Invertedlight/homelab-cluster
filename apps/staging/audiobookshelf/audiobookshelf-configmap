@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audiobookshelf-configmap
+  namespace: audiobookshelf
+data:
+  restart: unless-stopped
+  environment:  
+    - TZ=America/Chicago
