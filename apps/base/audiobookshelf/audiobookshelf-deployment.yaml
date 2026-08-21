@@ -34,19 +34,23 @@ spec:
             limits:
               ephemeral-storage: "2Gi"
           volumeMounts:
-            - name: config
-              mountPath: "/config"
-            - name: metadata
-              mountPath: "/metadata"
-            - name: library
-              mountPath: "/Library"
+            volumeMounts:
+              - name: app-data
+                mountPath: /config
+                subPath: config
+              - name: app-data
+                mountPath: /metadata
+                subPath: metadata
+              - name: library
+                mountPath: /audiobooks
+                subPath: audiobooks
+              - name: library
+                mountPath: /podcasts
+                subPath: podcasts
       volumes:
-        - name: config
-          emptyDir:
-            sizeLimit: 200Mi
-        - name: metadata
-          emptyDir:
-            sizeLimit: 200Mi
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: audiobookshelf-data
         - name: library
-          emptyDir:
-            sizeLimit: 200Mi
+          persistentVolumeClaim:
+            claimName: audiobookshelf-library
