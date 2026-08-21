@@ -5,3 +5,5 @@ resources:
   #  - deployment.yaml
   - service.yaml
   - audiobookshelf-deployment.yaml
+  - audiobookshelf-pvc-data.yaml
+  - audiobookshelf-pvc-library.yaml
