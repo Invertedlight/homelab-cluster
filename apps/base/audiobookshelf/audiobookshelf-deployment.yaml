@@ -24,7 +24,7 @@ spec:
           ports:
             - containerPort: 13378
           #    securityContext:
-          #      allowPrivilegeExcallation: false
+          #      allowPrivilegeEscallation: false
           envFrom:
             - configMapRef:
                 name: audiobookshelf-configmap
@@ -38,10 +38,10 @@ spec:
               mountPath: "/config"
             - name: metadata
               mountPath: "/metadata"
-          volumes:
-            - name: config
-              emptyDir:
-                sizeLimit: 200Mi
-            - name: metadata
-              emptyDir:
-                sizeLimit: 200Mi
+      volumes:
+        - name: config
+          emptyDir:
+            sizeLimit: 200Mi
+        - name: metadata
+          emptyDir:
+            sizeLimit: 200Mi
