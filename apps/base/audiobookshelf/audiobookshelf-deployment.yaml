@@ -28,3 +28,20 @@ spec:
           envFrom:
             - configMapRef:
                 name: audiobookshelf-configmap
+          resources:
+            requests:
+              ephemeral-storage: "1Gi"
+            limits:
+              ephemeral-storage: "2Gi"
+          volumeMounts:
+            - name: config
+              mountPath: "/config"
+            - name: metadata
+              mountPath: "/metadata"
+          volumes:
+            - name: config
+              emptyDir:
+                sizeLimit: 200Mi
+            - name: metadata
+              emptyDir:
+                sizeLimit: 200Mi
