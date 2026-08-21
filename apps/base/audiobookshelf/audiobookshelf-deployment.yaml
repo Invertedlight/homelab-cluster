@@ -13,18 +13,18 @@ spec:
       labels:
         app: audiobookshelf
     spec:
-      # securityContext:
-      #   fsGroup: 33 # www-data group ID
-      #   runAsUser: 33 # www-data user ID
-      #   runAsGroup: 33 # www-data group ID
+      securityContext:
+        fsGroup: 33 # www-data group ID
+        runAsUser: 33 # www-data user ID
+        runAsGroup: 33 # www-data group ID
 
       containers:
         - name: audiobookshelf
           image: ghcr.io/advplyr/audiobookshelf:latest
           ports:
             - containerPort: 13378
-          #    securityContext:
-          #      allowPrivilegeEscallation: false
+              securityContext:
+                allowPrivilegeEscalation: false
           envFrom:
             - configMapRef:
                 name: audiobookshelf-configmap
@@ -38,10 +38,15 @@ spec:
               mountPath: "/config"
             - name: metadata
               mountPath: "/metadata"
+            - name: library
+              mountPath: "/Library"
       volumes:
         - name: config
           emptyDir:
             sizeLimit: 200Mi
         - name: metadata
+          emptyDir:
+            sizeLimit: 200Mi
+        - name: library
           emptyDir:
             sizeLimit: 200Mi
