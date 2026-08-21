@@ -4,6 +4,6 @@ metadata:
   name: audiobookshelf-configmap
   namespace: audiobookshelf
 data:
-  restart: unless-stopped
+  restart: "unless-stopped"
   environment:
-    - TZ="America/Chicago"
+    - 'TZ="America/Chicago"'
