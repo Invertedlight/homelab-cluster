@@ -4,7 +4,6 @@ metadata:
   name: audiobookshelf-data
   namespace: audiobookshelf
 spec:
-  storageClassName: standard
   accessModes:
     - ReadWriteOnce
   resources:
