@@ -5,5 +5,4 @@ metadata:
   namespace: audiobookshelf
 data:
   restart: "unless-stopped"
-  environment:
-    - 'TZ="America/Chicago"'
+  environment: "TZ=America/Chicago"
