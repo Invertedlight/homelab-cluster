@@ -28,25 +28,19 @@ spec:
           envFrom:
             - configMapRef:
                 name: audiobookshelf-configmap
-          resources:
-            requests:
-              ephemeral-storage: "1Gi"
-            limits:
-              ephemeral-storage: "2Gi"
           volumeMounts:
-            volumeMounts:
-              - name: app-data
-                mountPath: /config
-                subPath: config
-              - name: app-data
-                mountPath: /metadata
-                subPath: metadata
-              - name: library
-                mountPath: /audiobooks
-                subPath: audiobooks
-              - name: library
-                mountPath: /podcasts
-                subPath: podcasts
+            - name: app-data
+              mountPath: /config
+              subPath: config
+            - name: app-data
+              mountPath: /metadata
+              subPath: metadata
+            - name: library
+              mountPath: /audiobooks
+              subPath: audiobooks
+            - name: library
+              mountPath: /podcasts
+              subPath: podcasts
       volumes:
         - name: app-data
           persistentVolumeClaim:
