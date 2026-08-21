@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: audiobookshelf
+  namespace: audiobookshelf
 spec:
   replicas: 1
   selector:
@@ -12,18 +13,18 @@ spec:
       labels:
         app: audiobookshelf
     spec:
-      securityContext:
-        fsGroup: 33 # www-data group ID
-        runAsUser: 33 # www-data user ID
-        runAsGroup: 33 # www-data group ID
+      # securityContext:
+      #   fsGroup: 33 # www-data group ID
+      #   runAsUser: 33 # www-data user ID
+      #   runAsGroup: 33 # www-data group ID
 
       containers:
         - name: audiobookshelf
           image: ghcr.io/advplyr/audiobookshelf:latest
           ports:
             - containerPort: 13378
-          securityContext:
-            allowPrivilegeExcallation: false
+          #    securityContext:
+          #      allowPrivilegeExcallation: false
           envFrom:
             - configMapRef:
                 name: audiobookshelf-configmap
