@@ -8,7 +8,7 @@ spec:
     - name: http
       protocol: TCP
       port: 3005
-      targetPort: 13378
+      targetPort: 80
   selector:
     app: audiobookshelf
   type: ClusterIP
