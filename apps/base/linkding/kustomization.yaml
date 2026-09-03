@@ -5,4 +5,5 @@ resources:
   - deployment.yaml
   - linkding-data-pvc.yaml
   - linkding-data-smb-pvc.yaml
+  - postgres-cluster.yaml
   - service.yaml
