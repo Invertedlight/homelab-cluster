@@ -23,7 +23,7 @@ spec:
           ports:
             - containerPort: 9090
           securityContext:
-            allowPrivilegeExcallation: false
+            allowPrivilegeEscalation: false
           envFrom:
             #- configMapRef:
             #    name: linkding-configmap
