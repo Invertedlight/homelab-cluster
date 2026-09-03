@@ -1,0 +1,24 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: smb
+provisioner: smb.csi.k8s.io
+parameters:
+  source: //192.168.68.70/PVC
+  onDelete: retain
+  csi.storage.k8s.io/provisioner-secret-name: smb-credentials
+  csi.storage.k8s.io/provisioner-secret-namespace: linkding
+  csi.storage.k8s.io/node-stage-secret-name: smb-credentials
+  csi.storage.k8s.io/node-stage-secret-namespace: linkding
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+mountOptions:
+  - dir_mode=0770
+  - file_mode=0660
+  - uid=33
+  - gid=33
+  - noperm
+  - mfsymlinks
+  - cache=strict
+  - noserverino

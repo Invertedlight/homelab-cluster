@@ -4,4 +4,5 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - linkding-data-pvc.yaml
+  - linkding-data-smb-pvc.yaml
   - service.yaml
