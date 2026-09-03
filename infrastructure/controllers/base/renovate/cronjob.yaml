@@ -14,7 +14,7 @@ spec:
             - name: renovate
               image: renovate/renovate:latest
               args:
-                - Invertedlight/pi-cluster
+                - Invertedlight/homelab-cluster
 
               envFrom:
                 - secretRef:

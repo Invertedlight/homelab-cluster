@@ -24,7 +24,7 @@ brew install kubectx
 # Install flux into the cluster
 flux bootstrap github \
   --owner=$GITHUB_USER \
-  --repository=pi-cluster \
+  --repository=homelab-cluster \
   --branch=main \
   --path=./clusters/staging \
   --personal
