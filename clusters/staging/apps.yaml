@@ -7,6 +7,7 @@ spec:
   interval: 1m0s
   dependsOn:
     - name: infrastructure-controller
+    - name: database-operator
   retryInterval: 1m
   timeout: 5m
   sourceRef:
