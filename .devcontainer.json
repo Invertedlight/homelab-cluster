@@ -1,5 +1,5 @@
 {
-  "name": "devpod-debian-direnenv",
+  "name": "devpod-debian-direnv",
   "image": "mcr.microsoft.com/devcontainers/base:debian",
   "customizations": {
     "vscode": {
