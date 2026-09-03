@@ -1,0 +1,37 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: linkding-postgres
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie
+
+  bootstrap:
+    initdb:
+      database: linkding
+      owner: linkding
+      dataChecksums: true
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: required
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: "true"
+
+  minSyncReplicas: 1
+  maxSyncReplicas: 2
+
+  storage:
+    storageClass: local-path
+    size: 5Gi
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+  monitoring:
+    enablePodMonitor: true
