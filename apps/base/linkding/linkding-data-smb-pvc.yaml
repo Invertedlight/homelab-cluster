@@ -1,10 +1,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: linkding-data-pvc
+  name: linkding-data-smb
 spec:
-  storageClassName: local-path
-  volumeName: pvc-4bfe4fe6-c958-432b-a08c-ea353866a545
+  storageClassName: smb
   accessModes:
     - ReadWriteOnce
   volumeMode: Filesystem
