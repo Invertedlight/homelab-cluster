@@ -19,8 +19,12 @@ spec:
     nodeSelector:
       node-role.kubernetes.io/control-plane: "true"
 
-  minSyncReplicas: 1
-  maxSyncReplicas: 2
+  postgresql:
+    synchronous:
+      method: any
+      number: 1
+      dataDurability: required
+      failoverQuorum: true
 
   storage:
     storageClass: local-path
