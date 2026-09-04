@@ -5,4 +5,5 @@ resources:
   - ../../base/audiobookshelf/
   - audiobookshelf-configmap.yaml
   - ingress.yaml
+  - redirect-https.yaml
   - abs-tls-secret.yaml
