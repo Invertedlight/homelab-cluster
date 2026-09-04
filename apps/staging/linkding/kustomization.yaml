@@ -8,3 +8,4 @@ resources:
   - cloudflare-secret.yaml
   - linkding-container-env-secret.yaml
   - ingress.yaml
+  - redirect-https.yaml
