@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - ../base/csi-smb
   - ../base/kube-vip
+  - ../base/longhorn
   - ../base/traefik-tls
   - renovate
