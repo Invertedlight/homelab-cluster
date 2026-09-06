@@ -1,0 +1,71 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audiobookshelf-backup
+  namespace: audiobookshelf
+spec:
+  schedule: "0 3 * * *"
+  timeZone: America/Chicago
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app: audiobookshelf-backup
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 33
+            runAsGroup: 33
+            fsGroup: 33
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app: audiobookshelf
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: backup
+              image: ghcr.io/advplyr/audiobookshelf@sha256:180acad33d69c99ed208676465d8edcb268fa46967735579a7810859885b1a8e
+              command: [node, /scripts/backup.js]
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: source
+                  mountPath: /source
+                  readOnly: true
+                - name: backup
+                  mountPath: /backup
+                - name: work
+                  mountPath: /work
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: source
+              persistentVolumeClaim:
+                claimName: audiobookshelf-data-longhorn
+            - name: backup
+              persistentVolumeClaim:
+                claimName: audiobookshelf-library-smb
+            - name: work
+              emptyDir: {}
+            - name: scripts
+              configMap:
+                name: audiobookshelf-backup-scripts
