@@ -47,4 +47,4 @@ spec:
             claimName: audiobookshelf-data
         - name: library
           persistentVolumeClaim:
-            claimName: audiobookshelf-library
+            claimName: audiobookshelf-library-smb
