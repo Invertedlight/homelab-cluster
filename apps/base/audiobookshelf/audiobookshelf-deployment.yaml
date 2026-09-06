@@ -5,6 +5,8 @@ metadata:
   namespace: audiobookshelf
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: audiobookshelf
@@ -13,6 +15,17 @@ spec:
       labels:
         app: audiobookshelf
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - skynet-wrk-01
+                      - skynet-wrk-02
+                      - skynet-wrk-03
       securityContext:
         fsGroup: 33 # www-data group ID
         runAsUser: 33 # www-data user ID
@@ -20,7 +33,7 @@ spec:
 
       containers:
         - name: audiobookshelf
-          image: ghcr.io/advplyr/audiobookshelf:latest
+          image: ghcr.io/advplyr/audiobookshelf@sha256:180acad33d69c99ed208676465d8edcb268fa46967735579a7810859885b1a8e
           ports:
             - containerPort: 13378
           securityContext:
@@ -44,7 +57,7 @@ spec:
       volumes:
         - name: app-data
           persistentVolumeClaim:
-            claimName: audiobookshelf-data
+            claimName: audiobookshelf-data-longhorn
         - name: library
           persistentVolumeClaim:
             claimName: audiobookshelf-library-smb

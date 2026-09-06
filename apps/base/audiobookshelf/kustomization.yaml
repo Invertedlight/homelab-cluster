@@ -7,3 +7,4 @@ resources:
   - audiobookshelf-pvc-data.yaml
   - audiobookshelf-pvc-library.yaml
   - audiobookshelf-pvc-library-smb.yaml
+  - audiobookshelf-pvc-data-longhorn.yaml
