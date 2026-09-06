@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: audiobookshelf-backups
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: audiobookshelf.backups
+      rules:
+        - alert: AudiobookshelfBackupFailed
+          expr: kube_job_failed{namespace="audiobookshelf",job_name=~"audiobookshelf-backup-.*",condition="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Audiobookshelf backup job failed
+            description: Inspect the failed backup Job and its logs in the audiobookshelf namespace. Preserve the last successful SMB archive.
+        - alert: AudiobookshelfBackupStale
+          expr: (time() - kube_cronjob_status_last_successful_time{namespace="audiobookshelf",cronjob="audiobookshelf-backup"} > 93600) or ((time() - kube_cronjob_created{namespace="audiobookshelf",cronjob="audiobookshelf-backup"} > 93600) unless on(namespace,cronjob) kube_cronjob_status_last_successful_time{namespace="audiobookshelf",cronjob="audiobookshelf-backup"})
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Audiobookshelf has no successful backup within 26 hours
+            description: Check the CronJob, recent Jobs, worker placement and SMB storage. A successful Job must validate its archive before exiting.
+        - alert: AudiobookshelfBackupScheduleUnavailable
+          expr: (kube_cronjob_spec_suspend{namespace="audiobookshelf",cronjob="audiobookshelf-backup"} == 1) or absent(kube_cronjob_info{namespace="audiobookshelf",cronjob="audiobookshelf-backup"})
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Audiobookshelf backup schedule is missing or suspended
+            description: Restore the GitOps managed audiobookshelf-backup CronJob and confirm its daily America Chicago schedule is enabled.
