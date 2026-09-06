@@ -4,6 +4,8 @@ metadata:
   name: linkding
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: linkding
@@ -12,6 +14,14 @@ spec:
       labels:
         app: linkding
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03]
       securityContext:
         fsGroup: 33 # www-data group ID
         runAsUser: 33 # www-data user ID
@@ -19,7 +29,7 @@ spec:
 
       containers:
         - name: linkding
-          image: sissbruecker/linkding:1.46.2
+          image: sissbruecker/linkding@sha256:0c0a9a04c7ebd644293c37f98710872fe7cdff0ea1ff7fd9be4d235e4c4678d2
           ports:
             - containerPort: 9090
           securityContext:
@@ -63,4 +73,4 @@ spec:
       volumes:
         - name: linkding-data
           persistentVolumeClaim:
-            claimName: linkding-data-pvc
+            claimName: linkding-data-longhorn
