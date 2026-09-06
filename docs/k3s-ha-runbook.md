@@ -9,6 +9,7 @@ Last verified: 2026-09-05
 | `skynet-cp-01` | `192.168.68.101` | control plane, embedded etcd | Ubuntu 26.04.1 |
 | `skynet-cp-02` | `192.168.68.102` | control plane, embedded etcd | Ubuntu 26.04.1 |
 | `skynet-cp-03` | `192.168.68.103` | control plane, embedded etcd | Ubuntu 26.04.1 |
+| `skynet-wrk-01` | `192.168.68.111` | worker | Ubuntu 26.04.1 |
 | `skynet-wrk-02` | `192.168.68.112` | worker | Ubuntu 26.04.1 |
 | `skynet-wrk-03` | `192.168.68.113` | worker | Ubuntu 24.04.4 |
 
@@ -57,7 +58,7 @@ The restore procedure has not been exercised on this production cluster. Test it
 
 ## Access and network boundary
 
-UFW is intentionally disabled on all five nodes. Hardware-key SSH access was verified on `skynet-cp-03`; authentication material must not be stored in this repository.
+UFW is intentionally disabled on all six nodes. Hardware-key SSH access was verified on `skynet-cp-03` and `skynet-wrk-01`; authentication material must not be stored in this repository.
 
 The 2026-09-05 LAN audit found that the operator workstation and cluster nodes share the directly connected `192.168.68.0/22` network. SSH was reachable from the ordinary LAN to every node. No separate management or cluster VLAN was visible from the workstation, and the router administration endpoint was exposed on the LAN. Router policy was not changed because a trusted authenticated administration session was unavailable.
 
@@ -77,10 +78,9 @@ Until those controls are verified, disabling UFW leaves node services protected 
 After node, networking, certificate, or datastore maintenance, verify:
 
 1. The API readiness endpoint through `192.168.68.40`.
-2. All five nodes are Ready with the expected roles and addresses.
+2. All six nodes are Ready with the expected roles and addresses.
 3. All three kube-vip pods are Ready and the leader lease has a valid holder.
 4. etcd health and etcd readiness on the control-plane nodes.
 5. Flux sources and Kustomizations are Ready at the intended Git revision.
 6. Persistent workloads, including the three-instance Linkding PostgreSQL cluster, are healthy.
 7. DNS resolves every `skynet-cp-*` and `skynet-wrk-*` host to its assigned address.
-
