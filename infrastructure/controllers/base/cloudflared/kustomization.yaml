@@ -3,5 +3,4 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - deployment.yaml
-  # After encrypting the skynet token, add:
-  # - tunnel-token.secret.yaml
+  - tunnel-token.secret.yaml
