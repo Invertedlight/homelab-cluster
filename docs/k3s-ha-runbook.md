@@ -21,7 +21,7 @@ The Kubernetes API virtual address is `192.168.68.40:6443`. kube-vip `v1.2.3` ad
 https://192.168.68.40:6443
 ```
 
-The API certificate includes the virtual address and all three control-plane servers run embedded etcd. PostgreSQL is not the K3s datastore. The CloudNativePG PostgreSQL cluster in this repository is an application database for Linkding.
+The API certificate includes the virtual address and all three control-plane servers run embedded etcd. PostgreSQL is not the K3s datastore. The shared CloudNativePG cluster `database/homelab-postgres` hosts application databases. Linkding retains its own `linkding` database and nonsuperuser role. See [shared PostgreSQL operations](homelab-postgres.md).
 
 ## Verified HA behavior
 
@@ -82,5 +82,5 @@ After node, networking, certificate, or datastore maintenance, verify:
 3. All three kube-vip pods are Ready and the leader lease has a valid holder.
 4. etcd health and etcd readiness on the control-plane nodes.
 5. Flux sources and Kustomizations are Ready at the intended Git revision.
-6. Persistent workloads, including the three-instance Linkding PostgreSQL cluster, are healthy.
+6. Persistent workloads, including the three-instance shared homelab PostgreSQL cluster, are healthy.
 7. DNS resolves every `skynet-cp-*` and `skynet-wrk-*` host to its assigned address.
