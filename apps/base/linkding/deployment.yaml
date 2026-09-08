@@ -58,6 +58,11 @@ spec:
               value: homelab-postgres-rw.database.svc.cluster.local
             - name: LD_DB_PORT
               value: "5432"
+            # Required for login behind Cloudflare Tunnel (HTTPS at edge, HTTP to Traefik)
+            - name: LD_CSRF_TRUSTED_ORIGINS
+              value: "https://lds.jameshomelab.org"
+            - name: LD_USE_X_FORWARDED_HOST
+              value: "True"
           volumeMounts:
             - name: linkding-data
               mountPath: /etc/linkding/data
