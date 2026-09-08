@@ -7,3 +7,4 @@ resources:
   - linkding-container-env-secret.yaml
   - ingress.yaml
   - redirect-https.yaml
+  - linkding-database-secret.yaml
