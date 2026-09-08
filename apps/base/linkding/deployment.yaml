@@ -43,30 +43,21 @@ spec:
             - name: LD_DB_ENGINE
               value: postgres
             - name: LD_DB_DATABASE
-              valueFrom:
-                secretKeyRef:
-                  name: linkding-postgres-app
-                  key: dbname
+              value: linkding
             - name: LD_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: linkding-postgres-app
+                  name: linkding-database
                   key: username
             - name: LD_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: linkding-postgres-app
+                  name: linkding-database
                   key: password
             - name: LD_DB_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: linkding-postgres-app
-                  key: host
+              value: homelab-postgres-rw.database.svc.cluster.local
             - name: LD_DB_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: linkding-postgres-app
-                  key: port
+              value: "5432"
           volumeMounts:
             - name: linkding-data
               mountPath: /etc/linkding/data
