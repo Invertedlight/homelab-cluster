@@ -40,11 +40,20 @@ contains `linkding.dump`, its checksum, the fingerprint verification, and the ol
 Cluster/PVC metadata. These files contain private application data: do not commit
 them. The dump is the transfer artifact, not a new scheduled backup system.
 
-Old PVCs `linkding-postgres-1`, `linkding-postgres-2`, and `linkding-postgres-3`
-remain retained in namespace `linkding`; their PV reclaim policy is Retain.
-The old database was hibernated before retirement. Keep these volumes until a
-separate approved rollback-retention cleanup. Their names describe historical data
-and do not represent a running database service.
+The old database was hibernated before retirement. Flux subsequently removed the
+old Cluster, its services/credentials, and its PVCs. All three underlying PVs were
+first changed to Retain and remain Released with their former claim references:
+
+| Former claim in linkding | Retained PV |
+| --- | --- |
+| linkding-postgres-1 | pvc-7583d536-28c8-41ac-81e1-ee290fc1e49b |
+| linkding-postgres-2 | pvc-a2de4550-22cd-44eb-93f8-c13cbba5a6fc |
+| linkding-postgres-3 | pvc-2ab396f4-75bf-4787-8e9a-d5dbc398b595 |
+
+Keep these volumes until a separate approved rollback-retention cleanup.
+Their old claim references describe historical data, not a running service.
+Reusing a Released PV requires an intentional prebinding/reclaim procedure;
+do not delete it or blindly reapply old PVC metadata.
 
 Do not simply reconnect Linkding to the old database after new writes: that would
 lose post-cutover changes. Pause application writes and plan a reverse transfer
