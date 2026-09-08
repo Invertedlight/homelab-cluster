@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mealie
+  labels:
+    app: mealie
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mealie
+  template:
+    metadata:
+      labels:
+        app: mealie
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03]
+      containers:
+        - name: mealie
+          image: ghcr.io/mealie-recipes/mealie:v3.25.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9000
+          env:
+            - name: TZ
+              value: America/Chicago
+            - name: BASE_URL
+              value: https://mealie.jameshomelab.org
+            - name: ALLOW_SIGNUP
+              value: "false"
+            - name: DB_ENGINE
+              value: postgres
+            - name: POSTGRES_SERVER
+              value: homelab-postgres-rw.database.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: mealie
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mealie-database
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mealie-database
+                  key: password
+          readinessProbe:
+            httpGet:
+              path: /api/app/about
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/app/about
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: mealie-data
+              mountPath: /app/data
+      volumes:
+        - name: mealie-data
+          persistentVolumeClaim:
+            claimName: mealie-data-longhorn

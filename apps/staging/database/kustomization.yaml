@@ -4,3 +4,5 @@ namespace: database
 resources:
   - ../../base/database
   - homelab-postgres-linkding-secret.yaml
+  - homelab-postgres-mealie-secret.yaml
+  - mealie-database.yaml

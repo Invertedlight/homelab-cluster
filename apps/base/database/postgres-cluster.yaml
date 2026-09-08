@@ -23,6 +23,14 @@ spec:
         createrole: false
         passwordSecret:
           name: homelab-postgres-linkding
+      - name: mealie
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: homelab-postgres-mealie
 
   affinity:
     enablePodAntiAffinity: true
