@@ -3,3 +3,6 @@ kubeconfig
 .*~
 *~
 
+
+# Microsoft Office temporary lock files
+~$*
