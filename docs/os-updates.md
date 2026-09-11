@@ -28,17 +28,22 @@ Flux cannot configure apt on the nodes. Run once per cluster (or after adding a 
 
 ### Option A — Ansible (preferred)
 
-From the admin Mac, with SSH access to every node (see [k3s-ha-runbook](k3s-ha-runbook.md)):
+From the admin Mac, with the software Ansible SSH key configured (see
+`ansible/README.md`; inventory points at `~/.ssh/id_ed25519_ansible`):
 
 ```bash
 cd /Users/cyberstar/homelab-cluster
 ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/os-unattended-upgrades.yaml
 ```
 
-Inventory hosts match the six skynet nodes. Adjust `ansible_user` in
-`ansible/inventory/hosts.yaml` if needed. The playbook installs packages, drops
-`/etc/apt/apt.conf.d/20auto-upgrades` and `50unattended-upgrades`, and leaves
-`Unattended-Upgrade::Automatic-Reboot` set to `false`.
+SSH uses `~/.ssh/id_ed25519_ansible`; sudo is NOPASSWD for `cyberstar` (see
+`ansible/README.md`).
+
+Inventory hosts match the six skynet nodes. Adjust `ansible_user` /
+`ansible_ssh_private_key_file` in `ansible/inventory/hosts.yaml` if needed. The
+playbook installs packages, drops `/etc/apt/apt.conf.d/20auto-upgrades` and
+`50unattended-upgrades`, and leaves `Unattended-Upgrade::Automatic-Reboot` set to
+`false`.
 
 ### Option B — Manual on each node
 
