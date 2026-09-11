@@ -9,3 +9,5 @@ Operator documentation:
 - [Shared PostgreSQL operations](docs/homelab-postgres.md)
 
 - [All project documents and Word runbooks](docs/README.md)
+
+- [Weekly Ubuntu OS updates](docs/os-updates.md)

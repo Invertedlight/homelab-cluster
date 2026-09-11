@@ -1,0 +1,24 @@
+---
+# Bootstrap Ubuntu unattended-upgrades on all skynet nodes.
+# Reboots are owned by Flux-managed kured (Automatic-Reboot remains false).
+#
+# Usage (from repo root, on the admin Mac):
+#   ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/os-unattended-upgrades.yaml
+#
+# Prefer workers before control-plane only affects this bootstrap order, not kured.
+- name: Configure unattended-upgrades on workers first
+  hosts: workers
+  become: true
+  serial: 1
+  roles: []
+  tasks:
+    - name: Include shared unattended-upgrades tasks
+      ansible.builtin.include_tasks: ../tasks/unattended-upgrades.yaml
+
+- name: Configure unattended-upgrades on control-plane
+  hosts: control_plane
+  become: true
+  serial: 1
+  tasks:
+    - name: Include shared unattended-upgrades tasks
+      ansible.builtin.include_tasks: ../tasks/unattended-upgrades.yaml

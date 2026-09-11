@@ -11,3 +11,4 @@ Operational guides and migration records for the homelab cluster. Migration reco
 - [home-lab-build-doc](home-lab-build-doc.docx)
 - [homelab-postgres](homelab-postgres.md)
 - [k3s-ha-runbook](k3s-ha-runbook.md)
+- [Weekly Ubuntu OS updates (unattended-upgrades + kured)](os-updates.md)

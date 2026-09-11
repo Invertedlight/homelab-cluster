@@ -1,0 +1,24 @@
+# skynet Ubuntu nodes — matches docs/k3s-ha-runbook.md
+all:
+  children:
+    skynet:
+      children:
+        control_plane:
+          hosts:
+            skynet-cp-01:
+              ansible_host: 192.168.68.101
+            skynet-cp-02:
+              ansible_host: 192.168.68.102
+            skynet-cp-03:
+              ansible_host: 192.168.68.103
+        workers:
+          hosts:
+            skynet-wrk-01:
+              ansible_host: 192.168.68.111
+            skynet-wrk-02:
+              ansible_host: 192.168.68.112
+            skynet-wrk-03:
+              ansible_host: 192.168.68.113
+  vars:
+    ansible_user: cyberstar
+    ansible_python_interpreter: /usr/bin/python3
