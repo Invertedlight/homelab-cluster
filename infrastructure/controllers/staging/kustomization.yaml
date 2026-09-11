@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - ../base/cloudflared
   - ../base/csi-smb
+  - ../base/kured
   - ../base/kube-vip
   - ../base/longhorn
   - ../base/traefik-tls

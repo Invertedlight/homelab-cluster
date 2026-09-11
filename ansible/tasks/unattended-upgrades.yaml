@@ -1,0 +1,40 @@
+---
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+    update_cache: true
+
+- name: Install periodic apt auto-upgrades config
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/20auto-upgrades"
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install homelab unattended-upgrades policy
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/50unattended-upgrades-homelab"
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure unattended-upgrades service is enabled
+  ansible.builtin.systemd:
+    name: unattended-upgrades.service
+    enabled: true
+    state: started
+
+- name: Dry-run unattended-upgrade once (non-fatal)
+  ansible.builtin.command: unattended-upgrade --dry-run --debug
+  register: uu_dry
+  changed_when: false
+  failed_when: false
+
+- name: Show dry-run summary
+  ansible.builtin.debug:
+    msg: "{{ uu_dry.stdout_lines[-20:] | default(uu_dry.stderr_lines[-20:] | default(['dry-run complete'])) }}"

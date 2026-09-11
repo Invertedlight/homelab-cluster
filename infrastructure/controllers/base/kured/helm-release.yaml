@@ -1,0 +1,53 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kured
+  namespace: kured
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kured
+      version: 6.1.0
+      sourceRef:
+        kind: HelmRepository
+        name: kubereboot
+        namespace: flux-system
+      interval: 24h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    configuration:
+      # One node at a time; preserves etcd quorum on the 3-server HA control plane.
+      concurrency: 1
+      forceReboot: false
+      # Honor PodDisruptionBudgets; abort drain rather than force-delete pods.
+      drainTimeout: 20m
+      lockTtl: 3h
+      preferNoScheduleTaint: weave.works/kured-node-reboot
+      rebootSentinel: /var/run/reboot-required
+      rebootCommand: /bin/systemctl reboot
+      # Sunday maintenance window in America/Chicago (UTC-5 / UTC-6 with DST).
+      rebootDays:
+        - su
+      startTime: "2:00"
+      endTime: "6:00"
+      timeZone: America/Chicago
+      # Check often enough to fit multiple sequential node reboots in the window.
+      period: 15m
+      annotateNodes: true
+    # Run on control-plane nodes as well as workers (k3s HA servers).
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+    priorityClassName: system-node-critical
+    nodeSelector:
+      kubernetes.io/os: linux
