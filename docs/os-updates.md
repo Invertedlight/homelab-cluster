@@ -29,7 +29,7 @@ Flux cannot configure apt on the nodes. Run once per cluster (or after adding a 
 ### Option A — Ansible (preferred)
 
 From the admin Mac, with the software Ansible SSH key configured (see
-`ansible/README.md`; inventory points at `~/.ssh/id_ed25519_ansible`):
+`ansible/README.md` (see its **Appendix: Ansible learning resources** for upstream Ansible guides); inventory points at `~/.ssh/id_ed25519_ansible`):
 
 ```bash
 cd /Users/cyberstar/homelab-cluster

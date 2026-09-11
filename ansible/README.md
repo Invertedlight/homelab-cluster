@@ -22,3 +22,12 @@ ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/os-unattended
 ```
 
 See [docs/os-updates.md](../docs/os-updates.md).
+
+## Appendix: Ansible learning resources
+
+Official docs if you are new to Ansible:
+
+- [Getting Started](https://docs.ansible.com/projects/ansible/latest/getting_started/index.html)
+- [User Guide](https://docs.ansible.com/projects/ansible/latest/user_guide/index.html) — inventory, playbooks, modules
+- [Intro to playbooks](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_intro.html)
+- [ansible.builtin modules](https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/index.html) — `apt`, `copy`, `template`, and related modules used in this tree
