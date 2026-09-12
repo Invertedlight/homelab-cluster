@@ -4,3 +4,4 @@ resources:
   - helm-repository.yaml
   - helm-release.yaml
   - storage-class.yaml
+  - storage-class-32tb.yaml

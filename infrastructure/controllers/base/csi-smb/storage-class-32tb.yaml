@@ -1,0 +1,25 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: smb-32tb
+provisioner: smb.csi.k8s.io
+parameters:
+  # Direct to the 32TB_SSD appliance (share G). Avoids double SMB via the mini.
+  source: //192.168.71.249/G
+  onDelete: retain
+  csi.storage.k8s.io/provisioner-secret-name: smb-32tb-credentials
+  csi.storage.k8s.io/provisioner-secret-namespace: devpod
+  csi.storage.k8s.io/node-stage-secret-name: smb-32tb-credentials
+  csi.storage.k8s.io/node-stage-secret-namespace: devpod
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+mountOptions:
+  - dir_mode=0770
+  - file_mode=0660
+  - uid=1000
+  - gid=1000
+  - noperm
+  - mfsymlinks
+  - cache=strict
+  - noserverino
