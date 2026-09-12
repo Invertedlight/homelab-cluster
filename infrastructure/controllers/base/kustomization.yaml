@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - cloudflared
   - csi-smb
+  - kured
   - kube-vip
   - longhorn
   - renovate

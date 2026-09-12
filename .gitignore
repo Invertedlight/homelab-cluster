@@ -6,3 +6,5 @@ kubeconfig
 
 # Microsoft Office temporary lock files
 ~$*
+
+ansible/.become_pass
