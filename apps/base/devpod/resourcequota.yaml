@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: devpod-quota
+  namespace: devpod
+spec:
+  hard:
+    # Cap total DevPod workspace spend on the cluster
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    requests.storage: 200Gi
+    persistentvolumeclaims: "8"
+    pods: "20"
+    services: "10"

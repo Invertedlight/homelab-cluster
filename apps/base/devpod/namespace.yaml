@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devpod
+  labels:
+    app.kubernetes.io/name: devpod
+    app.kubernetes.io/part-of: homelab-dev
