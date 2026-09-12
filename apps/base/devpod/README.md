@@ -11,3 +11,9 @@ Kubernetes namespace for [DevPod](https://devpod.sh) workspaces (Cursor on M5 �
 - Also File-Shared from mini as `//192.168.68.70/32TB_SSD` for Mac clients.
 - Cluster StorageClass: `smb-32tb` (CSI → appliance directly). Prefer a `DevStorage/` subdir for DevPod scratch PVCs.
 - Do **not** put databases, Forgejo git data, or DevPod workspace home disks here — use Longhorn.
+
+## Standing PVC: `devpod-scratch`
+- Namespace: `devpod`
+- StorageClass: `smb-32tb-devstorage` → `//192.168.71.249/G/DevStorage`
+- Size: 500Gi (quota allows up to 3Ti total / 2Ti per PVC)
+- Access: RWX — mount into DevPod workspaces for bulky on/off scratch

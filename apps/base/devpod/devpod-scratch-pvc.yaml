@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: devpod-scratch
+  namespace: devpod
+  labels:
+    app.kubernetes.io/name: devpod-scratch
+    app.kubernetes.io/part-of: homelab-dev
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: smb-32tb-devstorage
