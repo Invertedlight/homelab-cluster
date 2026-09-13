@@ -7,7 +7,9 @@ spec:
   interval: 1m
   retryInterval: 1m
   timeout: 10m
-  wait: true
+  # CNPG pod is already running; HelmChart artifacts fail while cluster DNS
+  # rewrites github.io. Do not block apps on a chart fetch.
+  wait: false
   sourceRef:
     kind: GitRepository
     name: flux-system
