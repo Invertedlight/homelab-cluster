@@ -1,14 +1,22 @@
 # cloudflared (tunnel `skynet`)
 
-Cluster-wide Cloudflare Tunnel connector. Public hostnames are managed in the
-Cloudflare dashboard (remotely managed token), not in a local config.yaml.
+Cluster-wide Cloudflare Tunnel connector. The tunnel token is remotely managed
+(no in-cluster `config.yaml`). Routing is a **wildcard** to Traefik: do not add
+per-app public hostnames in the Cloudflare dashboard.
 
 ## Routing model
 
-Cloudflare edge → tunnel `skynet` → `http://traefik.kube-system.svc.cluster.local:80`
+```
+Browser → https://<app>.jameshomelab.org
+       → DNS CNAME * → <tunnel-id>.cfargotunnel.com (proxied)
+       → Cloudflare edge → tunnel skynet
+       → http://traefik.kube-system.svc.cluster.local:80
+       → Traefik Ingress (Host header) → app Service
+```
 
-Add DNS CNAME `*` → `<tunnel-id>.cfargotunnel.com` (proxied) for `jameshomelab.org`.
-App Ingress hosts (`lds`, `abs`, `grs`, future `mealie`, …) stay on Traefik.
+Cloudflare holds one catch-all hostname (`*.jameshomelab.org`) aimed at Traefik.
+New apps only need a Kubernetes Ingress (and a working Service). Examples:
+`lds`, `abs`, `grs`, `mealie`, `home`.
 
 ## Secret
 

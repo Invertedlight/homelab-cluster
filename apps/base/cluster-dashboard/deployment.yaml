@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: cluster-dashboard
-          image: ghcr.io/invertedlight/cluster-dashboard:0.1.0
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/invertedlight/cluster-dashboard:0.1.1
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
@@ -42,14 +42,16 @@ spec:
             httpGet:
               path: /readyz
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 20
+            initialDelaySeconds: 60
             periodSeconds: 20
+            failureThreshold: 3
           resources:
             requests:
               cpu: 50m
