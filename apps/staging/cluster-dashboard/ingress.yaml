@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluster-dashboard
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Homelab dashboard"
+    dashboard.jameshomelab.org/description: "Application launcher"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - home.jameshomelab.org
+  rules:
+    - host: home.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cluster-dashboard
+                port:
+                  number: 8080

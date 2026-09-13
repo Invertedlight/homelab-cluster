@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-dashboard
+  labels:
+    app: cluster-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cluster-dashboard
+  template:
+    metadata:
+      labels:
+        app: cluster-dashboard
+    spec:
+      containers:
+        - name: cluster-dashboard
+          image: ghcr.io/invertedlight/cluster-dashboard:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: TZ
+              value: America/Chicago
+            - name: BASE_DOMAIN
+              value: jameshomelab.org
+            - name: PUBLIC_HOST
+              value: home.jameshomelab.org
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-dashboard-database
+                  key: uri
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-dashboard-database
+                  key: secret-key
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
