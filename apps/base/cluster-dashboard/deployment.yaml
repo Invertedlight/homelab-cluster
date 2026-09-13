@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: cluster-dashboard
-          image: ghcr.io/invertedlight/cluster-dashboard:0.1.1
+          image: ghcr.io/invertedlight/cluster-dashboard:0.1.2
           imagePullPolicy: Always
           ports:
             - name: http
