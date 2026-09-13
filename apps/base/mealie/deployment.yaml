@@ -16,6 +16,10 @@ spec:
       labels:
         app: mealie
     spec:
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

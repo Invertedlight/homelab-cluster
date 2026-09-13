@@ -14,6 +14,10 @@ spec:
       labels:
         app: cluster-dashboard
     spec:
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
       containers:
         - name: cluster-dashboard
           image: ghcr.io/invertedlight/cluster-dashboard:0.1.2
