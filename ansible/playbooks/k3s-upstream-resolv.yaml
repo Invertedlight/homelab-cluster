@@ -1,0 +1,42 @@
+---
+# Point kubelet at an upstream resolv.conf with no search domain so pods do not
+# inherit jameshomelab.org. CoreDNS still serves cluster.local.
+#
+# Default does not restart K3s. After review:
+#   ansible-playbook -i ansible/inventory/hosts.yaml \
+#     ansible/playbooks/k3s-upstream-resolv.yaml -e restart_k3s=true
+- name: K3s kubelet upstream resolv.conf without search domains
+  hosts: all
+  become: true
+  vars:
+    restart_k3s: false
+  tasks:
+    - name: Install kubelet upstream resolv.conf
+      ansible.builtin.copy:
+        src: ../files/k3s-upstream-resolv.conf
+        dest: /etc/rancher/k3s/upstream-resolv.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Ensure k3s config drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/config.yaml.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install k3s kubelet resolv-conf drop-in
+      ansible.builtin.copy:
+        src: ../files/k3s-config-resolv.yaml
+        dest: /etc/rancher/k3s/config.yaml.d/99-upstream-resolv.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Restart K3s so kubelet reloads resolv-conf
+      ansible.builtin.service:
+        name: "{{ 'k3s' if inventory_hostname in groups.get('control_plane', []) else 'k3s-agent' }}"
+        state: restarted
+      when: restart_k3s | bool

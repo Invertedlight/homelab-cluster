@@ -1,0 +1,4 @@
+# Drop-in for /etc/rancher/k3s/config.yaml.d/
+# Stops kubelet from copying the node search domain (jameshomelab.org) into pods.
+kubelet-arg:
+  - resolv-conf=/etc/rancher/k3s/upstream-resolv.conf

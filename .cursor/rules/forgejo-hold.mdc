@@ -1,0 +1,10 @@
+---
+description: Remind James about Forgejo one day after dashboard Phase 2 finishes
+alwaysApply: true
+---
+
+# Forgejo hold
+
+Forgejo (local GitHub mirror) is on hold.
+
+When James says dashboard **Phase 2 is finished** (Ingress auto-discovery / health dots, or an explicit “Phase 2 done”), wait **one calendar day**, then remind him to resume Forgejo. Do not start Forgejo until that reminder.

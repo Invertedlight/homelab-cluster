@@ -20,7 +20,7 @@ spec:
             value: "2"
       containers:
         - name: cluster-dashboard
-          image: ghcr.io/invertedlight/cluster-dashboard:0.1.2
+          image: ghcr.io/invertedlight/cluster-dashboard:0.1.3
           imagePullPolicy: Always
           ports:
             - name: http

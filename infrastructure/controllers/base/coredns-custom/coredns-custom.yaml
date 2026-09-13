@@ -1,0 +1,20 @@
+# k3s CoreDNS imports /etc/coredns/custom/*.override before `forward`.
+# Pods with ndots:5 append search domain jameshomelab.org to names that have
+# fewer than five dots. That turns in-cluster and public names into
+# `<name>.jameshomelab.org` and Cloudflare answers them.
+#
+# Rewrite only when the label before jameshomelab.org itself contains a dot, so
+# real public hosts (home.jameshomelab.org, lds.jameshomelab.org) stay unchanged.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: coredns-custom
+data:
+  search-hijack.override: |
+    rewrite stop {
+      name regex ^(.+\..+)\.jameshomelab\.org\.$ {1}.
+      answer auto
+    }

@@ -23,6 +23,15 @@ ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/os-unattended
 
 See [docs/os-updates.md](../docs/os-updates.md).
 
+Kubelet search-domain cleanup (optional; Flux already deploys a CoreDNS rewrite):
+
+```bash
+cd /Users/cyberstar/homelab-cluster
+ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/k3s-upstream-resolv.yaml
+# After review, restart agents/servers:
+# ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/k3s-upstream-resolv.yaml -e restart_k3s=true
+```
+
 ## Appendix: Ansible learning resources
 
 Official docs if you are new to Ansible:

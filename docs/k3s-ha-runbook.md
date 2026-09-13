@@ -84,3 +84,12 @@ After node, networking, certificate, or datastore maintenance, verify:
 5. Flux sources and Kustomizations are Ready at the intended Git revision.
 6. Persistent workloads, including the three-instance shared homelab PostgreSQL cluster, are healthy.
 7. DNS resolves every `skynet-cp-*` and `skynet-wrk-*` host to its assigned address.
+8. In-cluster names such as `homelab-postgres-rw.database.svc.cluster.local.` resolve to a ClusterIP, not Cloudflare.
+
+## Cluster DNS
+
+The Kubernetes cluster domain remains `cluster.local`. Do not set kubelet `--cluster-domain=jameshomelab.org`.
+
+Pods still default to `ndots:5`. If the node resolv.conf search list includes `jameshomelab.org`, libc appends that domain to names with fewer than five dots (`github.com`, `*.svc.cluster.local`). CoreDNS then sees `github.com.jameshomelab.org` and Cloudflare answers.
+
+GitOps guard: ConfigMap `kube-system/coredns-custom` (`infrastructure/controllers/base/coredns-custom`). Host-level optional follow-up: `ansible/playbooks/k3s-upstream-resolv.yaml`.
