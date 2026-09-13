@@ -1,0 +1,10 @@
+# Force an absolute DNS name. Cluster search (ndots + jameshomelab.org)
+# otherwise resolves github.com to github.com.jameshomelab.org → Cloudflare,
+# and source-controller times out on 172.67.216.86:22.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  url: ssh://git@github.com./Invertedlight/homelab-cluster
