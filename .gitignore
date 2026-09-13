@@ -8,3 +8,7 @@ kubeconfig
 ~$*
 
 ansible/.become_pass
+
+# Mac OS disk store files
+.DS_Store
+.DS_Store
