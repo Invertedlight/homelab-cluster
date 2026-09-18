@@ -9,3 +9,4 @@ resources:
   - ../base/longhorn
   - ../base/traefik-tls
   - renovate
+  - kjobs

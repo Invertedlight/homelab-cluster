@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: morning-email-triage
+spec:
+  schedule: "5 8 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: morning-email-triage
+              image: alpine/curl
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret-webhook-email-triage
+                      key: url
+                - name: KEY
+                  valueFrom:
+                    secretKeyRef:
+                    name: email-triage-webhook
+                    key: key
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  code=$(curl -sS -o /dev/null -w "%{http_code}"
+                  -X POST "$URL"
+                  -H "Authorization: Bearer $KEY"
+                  -H "Content-Type: application/json"
+                  -d '{"source":"morning email triage"}');
+                  echo "$code"
+          restartPolicy: OnFailure
