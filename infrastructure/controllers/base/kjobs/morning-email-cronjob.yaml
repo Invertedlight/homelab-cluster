@@ -17,12 +17,12 @@ spec:
                   valueFrom:
                     secretKeyRef:
                       name: secret-webhook-email-triage
-                      key: url
+                      key: URL
                 - name: KEY
                   valueFrom:
                     secretKeyRef:
-                    name: email-triage-webhook
-                    key: key
+                      name: email-triage-webhook
+                      key: KEY
               command:
                 - /bin/sh
                 - -c
