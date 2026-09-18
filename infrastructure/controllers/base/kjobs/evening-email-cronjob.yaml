@@ -22,7 +22,7 @@ spec:
                 - name: KEY
                   valueFrom:
                     secretKeyRef:
-                      name: email-triage-webhook
+                      name: secret-webhook-email-triage
                       key: KEY
               command:
                 - /bin/sh
