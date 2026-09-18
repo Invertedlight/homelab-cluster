@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: morning-email-triage
+  namespace: kjobs
 spec:
   schedule: "5 8 * * *"
   jobTemplate:
