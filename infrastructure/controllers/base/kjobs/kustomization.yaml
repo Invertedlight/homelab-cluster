@@ -4,4 +4,4 @@ resources:
   - namespace.yaml
   - morning-email-cronjob.yaml
   - evening-email-cronjob.yaml
-  - webhook-email-triage-secrets.yaml
+  - secret-webhook-email-triage.yaml
