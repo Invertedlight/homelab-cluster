@@ -30,7 +30,7 @@ spec:
                     values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03]
       containers:
         - name: mealie
-          image: ghcr.io/mealie-recipes/mealie:v3.27.0
+          image: ghcr.io/mealie-recipes/mealie:v3.28.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
