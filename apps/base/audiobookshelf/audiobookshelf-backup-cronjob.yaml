@@ -34,7 +34,7 @@ spec:
                   topologyKey: kubernetes.io/hostname
           containers:
             - name: backup
-              image: ghcr.io/advplyr/audiobookshelf@sha256:3528a93b6442ffe54bd46771bbbab7c97084e1101071586d9dc2254f30bb4358
+              image: ghcr.io/advplyr/audiobookshelf@sha256:6432d1dc58951b0280b29144ffc69834a8ae02786a2126f6b7c9bd453801c78b
               command: [node, /scripts/backup.js]
               securityContext:
                 allowPrivilegeEscalation: false
