@@ -70,3 +70,19 @@ spec:
         # Webhook routine prefixes SMS texts with this label, e.g. [Skynet].
         externalLabels:
           cluster: Skynet
+    # K3s runs kube-scheduler, kube-controller-manager, and kube-proxy inside
+    # the k3s process, not as pods, and their metrics listen on localhost.
+    # The chart's ServiceMonitors therefore have no targets, and the Down
+    # alerts stay firing. Disable the scrapes and the matching default rules.
+    kubeScheduler:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    defaultRules:
+      rules:
+        kubeSchedulerAlerting: false
+        kubeSchedulerRecording: false
+        kubeControllerManager: false
+        kubeProxy: false
