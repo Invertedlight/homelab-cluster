@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - grafana-admin-secret.yaml
   - grafana-tls-secret.yaml
+  - alertmanager-sms-webhook-secret.yaml
   - audiobookshelf-backup-alerts.yaml
