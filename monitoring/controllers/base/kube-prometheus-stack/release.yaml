@@ -36,3 +36,53 @@ spec:
         ingressClassName: traefik
         hosts:
           - grs.jameshomelab.org
+    alertmanager:
+      alertmanagerSpec:
+        # Mounts Secret alertmanager-sms-webhook at
+        # /etc/alertmanager/secrets/alertmanager-sms-webhook/{url,token}.
+        secrets:
+          - alertmanager-sms-webhook
+      config:
+        route:
+          group_by: ["namespace", "alertname"]
+          group_wait: 30s
+          group_interval: 5m
+          # Re-notify a still-firing alert every 6h.
+          repeat_interval: 6h
+          receiver: sms
+          routes:
+            # Watchdog and InfoInhibitor are always firing; keep them off the phone.
+            - receiver: "null"
+              matchers:
+                - alertname =~ "Watchdog|InfoInhibitor"
+        receivers:
+          - name: "null"
+          - name: sms
+            webhook_configs:
+              - url_file: /etc/alertmanager/secrets/alertmanager-sms-webhook/url
+                send_resolved: true
+                http_config:
+                  authorization:
+                    type: Bearer
+                    credentials_file: /etc/alertmanager/secrets/alertmanager-sms-webhook/token
+    prometheus:
+      prometheusSpec:
+        # Webhook routine prefixes SMS texts with this label, e.g. [Skynet].
+        externalLabels:
+          cluster: Skynet
+    # K3s runs kube-scheduler, kube-controller-manager, and kube-proxy inside
+    # the k3s process, not as pods, and their metrics listen on localhost.
+    # The chart's ServiceMonitors therefore have no targets, and the Down
+    # alerts stay firing. Disable the scrapes and the matching default rules.
+    kubeScheduler:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    defaultRules:
+      rules:
+        kubeSchedulerAlerting: false
+        kubeSchedulerRecording: false
+        kubeControllerManager: false
+        kubeProxy: false
