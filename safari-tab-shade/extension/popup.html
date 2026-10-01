@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Tab Shade</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <header>
+      <h1>Tab Shade</h1>
+      <label class="toggle">
+        <input id="enabled" type="checkbox">
+        <span>On</span>
+      </label>
+    </header>
+
+    <div id="preview" class="tab-preview" aria-hidden="true">
+      <img id="favicon" alt="" width="16" height="16" hidden>
+      <span id="monogram" class="monogram" hidden></span>
+      <span id="tab-title"></span>
+    </div>
+
+    <p id="summary" class="summary"></p>
+    <p id="status" class="status" role="status"></p>
+
+    <div class="modes" role="group" aria-label="Color for this site">
+      <button id="mode-auto" type="button">Automatic</button>
+      <button id="mode-off" type="button">Site default</button>
+    </div>
+
+    <div id="swatches" class="swatches" role="listbox" aria-label="Solid colors"></div>
+
+    <form id="hex-form">
+      <label class="hex-label">
+        Hex
+        <input id="hex" name="hex" type="text" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#2f6fbe">
+      </label>
+      <button type="submit">Set</button>
+    </form>
+
+    <label class="check" id="tab-only-row">
+      <input id="tab-only" type="checkbox">
+      <span>Only this tab</span>
+    </label>
+    <label class="check">
+      <input id="show-strip" type="checkbox">
+      <span>Top strip for Safari 26</span>
+    </label>
+
+    <p id="note" class="note"></p>
+
+    <script src="color.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
