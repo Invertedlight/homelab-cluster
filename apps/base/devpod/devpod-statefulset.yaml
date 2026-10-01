@@ -19,8 +19,6 @@ spec:
         app.kubernetes.io/name: devpod
         app.kubernetes.io/part-of: homelab-dev
     spec:
-      # Workers only, not pinned to one node. Longhorn reattaches the home
-      # volume wherever the pod is rescheduled (WaitForFirstConsumer).
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -51,10 +49,26 @@ spec:
         - name: workspace
           image: mcr.microsoft.com/devcontainers/base:debian
           imagePullPolicy: IfNotPresent
-          # ssh-init.sh must run as root to write host keys and start sshd
-          # on 2222. It then execs sleep. SSH sessions log in as vscode.
-          command: ["/usr/local/share/ssh-init.sh"]
-          args: ["sleep", "infinity"]
+          # base:debian has no /usr/local/share/ssh-init.sh. Install openssh
+          # as root, listen on 2222, then stay up. SSH login is vscode.
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              if ! command -v sshd >/dev/null 2>&1; then
+                apt-get update
+                DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
+              fi
+              mkdir -p /var/run/sshd /home/vscode/.ssh
+              ssh-keygen -A
+              sed -i 's/^#\?Port .*/Port 2222/' /etc/ssh/sshd_config
+              grep -q '^Port 2222' /etc/ssh/sshd_config || echo 'Port 2222' >> /etc/ssh/sshd_config
+              sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+              sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+              chown -R vscode:vscode /home/vscode/.ssh
+              chmod 700 /home/vscode/.ssh
+              /usr/sbin/sshd
+              exec sleep infinity
           securityContext:
             runAsUser: 0
           ports:
