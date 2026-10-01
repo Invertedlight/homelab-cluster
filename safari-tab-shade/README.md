@@ -25,12 +25,13 @@ On a Mac with Xcode:
 ```sh
 cd safari-tab-shade
 ./scripts/convert.sh
-open "Tab Shade/Tab Shade.xcodeproj"
 ```
+
+The script calls `xcrun safari-web-extension-packager` (older Xcode still has `safari-web-extension-converter`) and opens the `.xcodeproj` it wrote. That project is under `build/safari/`, inside a folder named `Tab Shade`, because the tool names the folder from `manifest.json`. The path `Tab Shade/Tab Shade.xcodeproj` is not created.
 
 Run the Tab Shade scheme. In Safari, enable unsigned extensions (Develop menu, or Settings → Developer on Safari 17 and later), then enable Tab Shade under Settings → Extensions. Allow it on all websites. For Safari 26, turn on Settings → Tabs → Show color in tab bar.
 
-`scripts/convert.sh` uses `xcrun safari-web-extension-converter` and writes an Xcode project that is gitignored.
+The generated Xcode project is gitignored.
 
 ## Develop
 
