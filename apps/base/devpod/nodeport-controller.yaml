@@ -92,42 +92,42 @@ spec:
                 while [ "$i" -lt "$replicas" ]; do
                   name="devpod-${i}-ssh"
                   port="$((base + i))"
-                  kubectl -n "$ns" apply -f - <<EOF
-              apiVersion: v1
-              kind: Service
-              metadata:
-                name: ${name}
-                namespace: ${ns}
-                labels:
-                  app.kubernetes.io/name: devpod
-                  app.kubernetes.io/part-of: homelab-dev
-                  app.kubernetes.io/managed-by: devpod-nodeport
-                ownerReferences:
-                  - apiVersion: apps/v1
-                    kind: StatefulSet
-                    name: ${sts}
-                    uid: ${uid}
-              spec:
-                type: NodePort
-                selector:
-                  statefulset.kubernetes.io/pod-name: devpod-${i}
-                ports:
-                  - name: ssh
-                    port: 2222
-                    targetPort: 2222
-                    nodePort: ${port}
-              EOF
+                  printf '%s\n' \
+                    'apiVersion: v1' \
+                    'kind: Service' \
+                    'metadata:' \
+                    "  name: ${name}" \
+                    "  namespace: ${ns}" \
+                    '  labels:' \
+                    '    app.kubernetes.io/name: devpod' \
+                    '    app.kubernetes.io/part-of: homelab-dev' \
+                    '    app.kubernetes.io/managed-by: devpod-nodeport' \
+                    '  ownerReferences:' \
+                    '    - apiVersion: apps/v1' \
+                    '      kind: StatefulSet' \
+                    "      name: ${sts}" \
+                    "      uid: ${uid}" \
+                    'spec:' \
+                    '  type: NodePort' \
+                    '  selector:' \
+                    "    statefulset.kubernetes.io/pod-name: devpod-${i}" \
+                    '  ports:' \
+                    '    - name: ssh' \
+                    '      port: 2222' \
+                    '      targetPort: 2222' \
+                    "      nodePort: ${port}" \
+                    | kubectl -n "$ns" apply -f -
                   i=$((i + 1))
                 done
-                kubectl -n "$ns" get svc -l app.kubernetes.io/managed-by=devpod-nodeport -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read -r name; do
-                  [ -n "$name" ] || continue
-                  ordinal="${name#devpod-}"
+                kubectl -n "$ns" get svc -l app.kubernetes.io/managed-by=devpod-nodeport -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read -r svcname; do
+                  [ -n "$svcname" ] || continue
+                  ordinal="${svcname#devpod-}"
                   ordinal="${ordinal%-ssh}"
                   case "$ordinal" in
                     ''|*[!0-9]*) continue ;;
                   esac
                   if [ "$ordinal" -ge "$replicas" ]; then
-                    kubectl -n "$ns" delete svc "$name"
+                    kubectl -n "$ns" delete svc "$svcname"
                   fi
                 done
                 sleep 20
