@@ -51,13 +51,12 @@ spec:
         - name: workspace
           image: mcr.microsoft.com/devcontainers/base:debian
           imagePullPolicy: IfNotPresent
-          # Image entrypoint is /usr/local/share/ssh-init.sh, which exits
-          # non-zero when it cannot start sshd (port 2222, root-owned paths).
-          # command replaces the entrypoint so the workspace stays up.
-          command: ["sleep", "infinity"]
+          # ssh-init.sh must run as root to write host keys and start sshd
+          # on 2222. It then execs sleep. SSH sessions log in as vscode.
+          command: ["/usr/local/share/ssh-init.sh"]
+          args: ["sleep", "infinity"]
           securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
+            runAsUser: 0
           ports:
             - name: ssh
               containerPort: 2222
