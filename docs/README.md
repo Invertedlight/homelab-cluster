@@ -2,11 +2,18 @@
 
 Operational guides and migration records for the homelab cluster. Migration records describe the environment at the time they were written; follow the prerequisites and current-state checks before executing their commands.
 
+- [Cloudflare Tunnel Operational Changes](Cloudflare%20Tunnel%20Operational%20Changes.docx)
 - [Final Audiobookshelf Migration](Final%20Audiobookshelf%20Migration.docx)
 - [Final Linkding Worker Migration](Final%20Linkding%20Worker%20Migration.docx)
 - [Homelab Application Dashboard Design](Homelab-Dashboard-Design.docx)
 - [Homelab Dashboard Phase 1](Homelab-Dashboard-Phase-1.docx)
 - [Homelab Dashboard Phase 1 Implementation](Homelab-Dashboard-Phase-1-Implementation.docx)
+- [Homelab DevPod on Skynet runbook](Homelab_DevPod_on_Skynet_Runbook.docx)
+- [Homelab DevPod workspace build](Homelab_DevPod_Workspace_Build.docx)
+- [Homelab DevPod CrashLoopBackOff addendum](Homelab_DevPod_CrashLoopBackOff_Addendum.docx)
+- [Homelab DevPod SSH login addendum](Homelab_DevPod_Workspace_Build_Addendum.docx)
+- [Homelab DevPod NodePort addendum](Homelab_DevPod_NodePort_Addendum.docx)
+- [Homelab local GitHub mirror and storage](Homelab_Local_GitHub_Mirror_and_Storage.docx)
 - [Homelab PostgreSQL Migration Operational Runbook](Homelab_PostgreSQL_Migration_Operational_Runbook.docx)
 - [K3s HA topology and recovery runbook](K3s_HA_topology_and_recovery_runbook.docx)
 - [Mealie Deployment Runbook](Mealie_Deployment_Runbook.docx)
