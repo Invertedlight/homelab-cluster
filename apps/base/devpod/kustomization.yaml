@@ -5,3 +5,5 @@ resources:
   - resourcequota.yaml
   - limitrange.yaml
   - devpod-scratch-pvc.yaml
+  - service.yaml
+  - devpod-statefulset.yaml
