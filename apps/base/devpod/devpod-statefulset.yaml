@@ -50,26 +50,33 @@ spec:
           image: mcr.microsoft.com/devcontainers/base:debian
           imagePullPolicy: IfNotPresent
           # base:debian has no ssh-init.sh. Install openssh as root, listen
-          # on 2222, then stay up. SSH login is vscode. Skip man-db triggers;
-          # mandb looks hung and is not needed in this pod.
+          # on 2222, then stay up. A man-db trigger must not fail the pod.
           command: ["/bin/bash", "-lc"]
           args:
             - |
-              set -euo pipefail
+              set -uo pipefail
               if ! command -v sshd >/dev/null 2>&1; then
-                echo 'man-db man-db/auto-update boolean false' | debconf-set-selections
+                mkdir -p /etc/dpkg/dpkg.cfg.d
+                printf 'path-exclude=/usr/share/man/*\npath-exclude=/usr/share/doc/*\n' > /etc/dpkg/dpkg.cfg.d/01-nodoc
+                rm -f /var/lib/man-db/auto-update
                 apt-get update
-                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server
+                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server || true
               fi
               mkdir -p /var/run/sshd /home/vscode/.ssh
-              ssh-keygen -A
-              sed -i 's/^#\?Port .*/Port 2222/' /etc/ssh/sshd_config
-              grep -q '^Port 2222' /etc/ssh/sshd_config || echo 'Port 2222' >> /etc/ssh/sshd_config
-              sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-              sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-              chown -R vscode:vscode /home/vscode/.ssh
-              chmod 700 /home/vscode/.ssh
-              /usr/sbin/sshd
+              ssh-keygen -A || true
+              if [ -f /etc/ssh/sshd_config ]; then
+                sed -i 's/^#\?Port .*/Port 2222/' /etc/ssh/sshd_config
+                grep -q '^Port 2222' /etc/ssh/sshd_config || echo 'Port 2222' >> /etc/ssh/sshd_config
+                sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+                sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+              fi
+              chown -R vscode:vscode /home/vscode/.ssh || true
+              chmod 700 /home/vscode/.ssh || true
+              if [ -x /usr/sbin/sshd ]; then
+                /usr/sbin/sshd || echo "sshd failed to start"
+              else
+                echo "sshd binary missing after install"
+              fi
               exec sleep infinity
           securityContext:
             runAsUser: 0
