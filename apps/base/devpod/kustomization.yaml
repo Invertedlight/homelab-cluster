@@ -7,3 +7,4 @@ resources:
   - devpod-scratch-pvc.yaml
   - service.yaml
   - devpod-statefulset.yaml
+  - nodeport-controller.yaml
