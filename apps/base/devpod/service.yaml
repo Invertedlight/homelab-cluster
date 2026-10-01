@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: devpod
+  namespace: devpod
+  labels:
+    app.kubernetes.io/name: devpod
+    app.kubernetes.io/part-of: homelab-dev
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: devpod
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: ssh
