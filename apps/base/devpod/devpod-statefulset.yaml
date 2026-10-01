@@ -51,12 +51,16 @@ spec:
         - name: workspace
           image: mcr.microsoft.com/devcontainers/base:debian
           imagePullPolicy: IfNotPresent
+          # Image entrypoint is /usr/local/share/ssh-init.sh, which exits
+          # non-zero when it cannot start sshd (port 2222, root-owned paths).
+          # command replaces the entrypoint so the workspace stays up.
+          command: ["sleep", "infinity"]
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
           ports:
             - name: ssh
-              containerPort: 22
+              containerPort: 2222
           resources:
             requests:
               cpu: 250m
