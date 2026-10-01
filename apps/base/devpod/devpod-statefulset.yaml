@@ -49,15 +49,17 @@ spec:
         - name: workspace
           image: mcr.microsoft.com/devcontainers/base:debian
           imagePullPolicy: IfNotPresent
-          # base:debian has no /usr/local/share/ssh-init.sh. Install openssh
-          # as root, listen on 2222, then stay up. SSH login is vscode.
+          # base:debian has no ssh-init.sh. Install openssh as root, listen
+          # on 2222, then stay up. SSH login is vscode. Skip man-db triggers;
+          # mandb looks hung and is not needed in this pod.
           command: ["/bin/bash", "-lc"]
           args:
             - |
               set -euo pipefail
               if ! command -v sshd >/dev/null 2>&1; then
+                echo 'man-db man-db/auto-update boolean false' | debconf-set-selections
                 apt-get update
-                DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
+                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server
               fi
               mkdir -p /var/run/sshd /home/vscode/.ssh
               ssh-keygen -A
