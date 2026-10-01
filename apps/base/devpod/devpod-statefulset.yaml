@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: devpod
+  namespace: devpod
+  labels:
+    app.kubernetes.io/name: devpod
+    app.kubernetes.io/part-of: homelab-dev
+spec:
+  serviceName: devpod
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: devpod
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: devpod
+        app.kubernetes.io/part-of: homelab-dev
+    spec:
+      # Workers only, not pinned to one node. Longhorn reattaches the home
+      # volume wherever the pod is rescheduled (WaitForFirstConsumer).
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03]
+      initContainers:
+        - name: home-perms
+          image: mcr.microsoft.com/devcontainers/base:debian
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /home/vscode
+              if [ ! -f /home/vscode/.profile ]; then
+                cp -a /etc/skel/. /home/vscode/ 2>/dev/null || true
+              fi
+              chown -R 1000:1000 /home/vscode
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: home
+              mountPath: /home/vscode
+      containers:
+        - name: workspace
+          image: mcr.microsoft.com/devcontainers/base:debian
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          ports:
+            - name: ssh
+              containerPort: 22
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: home
+              mountPath: /home/vscode
+            - name: scratch
+              mountPath: /scratch
+      volumes:
+        - name: scratch
+          persistentVolumeClaim:
+            claimName: devpod-scratch
+  volumeClaimTemplates:
+    - metadata:
+        name: home
+        labels:
+          app.kubernetes.io/name: devpod
+          app.kubernetes.io/part-of: homelab-dev
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 20Gi
