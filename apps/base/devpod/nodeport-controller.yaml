@@ -81,8 +81,9 @@ spec:
               sts=devpod
               base=32222
               while true; do
-                replicas="$(kubectl -n "$ns" get sts "$sts" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo '')"
-                if [ -z "$replicas" ]; then
+                replicas="$(kubectl -n "$ns" get sts "$sts" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)"
+                uid="$(kubectl -n "$ns" get sts "$sts" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)"
+                if [ -z "$replicas" ] || [ -z "$uid" ]; then
                   echo "statefulset $sts not found"
                   sleep 20
                   continue
@@ -91,7 +92,7 @@ spec:
                 while [ "$i" -lt "$replicas" ]; do
                   name="devpod-${i}-ssh"
                   port="$((base + i))"
-                  cat <<EOF | kubectl apply -f -
+                  kubectl -n "$ns" apply -f - <<EOF
               apiVersion: v1
               kind: Service
               metadata:
@@ -105,7 +106,7 @@ spec:
                   - apiVersion: apps/v1
                     kind: StatefulSet
                     name: ${sts}
-                    uid: $(kubectl -n "$ns" get sts "$sts" -o jsonpath='{.metadata.uid}')
+                    uid: ${uid}
               spec:
                 type: NodePort
                 selector:
@@ -118,14 +119,15 @@ spec:
               EOF
                   i=$((i + 1))
                 done
-                kubectl -n "$ns" get svc -l app.kubernetes.io/managed-by=devpod-nodeport -o name | while read -r svc; do
-                  ordinal="${svc##*/devpod-}"
+                kubectl -n "$ns" get svc -l app.kubernetes.io/managed-by=devpod-nodeport -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read -r name; do
+                  [ -n "$name" ] || continue
+                  ordinal="${name#devpod-}"
                   ordinal="${ordinal%-ssh}"
                   case "$ordinal" in
                     ''|*[!0-9]*) continue ;;
                   esac
                   if [ "$ordinal" -ge "$replicas" ]; then
-                    kubectl -n "$ns" delete "$svc"
+                    kubectl -n "$ns" delete svc "$name"
                   fi
                 done
                 sleep 20
