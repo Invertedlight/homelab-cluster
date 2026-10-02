@@ -14,6 +14,9 @@ DOTFILES_URL=https://github.com/Invertedlight/dotfiles.git
 SRC_DIR="$HOME/.local/share/chezmoi"
 WORK="$HOME/.cache/devpod-bootstrap"
 export PATH="$HOME/.local/bin:$PATH"
+# vscode login shells use umask 002; match it so chezmoi status does not
+# report mode-only drift on every file written here as root.
+umask 0002
 
 if [ -f "$MARKER" ] && grep -qx "version=$BOOTSTRAP_VERSION" "$MARKER"; then
   echo "devpod-bootstrap: marker version=$BOOTSTRAP_VERSION found, skipping full setup"
