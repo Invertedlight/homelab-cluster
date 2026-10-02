@@ -1,0 +1,74 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: flux-reconciliation
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: flux.reconciliation
+      rules:
+        # gotk_resource_info is an info metric (value 1) from kube-state-metrics
+        # custom resource state. ready/reason are the Ready condition, so a
+        # source whose fetch fails while the last artifact is still stored
+        # (Ready=False, reason=GitOperationFailed) matches ready!="True".
+        # spec.suspend is omitted when false, so the suspended label is absent
+        # and suspended!="true" still matches.
+        - alert: FluxSourceNotReady
+          expr: |
+            gotk_resource_info{
+              customresource_kind=~"GitRepository|HelmRepository|HelmChart|Bucket|OCIRepository|ExternalArtifact",
+              ready!="True",
+              suspended!="true"
+            } == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: Flux {{ $labels.customresource_kind }} {{ $labels.exported_namespace }}/{{ $labels.name }} is not Ready ({{ $labels.reason }})
+            description: Flux source {{ $labels.customresource_kind }} {{ $labels.exported_namespace }}/{{ $labels.name }} has been not Ready for more than 15 minutes. Ready status is {{ $labels.ready }}, reason is {{ $labels.reason }}. Newer commits will not deploy until this source is Ready again.
+        - alert: FluxReconciliationFailed
+          expr: |
+            gotk_resource_info{
+              customresource_kind=~"Kustomization|HelmRelease",
+              ready!="True",
+              suspended!="true"
+            } == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: Flux {{ $labels.customresource_kind }} {{ $labels.exported_namespace }}/{{ $labels.name }} is not Ready ({{ $labels.reason }})
+            description: Flux {{ $labels.customresource_kind }} {{ $labels.exported_namespace }}/{{ $labels.name }} has been not Ready for more than 15 minutes. Ready status is {{ $labels.ready }}, reason is {{ $labels.reason }}.
+        - alert: FluxResourceSuspended
+          expr: |
+            gotk_resource_info{
+              customresource_kind=~"GitRepository|HelmRepository|HelmChart|Bucket|OCIRepository|ExternalArtifact|Kustomization|HelmRelease",
+              suspended="true"
+            } == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Flux {{ $labels.customresource_kind }} {{ $labels.exported_namespace }}/{{ $labels.name }} reconciliation is suspended
+            description: Flux {{ $labels.customresource_kind }} {{ $labels.exported_namespace }}/{{ $labels.name }} has spec.suspend true for more than 15 minutes. Ready status is {{ $labels.ready }}, reason is {{ $labels.reason }}. Suspended objects keep their last Ready condition, so this is the signal that reconciliation is paused.
+        # Controllers are ordinary Deployments already exported by kube-state-metrics.
+        # No PodMonitor: Flux v2.9 controller /metrics do not carry object Ready state.
+        - alert: FluxControllerDown
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="flux-system",
+              deployment=~"source-controller|kustomize-controller|helm-controller"
+            }
+            < on(namespace, deployment)
+            kube_deployment_spec_replicas{
+              namespace="flux-system",
+              deployment=~"source-controller|kustomize-controller|helm-controller"
+            }
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Flux controller {{ $labels.namespace }}/{{ $labels.deployment }} is not fully available
+            description: Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has had fewer available replicas than desired for more than 5 minutes. Flux will not fetch or apply until this controller is running.
