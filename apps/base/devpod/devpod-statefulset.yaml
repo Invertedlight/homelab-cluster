@@ -45,6 +45,32 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/vscode
+        # Base environment: GitHub auth, Invertedlight/dotfiles setup,
+        # mise + tools. Full run only when ~/.devpod-bootstrap-done is
+        # missing (new home volume); otherwise skips. Always exits 0;
+        # result in ~/.devpod-bootstrap.status and ~/.devpod-bootstrap.log.
+        - name: bootstrap
+          image: mcr.microsoft.com/devcontainers/base:debian
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "/opt/devpod-bootstrap/bootstrap.sh"]
+          securityContext:
+            runAsUser: 0
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: home
+              mountPath: /home/vscode
+            - name: bootstrap
+              mountPath: /opt/devpod-bootstrap
+              readOnly: true
+            - name: github-credentials
+              mountPath: /etc/devpod/github
+              readOnly: true
       containers:
         - name: workspace
           image: mcr.microsoft.com/devcontainers/base:debian
@@ -55,6 +81,8 @@ spec:
           args:
             - |
               set -uo pipefail
+              # git credential helper, GH_TOKEN, zsh login shell, mise PATH.
+              /opt/devpod-bootstrap/devpod-runtime.sh || echo "devpod-runtime failed"
               if ! command -v sshd >/dev/null 2>&1; then
                 mkdir -p /etc/dpkg/dpkg.cfg.d
                 printf 'path-exclude=/usr/share/man/*\npath-exclude=/usr/share/doc/*\n' > /etc/dpkg/dpkg.cfg.d/01-nodoc
@@ -95,10 +123,28 @@ spec:
               mountPath: /home/vscode
             - name: scratch
               mountPath: /scratch
+            - name: bootstrap
+              mountPath: /opt/devpod-bootstrap
+              readOnly: true
+            - name: github-credentials
+              mountPath: /etc/devpod/github
+              readOnly: true
       volumes:
         - name: scratch
           persistentVolumeClaim:
             claimName: devpod-scratch
+        - name: bootstrap
+          configMap:
+            name: devpod-bootstrap
+            defaultMode: 0755
+        # SOPS secret from apps/staging/devpod/github-credentials.yaml.
+        # Root-only on disk; devpod-runtime.sh copies the token to
+        # /run/devpod-github (container fs, not the PVC) for vscode.
+        - name: github-credentials
+          secret:
+            secretName: github-credentials
+            optional: true
+            defaultMode: 0400
   volumeClaimTemplates:
     - metadata:
         name: home

@@ -8,3 +8,12 @@ resources:
   - service.yaml
   - devpod-statefulset.yaml
   - nodeport-controller.yaml
+configMapGenerator:
+  # Bootstrap scripts for every DevPod replica. The name gets a content
+  # hash, so editing a script rolls the StatefulSet. No secrets here.
+  - name: devpod-bootstrap
+    namespace: devpod
+    files:
+      - bootstrap/bootstrap.sh
+      - bootstrap/devpod-runtime.sh
+      - bootstrap/git-credential-devpod

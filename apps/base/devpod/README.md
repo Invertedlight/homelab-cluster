@@ -37,3 +37,19 @@ Longhorn will not delete the home PVC if the StatefulSet is removed (`reclaimPol
 - StorageClass: `smb-32tb-devstorage` → `//192.168.71.249/G/DevStorage`
 - Size: 500Gi (quota allows up to 3Ti total / 2Ti per PVC)
 - Access: RWX — mount into DevPod workspaces for bulky on/off scratch
+
+## Base environment bootstrap
+
+Every replica runs initContainer `bootstrap` (`bootstrap/bootstrap.sh`, shipped as ConfigMap `devpod-bootstrap-<hash>` by `configMapGenerator`). As root with `HOME=/home/vscode` it:
+
+1. Installs `curl git sudo zsh` if the image lacks them.
+2. Configures git for `https://github.com` with `/opt/devpod-bootstrap/git-credential-devpod`, which reads the token from Secret `github-credentials` (SOPS, `apps/staging/devpod/github-credentials.yaml`, namespace `devpod` only). No token is written to the home PVC.
+3. Clones `Invertedlight/dotfiles` into `~/.local/share/chezmoi` and runs its `setup` from `~/.cache/devpod-bootstrap` (so `./bin/chezmoi` lands there), then `chezmoi apply`.
+4. Installs mise from https://mise.run if missing, adds activation to `~/.bashrc`/`~/.zshrc` and PATH to `~/.zshenv`/`~/.profile`, trusts and runs `mise install` (bat, chezmoi, starship, vim plus the dotfiles' global tools).
+5. Writes `~/.devpod-bootstrap.status` and `~/.devpod-bootstrap.log`; on success `~/.devpod-bootstrap-done` (`version=N`).
+
+A restart finds the marker and skips. A new home volume (new replica) runs the full setup. To force a rerun, delete the marker or bump `BOOTSTRAP_VERSION`. The init container always exits 0, so read the status file for exit codes.
+
+`workspace` runs `devpod-runtime.sh` on each start for things on the container filesystem: token copy to `/run/devpod-github`, system git credential config, `GH_TOKEN` in `/etc/profile.d`, `chsh -s zsh vscode`, `/usr/local/bin/mise` symlink.
+
+The token in `github-credentials` is the fine-grained homelab token (Contents read/write on `Invertedlight/homelab-cluster` only). Other private Invertedlight repos need a token with those repos added.
