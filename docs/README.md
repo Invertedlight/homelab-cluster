@@ -19,6 +19,7 @@ Operational guides and migration records for the homelab cluster. Migration reco
 - [Mealie Deployment Runbook](Mealie_Deployment_Runbook.docx)
 - [Migrating Linkding from SQLite to Postgres](Migrating%20Linkding%20from%20SQLite%20to%20Postgres.docx)
 - [home-lab-build-doc](home-lab-build-doc.docx)
+- [Tab Shade Safari extension build](Tab_Shade_Safari_Extension_Build.docx)
 - [homelab-postgres](homelab-postgres.md)
 - [k3s-ha-runbook](k3s-ha-runbook.md)
 - [Weekly Ubuntu OS updates (unattended-upgrades + kured)](os-updates.md)
