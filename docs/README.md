@@ -13,6 +13,7 @@ Operational guides and migration records for the homelab cluster. Migration reco
 - [Homelab DevPod CrashLoopBackOff addendum](Homelab_DevPod_CrashLoopBackOff_Addendum.docx)
 - [Homelab DevPod SSH login addendum](Homelab_DevPod_Workspace_Build_Addendum.docx)
 - [Homelab DevPod NodePort addendum](Homelab_DevPod_NodePort_Addendum.docx)
+- [Homelab DevPod bootstrap](Homelab_DevPod_Bootstrap.docx)
 - [Homelab local GitHub mirror and storage](Homelab_Local_GitHub_Mirror_and_Storage.docx)
 - [Homelab PostgreSQL Migration Operational Runbook](Homelab_PostgreSQL_Migration_Operational_Runbook.docx)
 - [K3s HA topology and recovery runbook](K3s_HA_topology_and_recovery_runbook.docx)
