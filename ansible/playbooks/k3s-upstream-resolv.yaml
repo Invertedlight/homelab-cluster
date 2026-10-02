@@ -11,6 +11,19 @@
   vars:
     restart_k3s: false
   tasks:
+    # Agents installed with CLI flags only (e.g. skynet-wrk-01) have no
+    # /etc/rancher/k3s yet, so create it before copying anything into it.
+    - name: Ensure k3s config and drop-in directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /etc/rancher/k3s
+        - /etc/rancher/k3s/config.yaml.d
+
     - name: Install kubelet upstream resolv.conf
       ansible.builtin.copy:
         src: ../files/k3s-upstream-resolv.conf
@@ -18,14 +31,6 @@
         owner: root
         group: root
         mode: "0644"
-
-    - name: Ensure k3s config drop-in directory exists
-      ansible.builtin.file:
-        path: /etc/rancher/k3s/config.yaml.d
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
 
     - name: Install k3s kubelet resolv-conf drop-in
       ansible.builtin.copy:
