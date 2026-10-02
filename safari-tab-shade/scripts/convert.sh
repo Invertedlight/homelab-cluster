@@ -24,9 +24,15 @@ out=build/safari
 rm -rf "$out"
 mkdir -p "$out"
 
+# --bundle-identifier is the host app id. --app-name names the project; it does
+# not stop --macos-only from rewriting that id. Passing --app-name to an old
+# packager is unsafe: unknown flags make it write nothing. The converter accepts it.
+app_id=com.invertedlight.tabshade
+app_name="Tab Shade"
+
 set -- \
   --project-location "$out" \
-  --bundle-identifier "com.invertedlight.tabshade" \
+  --bundle-identifier "$app_id" \
   --swift \
   --macos-only \
   --copy-resources \
@@ -34,10 +40,8 @@ set -- \
   --no-prompt \
   --no-open
 
-# The older converter still takes --app-name. The packager rejects unknown flags
-# and then writes nothing.
 if [ "$tool" = "safari-web-extension-converter" ]; then
-  set -- "$@" --app-name "Tab Shade"
+  set -- "$@" --app-name "$app_name"
 fi
 
 echo "Running: xcrun $tool $* extension"
@@ -49,6 +53,19 @@ if [ -z "$project" ]; then
   find "$out" -print >&2
   exit 1
 fi
+
+# With --macos-only the packager rewrites the app target's id from the
+# manifest name ("Tab Shade" -> com.invertedlight.Tab-Shade) and leaves the
+# extension at com.invertedlight.tabshade.Extension. Xcode then errors:
+# "Embedded binary's bundle identifier is not prefixed with the parent
+# app's bundle identifier." --app-name does not correct that; it only
+# titles the project. Put the app id back from each target's product type
+# and refuse to open the project if any id still misses the prefix.
+if ! command -v node >/dev/null 2>&1; then
+  echo "node is required to correct the generated bundle ids." >&2
+  exit 1
+fi
+node "./scripts/fix-bundle-id.mjs" "$project" "$app_id"
 
 echo "Xcode project: $(pwd)/$project"
 open "$project"

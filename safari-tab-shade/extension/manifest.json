@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Tab Shade",
-  "version": "1.0.0",
-  "description": "Gives each website a solid Safari tab color. Site icons and titles stay as they are.",
+  "version": "1.1.0",
+  "description": "Marks each Safari tab with its own color: an emoji in the title, a colored icon, and a tab-bar shade.",
   "permissions": ["storage", "tabs", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {

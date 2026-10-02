@@ -23,10 +23,29 @@
     <p id="summary" class="summary"></p>
     <p id="status" class="status" role="status"></p>
 
+    <h2>Markers</h2>
+    <label class="check">
+      <input id="show-emoji" type="checkbox">
+      <span>Emoji in the title</span>
+    </label>
+    <label class="check">
+      <input id="show-favicon" type="checkbox">
+      <span>Colored icon</span>
+    </label>
+    <label class="check">
+      <input id="show-strip" type="checkbox">
+      <span>Top strip for Safari 26</span>
+    </label>
+
+    <h2>This site</h2>
     <div class="modes" role="group" aria-label="Color for this site">
       <button id="mode-auto" type="button">Automatic</button>
       <button id="mode-off" type="button">Site default</button>
     </div>
+    <label class="check" id="subdomains-row">
+      <input id="subdomains" type="checkbox">
+      <span>Include subdomains</span>
+    </label>
 
     <div id="swatches" class="swatches" role="listbox" aria-label="Solid colors"></div>
 
@@ -42,10 +61,18 @@
       <input id="tab-only" type="checkbox">
       <span>Only this tab</span>
     </label>
-    <label class="check">
-      <input id="show-strip" type="checkbox">
-      <span>Top strip for Safari 26</span>
-    </label>
+
+    <h2>Several tabs</h2>
+    <p class="hint">Same color on the tabs you pick. Safari does not tell extensions about tab groups, so this list is the current window.</p>
+    <div class="row-buttons">
+      <button id="window-color" type="button">This window</button>
+      <button id="window-clear" type="button">Clear window</button>
+    </div>
+    <ul id="tab-list" class="tab-list"></ul>
+    <div class="row-buttons">
+      <button id="selected-color" type="button">Color selected</button>
+      <button id="selected-clear" type="button">Clear selected</button>
+    </div>
 
     <p id="note" class="note"></p>
 
