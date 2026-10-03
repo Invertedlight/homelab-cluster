@@ -24,11 +24,12 @@ fi
 # the ConfigMap copy has no key lines, so a bad edit can't lock everyone out.
 AK_SRC=/opt/devpod-bootstrap/authorized_keys
 AK_DIR="$DEV_HOME/.ssh"
-if [ -f "$AK_SRC" ] && grep -qE '^(ssh-|ecdsa-|sk-)' "$AK_SRC"; then
+AK_KEYS='^(from="[^"]*" +)?(ssh-|ecdsa-|sk-)'
+if [ -f "$AK_SRC" ] && grep -qE "$AK_KEYS" "$AK_SRC"; then
   install -d -m 0700 -o 1000 -g 1000 "$AK_DIR"
   install -m 0600 -o 1000 -g 1000 "$AK_SRC" "$AK_DIR/authorized_keys.new"
   mv -f "$AK_DIR/authorized_keys.new" "$AK_DIR/authorized_keys"
-  echo "devpod-runtime: authorized_keys written from repo ($(grep -cE '^(ssh-|ecdsa-|sk-)' "$AK_SRC") keys)"
+  echo "devpod-runtime: authorized_keys written from repo ($(grep -cE "$AK_KEYS" "$AK_SRC") keys)"
 else
   echo "devpod-runtime: no keys in $AK_SRC; leaving existing authorized_keys"
 fi
@@ -48,6 +49,38 @@ if ls "$HK_SRC"/ssh_host_*_key >/dev/null 2>&1; then
   echo "devpod-runtime: persistent SSH host keys installed"
 else
   echo "devpod-runtime: no SSH host key Secret; sshd will generate throwaway keys"
+fi
+
+# Pod-to-pod SSH (Secret devpod/devpod-internal-ssh, mounted only in
+# workspace): install the internal client key, a system ssh client config for
+# the devpod-N short names, and a system known_hosts built from the shared
+# host keys, so "ssh devpod-1" works between replicas with no prompt.
+# Lives in /etc (container fs) so chezmoi-managed ~/.ssh files are untouched.
+IK_SRC=/etc/devpod/internal-ssh/id_ed25519
+if [ -s "$IK_SRC" ]; then
+  install -d -m 0700 -o 1000 -g 1000 "$DEV_HOME/.ssh"
+  install -m 0600 -o 1000 -g 1000 "$IK_SRC" "$DEV_HOME/.ssh/id_ed25519_devpod"
+  [ -s "$IK_SRC.pub" ] && install -m 0644 -o 1000 -g 1000 "$IK_SRC.pub" "$DEV_HOME/.ssh/id_ed25519_devpod.pub"
+  mkdir -p /etc/ssh/ssh_config.d
+  cat > /etc/ssh/ssh_config.d/devpod.conf <<'SSHCFG'
+# Managed by devpod-runtime.sh (homelab-cluster). Pod-to-pod SSH by short name.
+Host devpod-* !devpod-*.*
+  HostName %h.devpod.devpod.svc.cluster.local
+  Port 2222
+  User vscode
+  IdentityFile ~/.ssh/id_ed25519_devpod
+  IdentitiesOnly yes
+SSHCFG
+  chmod 0644 /etc/ssh/ssh_config.d/devpod.conf
+  : > /etc/ssh/ssh_known_hosts
+  for pub in "$HK_SRC"/ssh_host_*_key.pub; do
+    [ -s "$pub" ] || continue
+    printf '%s %s\n' 'devpod-*,[devpod-*.devpod.devpod.svc.cluster.local]:2222,[devpod-*]:2222' "$(awk '{print $1, $2}' "$pub")" >> /etc/ssh/ssh_known_hosts
+  done
+  chmod 0644 /etc/ssh/ssh_known_hosts
+  echo "devpod-runtime: pod-to-pod SSH key, client config and known_hosts installed"
+else
+  echo "devpod-runtime: no internal SSH key Secret; pod-to-pod SSH not configured"
 fi
 
 # SOPS age private key (Secret devpod/sops-age, mounted only in workspace).

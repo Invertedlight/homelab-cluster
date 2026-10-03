@@ -162,6 +162,11 @@ spec:
             - name: ssh-host-keys
               mountPath: /etc/devpod/ssh-host-keys
               readOnly: true
+            # Pod-to-pod SSH client key (Secret devpod/devpod-internal-ssh,
+            # created by kubectl out of band, not in Git).
+            - name: internal-ssh
+              mountPath: /etc/devpod/internal-ssh
+              readOnly: true
       volumes:
         - name: scratch
           persistentVolumeClaim:
@@ -192,6 +197,13 @@ spec:
         - name: ssh-host-keys
           secret:
             secretName: devpod-ssh-host-keys
+            optional: true
+            defaultMode: 0400
+        # Shared ed25519 key for pod-to-pod SSH (public half is in
+        # bootstrap/authorized_keys). NOT in Git; see README.
+        - name: internal-ssh
+          secret:
+            secretName: devpod-internal-ssh
             optional: true
             defaultMode: 0400
   volumeClaimTemplates:

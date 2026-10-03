@@ -57,6 +57,27 @@ Flux doesn't prune it (it isn't in Git). To remove the key from the pods: `kubec
 - **Remove a Mac:** delete its line, commit and push. After the rollout that key is revoked on every replica.
 - **Check:** `kubectl -n devpod exec devpod-N -c workspace -- ssh-keygen -lf /home/vscode/.ssh/authorized_keys`.
 
+### Pod-to-pod SSH (`Secret devpod/devpod-internal-ssh`, not in Git)
+
+Replicas can SSH to each other by short name: `ssh devpod-1 hostname`, `scp f devpod-1:`, `rsync -a dir/ devpod-1:dir/`.
+
+- Key: one ed25519 pair (comment `devpod-internal`, `SHA256:wEg59Nbjp9s6181SaeJUxWVtC0g+CE2bxtMsL/YSEYc`). The private half lives only in Secret `devpod/devpod-internal-ssh` (keys `id_ed25519`, `id_ed25519.pub`), created with kubectl and **never committed**. The public half is in `bootstrap/authorized_keys` with `from="10.42.0.0/16"` (pod network; pod-to-pod traffic keeps the pod IP). cloudflared pods are in that range too, so this narrows the key rather than isolating it.
+- On each start `devpod-runtime.sh` installs `~/.ssh/id_ed25519_devpod` (0600, vscode), writes `/etc/ssh/ssh_config.d/devpod.conf` (`Host devpod-* !devpod-*.*` → `%h.devpod.devpod.svc.cluster.local`, port 2222, that key, `IdentitiesOnly yes`) and `/etc/ssh/ssh_known_hosts` from the shared host keys, so there's no host key prompt. Nothing in chezmoi-managed `~/.ssh` files is touched.
+
+Create or rotate (from a Mac with cluster access; nothing printed but the public key and fingerprint):
+
+```sh
+bash -c '
+set -e; d=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; umask 077
+ssh-keygen -q -t ed25519 -N "" -C devpod-internal -f "$d/id_ed25519"
+kubectl -n devpod delete secret devpod-internal-ssh --ignore-not-found
+kubectl -n devpod create secret generic devpod-internal-ssh \
+  --from-file=id_ed25519="$d/id_ed25519" --from-file=id_ed25519.pub="$d/id_ed25519.pub" >/dev/null
+ssh-keygen -lf "$d/id_ed25519.pub"; cat "$d/id_ed25519.pub"'
+```
+
+After a rotation, replace the `devpod-internal` line in `bootstrap/authorized_keys` with the new public key (keep the `from=` prefix) and push; Flux rolls every replica.
+
 ### SSH host keys (`Secret devpod/devpod-ssh-host-keys`, not in Git)
 
 sshd's host keys (ed25519, rsa, ecdsa) live in a Secret created with kubectl, **never committed**, shared by every replica so `devpod-0` and `devpod-1` present the same fingerprint and it survives restarts. The workspace container mounts it read-only at `/etc/devpod/ssh-host-keys` (`optional: true`); `devpod-runtime.sh` copies the keys to `/etc/ssh` (private 0600, `.pub` 0644, root) before sshd starts. Without the Secret the pod falls back to `ssh-keygen -A`, and the fingerprint changes on every restart.

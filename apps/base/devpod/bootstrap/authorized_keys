@@ -6,3 +6,8 @@
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILsJOJoQ3ER+1depvyKbowRDYCuMzv3TrmQfiReNifSN cyberstar@M5.local
 # Mac mini (SHA256:94wTnD+20VEazwsIfbXdS8+pTOAfWJWKKKi+iquPrL4)
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHCwtsmUTypZCoxGRvWqfuWrUSI1iXT7XROuC29aJHTP cyberstar@Mac-mini.local
+# Pod-to-pod key (SHA256:wEg59Nbjp9s6181SaeJUxWVtC0g+CE2bxtMsL/YSEYc). Private half only in
+# Secret devpod/devpod-internal-ssh (not in Git). from= limits it to pod-network sources
+# (10.42.0.0/16; pod-to-pod traffic is not SNATed). Note: cloudflared pods are also in
+# that range, so this narrows rather than fully isolates the key.
+from="10.42.0.0/16" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkwMQOk4B8XXmud/rvynmQDuOLOzNgyhe8pXmM3MREw devpod-internal
