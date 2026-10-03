@@ -23,6 +23,13 @@ spec:
       # the mounted token (in-cluster config), no kubeconfig needed.
       serviceAccountName: devpod
       automountServiceAccountToken: true
+      # Containers run as root, so the projected SA token would be root-only
+      # (0600). fsGroup 1000 makes it group-readable for vscode (kubectl over
+      # SSH). OnRootMismatch: the Longhorn home root is already 1000:1000, so
+      # no recursive chown; the RWX SMB scratch is skipped by its CSI policy.
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

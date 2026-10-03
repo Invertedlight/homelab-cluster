@@ -28,7 +28,7 @@ Longhorn will not delete the home PVC if the StatefulSet is removed (`reclaimPol
 
 The workspace runs as ServiceAccount `devpod` (`serviceaccount-devpod.yaml`), bound to the built-in ClusterRole `cluster-admin` by ClusterRoleBinding `devpod-cluster-admin` (`clusterrolebinding-devpod-admin.yaml`). James chose full cluster-admin on 2026-10-03.
 
-- `kubectl` (from mise) uses in-cluster config: the token mounted at `/var/run/secrets/kubernetes.io/serviceaccount/` plus `KUBERNETES_SERVICE_HOST`. No `~/.kube/config` and no k3s install are needed. Don't copy a kubeconfig into the pod; it would override in-cluster config.
+- `kubectl` (from mise) uses in-cluster config: the token mounted at `/var/run/secrets/kubernetes.io/serviceaccount/` plus `KUBERNETES_SERVICE_HOST`. SSH sessions don't inherit the container env, so `devpod-runtime.sh` writes `KUBERNETES_SERVICE_HOST`/`KUBERNETES_SERVICE_PORT` (and `SOPS_AGE_KEY_FILE`) to `/etc/environment`, which PAM loads for sshd and `su -`. The pod sets `fsGroup: 1000` so the SA token is readable by `vscode` (containers run as root, which would otherwise make it 0600 root). No `~/.kube/config` and no k3s install are needed. Don't copy a kubeconfig into the pod; it would override in-cluster config.
 - `flux`, `helm`, `kustomize` and `k9s` come from the dotfiles' mise config.
 - This is full admin, and the pod is reachable from the internet through the Cloudflare tunnel (Access + SSH key). Anyone in the pod can change or delete anything, including PVCs.
 - The SOPS age private key **is** in the pod (James's choice, 2026-10-03; cluster-admin can read it anyway). See below.

@@ -70,6 +70,18 @@ if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
 fi
 PROF
 
+# SSH and "su -" sessions don't inherit the container env, so kubectl's
+# in-cluster config (KUBERNETES_SERVICE_HOST/PORT + the mounted SA token)
+# would fall back to localhost:8080. pam_env reads /etc/environment for
+# sshd and su regardless of shell (zsh skips /etc/profile.d).
+sed -i '/^KUBERNETES_SERVICE_HOST=/d;/^KUBERNETES_SERVICE_PORT=/d;/^SOPS_AGE_KEY_FILE=/d' /etc/environment 2>/dev/null || true
+if [ -n "${KUBERNETES_SERVICE_HOST:-}" ]; then
+  printf 'KUBERNETES_SERVICE_HOST=%s\nKUBERNETES_SERVICE_PORT=%s\n' "$KUBERNETES_SERVICE_HOST" "${KUBERNETES_SERVICE_PORT:-443}" >> /etc/environment
+fi
+if [ -r "${AGE_DIR}/keys.txt" ]; then
+  echo "SOPS_AGE_KEY_FILE=${AGE_DIR}/keys.txt" >> /etc/environment
+fi
+
 # The dotfiles setup runs "sudo chsh -s zsh $USER"; /etc/passwd is not
 # on the PVC, so repeat it on every start.
 if command -v zsh >/dev/null 2>&1; then
