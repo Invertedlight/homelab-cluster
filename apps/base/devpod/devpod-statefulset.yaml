@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/part-of: homelab-dev
 spec:
   serviceName: devpod
-  replicas: 1
+  replicas: 2
   podManagementPolicy: Parallel
   selector:
     matchLabels:
