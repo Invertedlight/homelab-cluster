@@ -19,6 +19,10 @@ spec:
         app.kubernetes.io/name: devpod
         app.kubernetes.io/part-of: homelab-dev
     spec:
+      # cluster-admin via clusterrolebinding-devpod-admin.yaml; kubectl uses
+      # the mounted token (in-cluster config), no kubeconfig needed.
+      serviceAccountName: devpod
+      automountServiceAccountToken: true
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

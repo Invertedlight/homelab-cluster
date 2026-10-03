@@ -24,6 +24,16 @@ Bump `spec.replicas`. Each ordinal gets its own Longhorn home PVC and can land o
 
 Longhorn will not delete the home PVC if the StatefulSet is removed (`reclaimPolicy: Retain`).
 
+## Cluster access (kubectl in the pod)
+
+The workspace runs as ServiceAccount `devpod` (`serviceaccount-devpod.yaml`), bound to the built-in ClusterRole `cluster-admin` by ClusterRoleBinding `devpod-cluster-admin` (`clusterrolebinding-devpod-admin.yaml`). James chose full cluster-admin on 2026-10-03.
+
+- `kubectl` (from mise) uses in-cluster config: the token mounted at `/var/run/secrets/kubernetes.io/serviceaccount/` plus `KUBERNETES_SERVICE_HOST`. No `~/.kube/config` and no k3s install are needed. Don't copy a kubeconfig into the pod; it would override in-cluster config.
+- `flux`, `helm`, `kustomize` and `k9s` come from the dotfiles' mise config.
+- This is full admin, and the pod is reachable from the internet through the Cloudflare tunnel (Access + SSH key). Anyone in the pod can change or delete anything, including PVCs.
+- The SOPS age private key is intentionally **not** in the pod, so SOPS secrets can't be decrypted or edited here. Do secret edits on the Macs.
+- To reduce access, change `roleRef.name` in `clusterrolebinding-devpod-admin.yaml` (e.g. to `view`) and push.
+
 ## Scratch storage (`smb-32tb`)
 
 - Appliance: `32TB_SSD` @ `192.168.71.249`, share `G` (guest).

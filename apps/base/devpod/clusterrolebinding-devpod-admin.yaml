@@ -1,0 +1,21 @@
+# Full cluster-admin for the DevPod workspace service account.
+# James chose this on 2026-10-03, knowing the DevPod is reachable from the
+# internet over the Cloudflare tunnel (behind Access + SSH key) and that
+# anyone in the pod could change or delete anything in the cluster,
+# including PVCs. The SOPS age private key is intentionally NOT in the pod.
+# To reduce access later, point roleRef at a narrower ClusterRole (e.g. view).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devpod-cluster-admin
+  labels:
+    app.kubernetes.io/name: devpod
+    app.kubernetes.io/part-of: homelab-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: devpod
+    namespace: devpod

@@ -6,6 +6,8 @@ resources:
   - limitrange.yaml
   - devpod-scratch-pvc.yaml
   - service.yaml
+  - serviceaccount-devpod.yaml
+  - clusterrolebinding-devpod-admin.yaml
   - devpod-statefulset.yaml
   - nodeport-controller.yaml
 configMapGenerator:
