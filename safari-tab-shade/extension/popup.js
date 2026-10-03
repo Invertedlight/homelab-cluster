@@ -237,7 +237,7 @@
     }));
 
     renderTabs();
-    els.note.textContent = "Safari paints the tab bar from the tab you are looking at. The emoji stays at the front of the title, so it remains when the title is cut off. Safari may keep a site’s cached icon. On Safari 26 the strip needs Settings → Tabs → Show color in tab bar.";
+    els.note.textContent = "Safari paints the tab bar from the tab you are looking at. The emoji stays at the front of the title, so it remains when the title is cut off. Safari may keep a cached site icon. On a Mac, Safari 26 needs Settings → Tabs → Show color in tab bar for the strip. iPhone and iPad use the page theme color instead of that strip.";
   }
 
   function say(message) {
