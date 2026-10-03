@@ -2,7 +2,8 @@
 # James chose this on 2026-10-03, knowing the DevPod is reachable from the
 # internet over the Cloudflare tunnel (behind Access + SSH key) and that
 # anyone in the pod could change or delete anything in the cluster,
-# including PVCs. The SOPS age private key is intentionally NOT in the pod.
+# including PVCs. The SOPS age key is also in the pod (Secret devpod/sops-age,
+# created out of band; see README), also James's choice on 2026-10-03.
 # To reduce access later, point roleRef at a narrower ClusterRole (e.g. view).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

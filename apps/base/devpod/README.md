@@ -31,8 +31,23 @@ The workspace runs as ServiceAccount `devpod` (`serviceaccount-devpod.yaml`), bo
 - `kubectl` (from mise) uses in-cluster config: the token mounted at `/var/run/secrets/kubernetes.io/serviceaccount/` plus `KUBERNETES_SERVICE_HOST`. No `~/.kube/config` and no k3s install are needed. Don't copy a kubeconfig into the pod; it would override in-cluster config.
 - `flux`, `helm`, `kustomize` and `k9s` come from the dotfiles' mise config.
 - This is full admin, and the pod is reachable from the internet through the Cloudflare tunnel (Access + SSH key). Anyone in the pod can change or delete anything, including PVCs.
-- The SOPS age private key is intentionally **not** in the pod, so SOPS secrets can't be decrypted or edited here. Do secret edits on the Macs.
+- The SOPS age private key **is** in the pod (James's choice, 2026-10-03; cluster-admin can read it anyway). See below.
 - To reduce access, change `roleRef.name` in `clusterrolebinding-devpod-admin.yaml` (e.g. to `view`) and push.
+
+### SOPS age key (`Secret devpod/sops-age`, not in Git)
+
+`sops` and `age` come from the dotfiles' mise config. The private key is a copy of `flux-system/sops-age` (key `age.agekey`) made with kubectl, **never committed**. Every replica mounts it read-only at `/etc/sops-age` (root-only, `optional: true`). On each start `devpod-runtime.sh` copies it to `/run/devpod-sops/keys.txt` (vscode, 0400, container fs, not the PVC), symlinks `~/.config/sops/age/keys.txt` to it (sops' default path) and sets `SOPS_AGE_KEY_FILE` in `/etc/profile.d/devpod-sops.sh`.
+
+Recreate it (e.g. after the namespace is rebuilt or the key is rotated) from a Mac with cluster access, without printing the key:
+
+```sh
+kubectl get secret sops-age -n flux-system -o json \
+  | jq 'del(.metadata.namespace,.metadata.uid,.metadata.resourceVersion,.metadata.creationTimestamp,.metadata.ownerReferences,.metadata.annotations,.metadata.managedFields,.metadata.labels) | .metadata.namespace="devpod"' \
+  | kubectl apply -f - >/dev/null
+kubectl -n devpod rollout restart statefulset/devpod
+```
+
+Flux doesn't prune it (it isn't in Git). To remove the key from the pods: `kubectl -n devpod delete secret sops-age` and restart the StatefulSet.
 
 ## Scratch storage (`smb-32tb`)
 

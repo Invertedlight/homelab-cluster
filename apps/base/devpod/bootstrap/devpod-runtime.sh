@@ -18,6 +18,28 @@ else
   echo "devpod-runtime: no GitHub token mounted; private repos will not clone"
 fi
 
+# SOPS age private key (Secret devpod/sops-age, mounted only in workspace).
+# Copy to the container fs for vscode; ~/.config/sops/age/keys.txt (sops'
+# default path) is only a symlink, so the key never lands on the home PVC.
+AGE_SRC=/etc/sops-age/age.agekey
+AGE_DIR=/run/devpod-sops
+if [ -s "$AGE_SRC" ]; then
+  mkdir -p "$AGE_DIR"
+  install -m 0400 -o 1000 -g 1000 "$AGE_SRC" "$AGE_DIR/keys.txt"
+  chmod 0500 "$AGE_DIR"; chown 1000:1000 "$AGE_DIR"
+  install -d -m 0700 -o 1000 -g 1000 "$DEV_HOME/.config/sops" "$DEV_HOME/.config/sops/age"
+  if [ ! -e "$DEV_HOME/.config/sops/age/keys.txt" ] || [ -L "$DEV_HOME/.config/sops/age/keys.txt" ]; then
+    ln -sfn "$AGE_DIR/keys.txt" "$DEV_HOME/.config/sops/age/keys.txt"
+    chown -h 1000:1000 "$DEV_HOME/.config/sops/age/keys.txt"
+  fi
+  cat > /etc/profile.d/devpod-sops.sh <<'PROF'
+if [ -r /run/devpod-sops/keys.txt ]; then SOPS_AGE_KEY_FILE=/run/devpod-sops/keys.txt; export SOPS_AGE_KEY_FILE; fi
+PROF
+  echo "devpod-runtime: SOPS age key present"
+else
+  echo "devpod-runtime: no SOPS age key mounted; sops -d will not work"
+fi
+
 # System git config: helper for github.com over HTTPS, never prompt.
 git config --system credential.https://github.com.helper /opt/devpod-bootstrap/git-credential-devpod
 git config --system credential.https://github.com.username x-access-token
