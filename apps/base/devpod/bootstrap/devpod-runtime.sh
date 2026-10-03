@@ -33,6 +33,13 @@ case ":$PATH:" in *":/home/vscode/.local/bin:"*) ;; *) PATH="/home/vscode/.local
 export PATH
 PROF
 ln -sf "$DEV_HOME/.local/bin/mise" /usr/local/bin/mise 2>/dev/null || true
+# Homebrew (on the home PVC) for every login shell, including bash login
+# shells that never reach the dotfiles' interactive .bashrc.
+cat > /etc/profile.d/devpod-brew.sh <<'PROF'
+if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+  case ":$PATH:" in *":/home/linuxbrew/.linuxbrew/bin:"*) ;; *) eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)";; esac
+fi
+PROF
 
 # The dotfiles setup runs "sudo chsh -s zsh $USER"; /etc/passwd is not
 # on the PVC, so repeat it on every start.
