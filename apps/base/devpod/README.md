@@ -49,6 +49,26 @@ kubectl -n devpod rollout restart statefulset/devpod
 
 Flux doesn't prune it (it isn't in Git). To remove the key from the pods: `kubectl -n devpod delete secret sops-age` and restart the StatefulSet.
 
+### SSH host keys (`Secret devpod/devpod-ssh-host-keys`, not in Git)
+
+sshd's host keys (ed25519, rsa, ecdsa) live in a Secret created with kubectl, **never committed**, shared by every replica so `devpod-0` and `devpod-1` present the same fingerprint and it survives restarts. The workspace container mounts it read-only at `/etc/devpod/ssh-host-keys` (`optional: true`); `devpod-runtime.sh` copies the keys to `/etc/ssh` (private 0600, `.pub` 0644, root) before sshd starts. Without the Secret the pod falls back to `ssh-keygen -A`, and the fingerprint changes on every restart.
+
+Create or rotate it (from a Mac with cluster access; nothing is printed and the temp dir is removed):
+
+```sh
+bash -c '
+set -e; d=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; umask 077
+for t in ed25519 rsa ecdsa; do b=""; [ $t = rsa ] && b="-b 4096"
+  ssh-keygen -q -t $t $b -N "" -C root@devpod -f "$d/ssh_host_${t}_key"; done
+args=(); for f in "$d"/ssh_host_*; do args+=("--from-file=$(basename "$f")=$f"); done
+kubectl -n devpod delete secret devpod-ssh-host-keys --ignore-not-found
+kubectl -n devpod create secret generic devpod-ssh-host-keys "${args[@]}" >/dev/null
+for t in ed25519 rsa ecdsa; do ssh-keygen -lf "$d/ssh_host_${t}_key.pub"; done'
+kubectl -n devpod rollout restart statefulset/devpod
+```
+
+After a rotation, on each Mac run `ssh-keygen -R devpod-0` and `ssh-keygen -R devpod-1`, then reconnect and accept the new fingerprint (or add the new `ssh_host_ed25519_key.pub` to `~/.ssh/known_hosts` as `devpod-0 ssh-ed25519 …` and `devpod-1 ssh-ed25519 …`).
+
 ## Scratch storage (`smb-32tb`)
 
 - Appliance: `32TB_SSD` @ `192.168.71.249`, share `G` (guest).

@@ -102,7 +102,12 @@ spec:
                 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server file || true
               fi
               mkdir -p /var/run/sshd /home/vscode/.ssh
-              ssh-keygen -A || true
+              # Host keys come from Secret devpod-ssh-host-keys (copied by
+              # devpod-runtime.sh). Generate throwaway keys only if absent.
+              if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
+                echo "no persistent host keys; generating (will change on restart)"
+                ssh-keygen -A || true
+              fi
               if [ -f /etc/ssh/sshd_config ]; then
                 sed -i 's/^#\?Port .*/Port 2222/' /etc/ssh/sshd_config
                 grep -q '^Port 2222' /etc/ssh/sshd_config || echo 'Port 2222' >> /etc/ssh/sshd_config
@@ -152,6 +157,11 @@ spec:
             - name: sops-age
               mountPath: /etc/sops-age
               readOnly: true
+            # SSH host keys (Secret devpod/devpod-ssh-host-keys, created by
+            # kubectl out of band, not in Git). Shared by all replicas.
+            - name: ssh-host-keys
+              mountPath: /etc/devpod/ssh-host-keys
+              readOnly: true
       volumes:
         - name: scratch
           persistentVolumeClaim:
@@ -175,6 +185,13 @@ spec:
         - name: sops-age
           secret:
             secretName: sops-age
+            optional: true
+            defaultMode: 0400
+        # Persistent sshd host keys so the fingerprint survives restarts.
+        # NOT in Git; see README. devpod-runtime.sh copies them to /etc/ssh.
+        - name: ssh-host-keys
+          secret:
+            secretName: devpod-ssh-host-keys
             optional: true
             defaultMode: 0400
   volumeClaimTemplates:

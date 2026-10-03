@@ -18,6 +18,23 @@ else
   echo "devpod-runtime: no GitHub token mounted; private repos will not clone"
 fi
 
+# Persistent SSH host keys (Secret devpod/devpod-ssh-host-keys, mounted only
+# in workspace). Copy before sshd is installed/started so the fingerprint is
+# the same on every restart and every replica. Without the Secret the
+# workspace command falls back to ssh-keygen -A (keys change on restart).
+HK_SRC=/etc/devpod/ssh-host-keys
+if ls "$HK_SRC"/ssh_host_*_key >/dev/null 2>&1; then
+  mkdir -p /etc/ssh
+  for k in "$HK_SRC"/ssh_host_*_key; do
+    n=$(basename "$k")
+    install -m 0600 -o 0 -g 0 "$k" "/etc/ssh/$n"
+    [ -s "$k.pub" ] && install -m 0644 -o 0 -g 0 "$k.pub" "/etc/ssh/$n.pub"
+  done
+  echo "devpod-runtime: persistent SSH host keys installed"
+else
+  echo "devpod-runtime: no SSH host key Secret; sshd will generate throwaway keys"
+fi
+
 # SOPS age private key (Secret devpod/sops-age, mounted only in workspace).
 # Copy to the container fs for vscode; ~/.config/sops/age/keys.txt (sops'
 # default path) is only a symlink, so the key never lands on the home PVC.
