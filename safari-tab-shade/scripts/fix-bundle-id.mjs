@@ -138,6 +138,57 @@ export function rewriteProjectBundleIds(content, appId) {
   return { content: next, ids };
 }
 
+const TEAM_ID = /^[A-Z0-9]{10}$/;
+
+function isIOSBuild(body) {
+  return /IPHONEOS_DEPLOYMENT_TARGET = /.test(body) || /SDKROOT = iphoneos;/.test(body);
+}
+
+function upsertSetting(body, name, value) {
+  const line = new RegExp(`^([ \\t]*)${name} = (?:"[^"]*"|[^;\\n]+);`, "m");
+  if (line.test(body)) return body.replace(line, `$1${name} = ${value};`);
+  const anchor = body.match(/^([ \t]*)PRODUCT_BUNDLE_IDENTIFIER = (?:"[^"]*"|[^;\n]+);/m);
+  const indent = anchor ? anchor[1] : "\t\t\t\t";
+  if (!anchor) return `${body}${indent}${name} = ${value};\n`;
+  return body.replace(anchor[0], `${anchor[0]}\n${indent}${name} = ${value};`);
+}
+
+export function applyAppleSigning(content, teamId) {
+  const team = typeof teamId === "string" ? teamId.trim().toUpperCase() : "";
+  if (!TEAM_ID.test(team)) {
+    throw new Error(
+      `Apple Developer Team ID must be 10 letters or digits. Find it in Xcode → Settings → Accounts, or on developer.apple.com/account under Membership. Got ${teamId || "(empty)"}.`,
+    );
+  }
+  const objects = parsePbxObjects(content);
+  const configs = objects.filter((object) => field(object.body, "isa") === "XCBuildConfiguration" && /PRODUCT_BUNDLE_IDENTIFIER = /.test(object.body));
+  if (configs.length === 0) throw new Error("No signed build configurations in project.pbxproj");
+
+  const replacements = [];
+  let iosConfigs = 0;
+  for (const config of configs) {
+    let body = config.body;
+    body = upsertSetting(body, "DEVELOPMENT_TEAM", team);
+    body = upsertSetting(body, "CODE_SIGN_STYLE", "Automatic");
+    body = body.replace(/^[ \t]*CODE_SIGN_IDENTITY = "-";\r?\n/m, "");
+    if (isIOSBuild(body)) {
+      iosConfigs += 1;
+      body = upsertSetting(body, "TARGETED_DEVICE_FAMILY", '"1,2"');
+    }
+    replacements.push({ start: config.open + 1, end: config.close, text: body });
+  }
+
+  let next = content;
+  replacements.sort((a, b) => b.start - a.start);
+  for (const replacement of replacements) {
+    next = next.slice(0, replacement.start) + replacement.text + next.slice(replacement.end);
+  }
+  if (!next.includes(`DEVELOPMENT_TEAM = ${team};`)) {
+    throw new Error(`DEVELOPMENT_TEAM ${team} was not written into project.pbxproj`);
+  }
+  return { content: next, team, configs: configs.length, iosConfigs };
+}
+
 export function assertBundlePrefix(ids, appId) {
   const unique = [...new Set(ids)];
   const bad = unique.filter((id) => id !== appId && !id.startsWith(`${appId}.`));
@@ -203,7 +254,7 @@ function projectRoot(pbx) {
   return path.dirname(path.dirname(pbx));
 }
 
-export function fixBundleIds(projectPath, appId) {
+export function fixBundleIds(projectPath, appId, teamId) {
   const pbx = pbxprojPath(projectPath);
   const original = fs.readFileSync(pbx, "utf8");
   const oldIds = extractBundleIds(original);
@@ -233,22 +284,31 @@ export function fixBundleIds(projectPath, appId) {
     );
   }
 
+  let signed = null;
+  if (teamId) {
+    const current = fs.readFileSync(pbx, "utf8");
+    signed = applyAppleSigning(current, teamId);
+    fs.writeFileSync(pbx, signed.content);
+  }
+
   const ids = extractBundleIds(fs.readFileSync(pbx, "utf8"));
   assertBundlePrefix(ids, appId);
-  return { ids, pbx };
+  return { ids, pbx, team: signed ? signed.team : null };
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const project = process.argv[2];
   const appId = process.argv[3];
-  if (!project || !appId) {
-    console.error("Usage: fix-bundle-id.mjs <project.xcodeproj> <app-bundle-id>");
+  const teamId = process.argv[4];
+  if (!project || !appId || !teamId) {
+    console.error("Usage: fix-bundle-id.mjs <project.xcodeproj> <app-bundle-id> <apple-team-id>");
     process.exit(1);
   }
   try {
-    const result = fixBundleIds(project, appId);
+    const result = fixBundleIds(project, appId, teamId);
     console.log(`Bundle ids share the prefix ${appId}: ${[...new Set(result.ids)].join(", ")}`);
+    console.log(`Signed with Apple Developer team ${result.team}`);
   } catch (error) {
     console.error(error && error.message ? error.message : error);
     process.exit(1);

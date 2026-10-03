@@ -8,7 +8,7 @@ Each marker follows the color chosen for that tab. Turn them on and off in the p
 
 - **Emoji in the title.** The tab title starts with a colored square (🟥🟧🟨🟩🟦🟪🟫⬛⬜), whichever is closest to the color. A zero-width space sits after it, so applying it again does not stack a second emoji, and a page whose real title already starts with one of those squares is left alone. Pages that rewrite `document.title`, including single-page apps, get the marker put back. Turning the color or the emoji off removes it.
 - **Colored icon.** The tab’s favicon link is replaced with a rounded square in the same color, drawn on a canvas as a PNG (an SVG data URL if the canvas is unavailable). Turning it off puts the page’s original icons back. Safari has long ignored favicon changes after it has cached a site’s icon, so this marker is best-effort: it is applied as early as the color is known, and again whenever the page rewrites its icons. The emoji is the marker that stays visible when a title is truncated, because it is the first character and Safari cuts titles off at the end.
-- **Top strip.** Unchanged from the first version. Safari 15 through 18 read a `theme-color` meta tag, and Tab Shade sets that tag. Safari 26 reads a real color from the top of the page when **Settings → Tabs → Show color in tab bar** is on. Tab Shade places a 12px solid strip there. WebKit ignores a shorter fixed box, and it samples a point about 4px down. Clicks pass through the strip. The strip only changes the bar of the tab you are looking at. The emoji and the icon are what distinguish the other tabs.
+- **Top strip.** On a Mac, Safari 15 through 18 read a `theme-color` meta tag, and Tab Shade sets that tag. macOS Safari 26 reads a real color from the top of the page when **Settings → Tabs → Show color in tab bar** is on. Tab Shade places a 12px solid strip there. WebKit ignores a shorter fixed box, and it samples a point about 4px down. Clicks pass through the strip. The strip only changes the bar of the tab you are looking at. iPhone and iPad do not get that strip. They keep the emoji, the colored icon, and a `theme-color` tag, which Safari on those devices uses for the toolbar. The emoji and the icon are what distinguish the other tabs.
 
 The page itself is otherwise left alone. With every marker off, Safari keeps its own tab color.
 
@@ -26,30 +26,66 @@ You can pick a swatch or type a hex value.
 
 ## Safari settings
 
-On Safari 17 and later: **Settings → Developer → Allow unsigned extensions**. On older Safari the same switch is **Develop → Allow Unsigned Extensions**.
+The app is signed with your Apple Developer team. Enable the extension as below. If Safari still refuses it, on Safari 17 and later turn on **Settings → Developer → Allow unsigned extensions**. On older Safari the same switch is **Develop → Allow Unsigned Extensions**. A development signature is enough on your own Mac, iPhone, and iPad. Notarization is a later step for copies you send to other people.
 
 **Settings → Extensions → Tab Shade.** Turn it on and allow it on all websites. Without that, markers only run on sites you approved one by one, and the popup cannot list the other tabs.
 
-**Settings → Tabs → Show color in tab bar.** Safari 26 needs this for the top strip. The emoji and the colored icon do not.
+**Settings → Tabs → Show color in tab bar** on the Mac. macOS Safari 26 needs this for the top strip. The emoji and the colored icon do not. iPhone and iPad do not use that setting.
 
 ## Install
 
-On a Mac with Xcode and Node:
+On a Mac with Xcode, the iOS platform installed, and Node. Sign in to Xcode with the Apple Developer account (**Xcode → Settings → Accounts**). The 10-character Team ID is on that team, and on [developer.apple.com/account](https://developer.apple.com/account) under Membership.
 
 ```sh
+printf '%s\n' 'YOURTEAMID' > safari-tab-shade/apple-team-id
 cd safari-tab-shade
 ./scripts/convert.sh
 ```
 
-The script calls `xcrun safari-web-extension-packager` (older Xcode still has `safari-web-extension-converter`). It writes an Xcode project under `build/safari/`, inside a folder named `Tab Shade`, because the tool names the folder from `manifest.json`. The path `Tab Shade/Tab Shade.xcodeproj` is not created.
+`apple-team-id` is gitignored. `APPLE_TEAM_ID` works the same if you would rather not write the file. The script refuses to run without a team id. It does not ad-hoc sign.
 
-The script passes `--bundle-identifier com.invertedlight.tabshade`. With `--macos-only`, the packager still names the host app `com.invertedlight.Tab-Shade` (the manifest title, with the space turned into a hyphen) and leaves the extension at `com.invertedlight.tabshade.Extension`. `--app-name` only titles the project; it does not keep those ids in prefix. Xcode then refuses to build, because the embedded extension id has to start with the app id. The script rewrites the app id to `com.invertedlight.tabshade` from each target’s product type, and stops if any id still misses that prefix.
+The script calls `xcrun safari-web-extension-packager` (older Xcode still has `safari-web-extension-converter`). It writes one Xcode project under `build/safari/`, inside a folder named `Tab Shade`, with a Mac target and an iPhone/iPad target. The path `Tab Shade/Tab Shade.xcodeproj` is not created.
 
-Build the Tab Shade scheme. The product is `Tab Shade.app` in Xcode’s DerivedData folder (**Product → Show Build Folder in Finder**). Copy that one app to `/Applications`.
+The script passes `--bundle-identifier com.invertedlight.tabshade`. The packager can still name a host app `com.invertedlight.Tab-Shade` (the manifest title, with the space turned into a hyphen) and leave an extension at `com.invertedlight.tabshade.Extension`. `--app-name` only titles the project. The script rewrites every app id to `com.invertedlight.tabshade`, sets `DEVELOPMENT_TEAM` and automatic signing on every configuration, sets the iOS target’s device family to iPhone and iPad, and stops if any id misses the prefix.
 
-Keep a single copy registered. Xcode’s Run also registers the DerivedData build. Two apps with the bundle id `com.invertedlight.tabshade` make Safari show a duplicate or a dead extension. Quit the copy Xcode launched, keep the one in `/Applications`, and delete the extra `Tab Shade.app`. If the extension still appears twice, turn it off and on under Settings → Extensions.
+List the schemes, then build the Mac one. The scheme is often `Tab Shade (macOS)`. If the list shows only `Tab Shade`, use that name.
 
-To rebuild, run `./scripts/convert.sh` again (it deletes `build/safari` first), build in Xcode, quit the old app, and replace `/Applications/Tab Shade.app`.
+```sh
+project=$(find build/safari -name '*.xcodeproj' -print | head -n 1)
+xcodebuild -list -project "$project"
+xcodebuild \
+  -project "$project" \
+  -scheme "Tab Shade (macOS)" \
+  -configuration Release \
+  -destination "platform=macOS" \
+  -derivedDataPath build/DerivedData \
+  build
+```
+
+Copy that one app to `/Applications`. Quit any Tab Shade Xcode already launched. Two apps with the bundle id `com.invertedlight.tabshade` make Safari show a duplicate or a dead extension.
+
+```sh
+osascript -e 'quit app "Tab Shade"' || true
+rm -rf "/Applications/Tab Shade.app"
+cp -R "build/DerivedData/Build/Products/Release/Tab Shade.app" "/Applications/Tab Shade.app"
+open "/Applications/Tab Shade.app"
+```
+
+For an iPhone or iPad, plug it in, unlock it, and trust the Mac. Automatic signing uses the same team. The first run registers the device. In Xcode, select the iOS scheme (`Tab Shade (iOS)` when that is the name) and the device, then Run. Or:
+
+```sh
+xcodebuild \
+  -project "$project" \
+  -scheme "Tab Shade (iOS)" \
+  -configuration Debug \
+  -destination "platform=iOS,name=YOUR DEVICE" \
+  -allowProvisioningUpdates \
+  build
+```
+
+Installing the iOS app is what registers the extension. On the device: **Settings → Safari → Extensions → Tab Shade**, allow all websites. The Mac strip setting does not apply there.
+
+To rebuild, run `./scripts/convert.sh` again (it deletes `build/safari` first), build, quit the old app, and replace `/Applications/Tab Shade.app`. Rebuild the iOS scheme to update the phone or tablet.
 
 The generated Xcode project is gitignored.
 

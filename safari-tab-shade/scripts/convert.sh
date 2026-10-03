@@ -24,17 +24,33 @@ out=build/safari
 rm -rf "$out"
 mkdir -p "$out"
 
-# --bundle-identifier is the host app id. --app-name names the project; it does
-# not stop --macos-only from rewriting that id. Passing --app-name to an old
+# --bundle-identifier is the host app id. --app-name names the project. It does
+# not stop the packager from rewriting that id. Passing --app-name to an old
 # packager is unsafe: unknown flags make it write nothing. The converter accepts it.
+# No --macos-only: the same project gets a Mac target and an iPhone/iPad target.
 app_id=com.invertedlight.tabshade
 app_name="Tab Shade"
+
+team_id=${APPLE_TEAM_ID:-}
+if [ -z "$team_id" ] && [ -f apple-team-id ]; then
+  team_id=$(tr -d '[:space:]' < apple-team-id)
+fi
+team_id=$(printf '%s' "$team_id" | tr '[:lower:]' '[:upper:]')
+case "$team_id" in
+  [A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9])
+    ;;
+  *)
+    echo "Tab Shade is signed with your Apple Developer team, not an ad-hoc signature." >&2
+    echo "Put the 10-character Team ID in safari-tab-shade/apple-team-id or export APPLE_TEAM_ID." >&2
+    echo "Xcode → Settings → Accounts → your team, or developer.apple.com/account → Membership." >&2
+    exit 1
+    ;;
+esac
 
 set -- \
   --project-location "$out" \
   --bundle-identifier "$app_id" \
   --swift \
-  --macos-only \
   --copy-resources \
   --force \
   --no-prompt \
@@ -54,18 +70,17 @@ if [ -z "$project" ]; then
   exit 1
 fi
 
-# With --macos-only the packager rewrites the app target's id from the
-# manifest name ("Tab Shade" -> com.invertedlight.Tab-Shade) and leaves the
-# extension at com.invertedlight.tabshade.Extension. Xcode then errors:
-# "Embedded binary's bundle identifier is not prefixed with the parent
-# app's bundle identifier." --app-name does not correct that; it only
-# titles the project. Put the app id back from each target's product type
-# and refuse to open the project if any id still misses the prefix.
+# The packager can rewrite an app target's id from the manifest name
+# ("Tab Shade" -> com.invertedlight.Tab-Shade) and leave the extension at
+# com.invertedlight.tabshade.Extension. Xcode then errors: "Embedded binary's
+# bundle identifier is not prefixed with the parent app's bundle identifier."
+# Put every app id back from the target product type, sign every configuration
+# with the Apple Developer team, and mark the iOS target as iPhone and iPad.
 if ! command -v node >/dev/null 2>&1; then
   echo "node is required to correct the generated bundle ids." >&2
   exit 1
 fi
-node "./scripts/fix-bundle-id.mjs" "$project" "$app_id"
+node "./scripts/fix-bundle-id.mjs" "$project" "$app_id" "$team_id"
 
 echo "Xcode project: $(pwd)/$project"
 open "$project"

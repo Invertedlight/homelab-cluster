@@ -432,6 +432,21 @@ function applyNavigation(session, urls, tabId, rawUrl, now, limit) {
   return { action: planned.action, session: planned.session, urls: nextUrls };
 }
 
+  function tabBarMode(userAgent, showStrip, hints) {
+    const ua = typeof userAgent === "string" ? userAgent : "";
+    const safari = /Safari\//.test(ua) && !/Chrome|Chromium|Edg\/|OPR\//.test(ua);
+    if (!safari) return { theme: false, strip: false, platform: "other" };
+    const touchMac = !!(hints && hints.touchMac);
+    if (/iPhone|iPad|iPod/.test(ua) || touchMac) {
+      return { theme: true, strip: false, platform: "ios" };
+    }
+    const match = ua.match(/Version\/(\d+)/);
+    const major = match ? Number(match[1]) : 0;
+    if (major >= 26) return { theme: false, strip: !!showStrip, platform: "macos" };
+    if (major > 0) return { theme: true, strip: false, platform: "macos" };
+    return { theme: true, strip: !!showStrip, platform: "macos" };
+  }
+
   function resolveChoice(input) {
     const options = input || {};
     const enabled = options.enabled !== false;
@@ -494,6 +509,7 @@ function applyNavigation(session, urls, tabId, rawUrl, now, limit) {
     applyTitlePrefix,
     faviconDataUrl,
     urlKey,
+    tabBarMode,
     pruneUrlMap,
     writeUrlColor,
     classifyNavigation,
