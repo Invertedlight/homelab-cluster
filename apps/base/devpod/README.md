@@ -52,6 +52,8 @@ A restart finds the marker and skips. A new home volume (new replica) runs the f
 
 `workspace` runs `devpod-runtime.sh` on each start for things on the container filesystem: token copy to `/run/devpod-github`, system git credential config, `GH_TOKEN` in `/etc/profile.d`, `chsh -s zsh vscode`, `/usr/local/bin/mise` symlink.
 
+It also sets system-wide `url.https://github.com/.insteadOf` for `git@github.com:`, `ssh://git@github.com/` and bare `github.com:`, so SSH-style GitHub URLs (e.g. `git clone github.com:Invertedlight/dotfiles.git`) are fetched and pushed over HTTPS with the mounted token. The pod has no SSH key registered on GitHub.
+
 ### Homebrew
 
 `/home/linuxbrew` in `workspace` is a `subPath: .linuxbrew-root` mount of the `home` PVC, so Homebrew (`/home/linuxbrew/.linuxbrew`) survives restarts. On every start `workspace` runs `devpod-brew.sh` in the background as root: it fixes ownership of the prefix and, only if `brew` is missing (brand-new home volume), installs the prerequisites and runs the official installer as `vscode` (`NONINTERACTIVE=1`; the installer refuses root). Log: `~/.devpod-brew.log`. The dotfiles' `~/.config/shell/brew-env.sh` puts it on PATH. The prefix also shows up as `~/.linuxbrew-root` inside the home volume; don't delete it.

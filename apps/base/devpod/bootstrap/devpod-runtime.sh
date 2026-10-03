@@ -22,6 +22,13 @@ fi
 git config --system credential.https://github.com.helper /opt/devpod-bootstrap/git-credential-devpod
 git config --system credential.https://github.com.username x-access-token
 git config --system credential.https://github.com.useHttpPath false
+# Rewrite SSH-style GitHub URLs (git@github.com:, ssh://git@github.com/,
+# bare github.com:) to HTTPS so the token helper above is used; the pod has
+# no SSH key on GitHub. Reset and re-add so reruns stay idempotent.
+git config --system --unset-all url.https://github.com/.insteadOf 2>/dev/null || true
+for pfx in git@github.com: ssh://git@github.com/ github.com:; do
+  git config --system --add url.https://github.com/.insteadOf "$pfx" || echo "devpod-runtime: insteadOf $pfx failed"
+done
 
 # gh (if installed) reads GH_TOKEN in login shells.
 cat > /etc/profile.d/devpod-github.sh <<'PROF'
