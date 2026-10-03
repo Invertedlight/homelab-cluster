@@ -1,5 +1,0 @@
-[tools]
-helm = "latest"
-k3s = "latest"
-k9s = "latest"
-kubectl = "latest"

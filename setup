@@ -1,8 +1,3 @@
-# Install needed tools
-mise use k3s
-mise use kubectl
-mise use -g flux2@latest
-
 # Install homebrew
 sudo apt-get update
 sudo apt-get install build-essential procps curl file git -y
