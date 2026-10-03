@@ -49,6 +49,14 @@ kubectl -n devpod rollout restart statefulset/devpod
 
 Flux doesn't prune it (it isn't in Git). To remove the key from the pods: `kubectl -n devpod delete secret sops-age` and restart the StatefulSet.
 
+### SSH authorized_keys (repo-managed, all replicas)
+
+`bootstrap/authorized_keys` lists the public keys allowed to log in as `vscode`. It ships in ConfigMap `devpod-bootstrap-<hash>`, and on every start `devpod-runtime.sh` overwrites `/home/vscode/.ssh/authorized_keys` on each replica's home volume from it (`~/.ssh` 0700, file 0600, `vscode:vscode`). Git is the source of truth: keys added by hand inside a pod are lost on the next restart. If the file has no key lines the pod keeps its existing `authorized_keys` (lockout guard).
+
+- **Add a Mac:** on that Mac run `cat ~/.ssh/id_ed25519.pub` and `ssh-keygen -lf ~/.ssh/id_ed25519.pub`, append the public line (plus a `# <Mac> (SHA256:…)` comment) to `bootstrap/authorized_keys`, commit and push. The ConfigMap hash changes, so Flux rolls every replica within about a minute. **Public keys only; never commit a private key.**
+- **Remove a Mac:** delete its line, commit and push. After the rollout that key is revoked on every replica.
+- **Check:** `kubectl -n devpod exec devpod-N -c workspace -- ssh-keygen -lf /home/vscode/.ssh/authorized_keys`.
+
 ### SSH host keys (`Secret devpod/devpod-ssh-host-keys`, not in Git)
 
 sshd's host keys (ed25519, rsa, ecdsa) live in a Secret created with kubectl, **never committed**, shared by every replica so `devpod-0` and `devpod-1` present the same fingerprint and it survives restarts. The workspace container mounts it read-only at `/etc/devpod/ssh-host-keys` (`optional: true`); `devpod-runtime.sh` copies the keys to `/etc/ssh` (private 0600, `.pub` 0644, root) before sshd starts. Without the Secret the pod falls back to `ssh-keygen -A`, and the fingerprint changes on every restart.

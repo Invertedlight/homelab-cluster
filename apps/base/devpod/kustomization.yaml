@@ -20,3 +20,4 @@ configMapGenerator:
       - bootstrap/devpod-runtime.sh
       - bootstrap/git-credential-devpod
       - bootstrap/devpod-brew.sh
+      - bootstrap/authorized_keys

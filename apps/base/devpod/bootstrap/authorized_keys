@@ -1,0 +1,8 @@
+# SSH public keys allowed to log in as vscode on EVERY DevPod replica.
+# Source of truth: devpod-runtime.sh overwrites /home/vscode/.ssh/authorized_keys
+# from this file on each start, so removing a line here revokes that key after
+# the rollout. Public keys only. One key per line; comments are ignored by sshd.
+# M5 (SHA256:PBPgT1A69fRgGM1wdwWBMA/BJtPfdsXdFasYUod7JrM)
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILsJOJoQ3ER+1depvyKbowRDYCuMzv3TrmQfiReNifSN cyberstar@M5.local
+# Mac mini (SHA256:94wTnD+20VEazwsIfbXdS8+pTOAfWJWKKKi+iquPrL4)
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHCwtsmUTypZCoxGRvWqfuWrUSI1iXT7XROuC29aJHTP cyberstar@Mac-mini.local

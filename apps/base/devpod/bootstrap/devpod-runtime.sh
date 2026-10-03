@@ -18,6 +18,21 @@ else
   echo "devpod-runtime: no GitHub token mounted; private repos will not clone"
 fi
 
+# SSH authorized_keys for vscode, from the repo (bootstrap/authorized_keys in
+# ConfigMap devpod-bootstrap). Overwritten on every start so Git is the source
+# of truth: removing a key in Git revokes it. Skipped (existing file kept) if
+# the ConfigMap copy has no key lines, so a bad edit can't lock everyone out.
+AK_SRC=/opt/devpod-bootstrap/authorized_keys
+AK_DIR="$DEV_HOME/.ssh"
+if [ -f "$AK_SRC" ] && grep -qE '^(ssh-|ecdsa-|sk-)' "$AK_SRC"; then
+  install -d -m 0700 -o 1000 -g 1000 "$AK_DIR"
+  install -m 0600 -o 1000 -g 1000 "$AK_SRC" "$AK_DIR/authorized_keys.new"
+  mv -f "$AK_DIR/authorized_keys.new" "$AK_DIR/authorized_keys"
+  echo "devpod-runtime: authorized_keys written from repo ($(grep -cE '^(ssh-|ecdsa-|sk-)' "$AK_SRC") keys)"
+else
+  echo "devpod-runtime: no keys in $AK_SRC; leaving existing authorized_keys"
+fi
+
 # Persistent SSH host keys (Secret devpod/devpod-ssh-host-keys, mounted only
 # in workspace). Copy before sshd is installed/started so the fingerprint is
 # the same on every restart and every replica. Without the Secret the
