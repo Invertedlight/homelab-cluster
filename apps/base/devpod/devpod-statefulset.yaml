@@ -88,7 +88,7 @@ spec:
                 printf 'path-exclude=/usr/share/man/*\npath-exclude=/usr/share/doc/*\n' > /etc/dpkg/dpkg.cfg.d/01-nodoc
                 rm -f /var/lib/man-db/auto-update
                 apt-get update
-                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server || true
+                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server file || true
               fi
               mkdir -p /var/run/sshd /home/vscode/.ssh
               ssh-keygen -A || true
@@ -105,6 +105,9 @@ spec:
               else
                 echo "sshd binary missing after install"
               fi
+              # Homebrew on the home PVC (/home/linuxbrew); installs as
+              # vscode only when missing. Background so sshd is not delayed.
+              /opt/devpod-bootstrap/devpod-brew.sh &
               exec sleep infinity
           securityContext:
             runAsUser: 0
@@ -121,6 +124,10 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/vscode
+            # Homebrew prefix on the same PVC so it survives restarts.
+            - name: home
+              mountPath: /home/linuxbrew
+              subPath: .linuxbrew-root
             - name: scratch
               mountPath: /scratch
             - name: bootstrap

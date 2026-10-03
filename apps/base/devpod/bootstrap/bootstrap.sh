@@ -77,13 +77,8 @@ if [ ! -x "$HOME/.local/bin/mise" ]; then
   curl -fsSL https://mise.run | MISE_INSTALL_PATH="$HOME/.local/bin/mise" sh
 fi
 "$HOME/.local/bin/mise" --version
-add_activate() {  # $1 = rc file, $2 = shell name
-  touch "$1"
-  grep -q 'devpod-bootstrap: mise' "$1" && return 0
-  printf '\n# devpod-bootstrap: mise\nexport PATH="$HOME/.local/bin:$PATH"\neval "$("$HOME/.local/bin/mise" activate %s)"\n' "$2" >> "$1"
-}
-add_activate "$HOME/.bashrc" bash
-add_activate "$HOME/.zshrc" zsh
+# .bashrc/.zshrc are owned by chezmoi (the dotfiles activate mise when it
+# is on PATH), so do not append to them; that caused chezmoi drift.
 # Non-interactive and login shells (ssh cmd, su -) do not read .zshrc or
 # reach the end of .bashrc; put mise and its shims on PATH there too.
 for f in "$HOME/.zshenv" "$HOME/.profile"; do
