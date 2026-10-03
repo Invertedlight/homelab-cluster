@@ -23,6 +23,7 @@ const {
   applyTitlePrefix,
   faviconDataUrl,
   urlKey,
+  tabBarMode,
   pruneUrlMap,
   writeUrlColor,
   applyTabColors,
@@ -98,6 +99,27 @@ test("resolveChoice prefers a tab color, then the site, then the automatic color
 
   const unsupported = resolveChoice({ enabled: true, host: "" });
   assert.equal(unsupported.source, "unsupported");
+});
+
+test("macOS Safari 26 uses the strip and iPhone and iPad use theme-color", () => {
+  const mac26 = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6.2 Safari/605.1.15";
+  const mac18 = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15";
+  const iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1";
+  const ipad = "Mozilla/5.0 (iPad; CPU OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1";
+  const desktopIpad = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
+  const chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+  const mode = (ua, strip, hints) => {
+    const result = tabBarMode(ua, strip, hints);
+    return { theme: result.theme, strip: result.strip, platform: result.platform };
+  };
+  assert.deepEqual(mode(mac26, true), { theme: false, strip: true, platform: "macos" });
+  assert.deepEqual(mode(mac26, false), { theme: false, strip: false, platform: "macos" });
+  assert.deepEqual(mode(mac18, true), { theme: true, strip: false, platform: "macos" });
+  assert.deepEqual(mode(iphone, true), { theme: true, strip: false, platform: "ios" });
+  assert.deepEqual(mode(ipad, true), { theme: true, strip: false, platform: "ios" });
+  assert.deepEqual(mode(desktopIpad, true, { touchMac: true }), { theme: true, strip: false, platform: "ios" });
+  assert.deepEqual(mode(chrome, true), { theme: false, strip: false, platform: "other" });
 });
 
 test("the Safari 26 sampler strip covers WebKit's sample point and minimum box", () => {

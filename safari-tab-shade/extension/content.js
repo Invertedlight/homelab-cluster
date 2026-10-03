@@ -23,22 +23,9 @@
   };
   let paintGeneration = 0;
 
-  function safariMajor() {
-    const match = navigator.userAgent.match(/Version\/(\d+)/);
-    return match ? Number(match[1]) : 0;
-  }
-
-  function isSafari() {
-    const agent = navigator.userAgent;
-    return /Safari\//.test(agent) && !/Chrome|Chromium|Edg\/|OPR\//.test(agent);
-  }
-
   function channels(showStrip) {
-    if (!isSafari()) return { theme: false, strip: false };
-    const major = safariMajor();
-    if (major >= 26) return { theme: false, strip: !!showStrip };
-    if (major > 0) return { theme: true, strip: false };
-    return { theme: true, strip: !!showStrip };
+    const touchMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    return Color.tabBarMode(navigator.userAgent, showStrip, { touchMac });
   }
 
   function headOrRoot() {

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { assertBundlePrefix, fixBundleIds, rewriteProjectBundleIds } from "../scripts/fix-bundle-id.mjs";
+import { applyAppleSigning, assertBundlePrefix, fixBundleIds, rewriteProjectBundleIds } from "../scripts/fix-bundle-id.mjs";
 
 const APP = "AAAAAAAAAAAAAAAAAAAAAAAA";
 const EXTENSION = "BBBBBBBBBBBBBBBBBBBBBBBB";
@@ -112,6 +112,45 @@ test("an extension id with no suffix is given the app prefix", () => {
     "com.invertedlight.tabshade.Extension",
   ]);
   assertBundlePrefix(rewritten.ids, "com.invertedlight.tabshade");
+});
+
+test("Apple Developer team signing covers the Mac and marks iOS as iPhone and iPad", () => {
+  const ios = "111111111111111111111111";
+  const mac = "222222222222222222222222";
+  const content = `
+		${ios} /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.invertedlight.tabshade;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		${mac} /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.invertedlight.tabshade;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+`;
+  const signed = applyAppleSigning(content, "ab12cd34ef");
+  assert.equal(signed.team, "AB12CD34EF");
+  assert.equal(signed.iosConfigs, 1);
+  assert.equal(signed.content.includes('DEVELOPMENT_TEAM = AB12CD34EF;'), true);
+  assert.equal(signed.content.includes("CODE_SIGN_STYLE = Automatic;"), true);
+  assert.equal(signed.content.includes('CODE_SIGN_IDENTITY = "-"'), false);
+  assert.equal(signed.content.includes('TARGETED_DEVICE_FAMILY = "1,2";'), true);
+  assert.equal(signed.content.includes("SDKROOT = macosx;"), true);
+  const macBlock = signed.content.slice(signed.content.indexOf(mac));
+  assert.equal(macBlock.includes("TARGETED_DEVICE_FAMILY"), false);
+  assert.throws(() => applyAppleSigning(content, "not-a-team"), /Team ID/);
 });
 
 test("bundle id check fails when the embedded id is not prefixed by the app", () => {
