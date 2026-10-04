@@ -14,7 +14,7 @@ Last verified: 2026-09-05
 | `skynet-wrk-03` | `192.168.68.113` | worker | Ubuntu 26.04.1 |
 | `skynet-wrk-04` | `192.168.68.114` | worker (former skynet-wrk-02 laptop, renamed 2026-10-04) | Ubuntu 26.04.1 |
 
-All nodes were Ready on K3s `v1.36.3+k3s1` at the last verification.
+All seven nodes were Ready on K3s `v1.36.3+k3s1` at the last verification (2026-10-04, after the skynet-wrk-02 hardware replacement).
 
 The Kubernetes API virtual address is `192.168.68.40:6443`. kube-vip `v1.2.3` advertises it with ARP on `eno1` and elects one of the three control-plane nodes as leader. Local kubeconfigs should use:
 
@@ -23,6 +23,18 @@ https://192.168.68.40:6443
 ```
 
 The API certificate includes the virtual address and all three control-plane servers run embedded etcd. PostgreSQL is not the K3s datastore. The shared CloudNativePG cluster `database/homelab-postgres` hosts application databases. Linkding retains its own `linkding` database and nonsuperuser role. See [shared PostgreSQL operations](homelab-postgres.md).
+
+## Worker replacement procedure (used 2026-10-04 for skynet-wrk-02)
+
+Old `skynet-wrk-02` (laptop, MAC `C8:2A:14:02:91:23`) became `skynet-wrk-04` at `192.168.68.114`; new hardware (MAC `C4:65:16:1B:33:9E`, NIC `eno1`, 238 GB NVMe) took `skynet-wrk-02` at `192.168.68.112`. Nodes keep DHCP; the address comes from the Deco reservation.
+
+1. Longhorn: set the Longhorn node `allowScheduling=false`, `evictionRequested=true`; wait until it holds zero replicas and every volume has 3 replicas elsewhere.
+2. `kubectl cordon` and `kubectl drain --ignore-daemonsets --delete-emptydir-data`.
+3. On the old host: back up `/etc/rancher/k3s`, run `k3s-agent-uninstall.sh`, then `kubectl delete node <name>` (k3s removes the node-password secret; Longhorn removes its node record). Move `/var/lib/longhorn` aside.
+4. Rename (`hostnamectl`, `/etc/hosts`), change the Deco reservation (remove old MAC entry, add MAC to the new address), renew DHCP, add AdGuard rewrite and PTR rule.
+5. Rejoin: restore `node-token` and the resolv drop-in (or run `ansible/playbooks/k3s-upstream-resolv.yaml`), then `curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.3+k3s1 K3S_URL=https://192.168.68.40:6443 K3S_TOKEN_FILE=/etc/rancher/k3s/node-token sh -s - agent --node-name <name>`.
+6. `kubectl label node <name> node.longhorn.io/create-default-disk=true`.
+7. New hardware baseline: SSH keys from `github.com/Invertedlight.keys` plus the Ansible key, `/etc/sudoers.d/99-cyberstar-nopasswd`, password SSH disabled (`/etc/ssh/sshd_config.d/10-no-password.conf`), `apt full-upgrade`, `open-iscsi nfs-common jq`, `ansible/playbooks/os-unattended-upgrades.yaml --limit <name>`.
 
 ## Verified HA behavior
 
