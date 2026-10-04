@@ -19,6 +19,8 @@ all:
               ansible_host: 192.168.68.112
             skynet-wrk-03:
               ansible_host: 192.168.68.113
+            skynet-wrk-04:
+              ansible_host: 192.168.68.114
   vars:
     ansible_user: cyberstar
     ansible_python_interpreter: /usr/bin/python3

@@ -25,7 +25,7 @@ spec:
               - matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
-                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03]
+                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03, skynet-wrk-04]
       securityContext:
         fsGroup: 33 # www-data group ID
         runAsUser: 33 # www-data user ID

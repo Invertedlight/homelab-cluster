@@ -37,7 +37,7 @@ spec:
               - matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
-                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03]
+                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03, skynet-wrk-04]
       initContainers:
         - name: home-perms
           image: mcr.microsoft.com/devcontainers/base:debian@sha256:1f851004adcd3dff3776b4a1da86727cf52280b0fdc9d5b0568c9c7d74274286
