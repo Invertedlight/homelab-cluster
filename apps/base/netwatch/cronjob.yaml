@@ -1,0 +1,116 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: netwatch-monthly-report
+  namespace: netwatch
+  labels:
+    app.kubernetes.io/name: netwatch
+    app.kubernetes.io/part-of: skynet
+    app.kubernetes.io/component: report
+spec:
+  # 00:10 America/Chicago on the 1st, so the job covers the month that just
+  # ended. Six hours of slack is still the 1st in UTC (CDT is UTC-5).
+  schedule: "10 0 1 * *"
+  timeZone: America/Chicago
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 21600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 180
+      ttlSecondsAfterFinished: 604800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: netwatch
+            app.kubernetes.io/part-of: skynet
+            app.kubernetes.io/component: report
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          dnsConfig:
+            options:
+              - name: ndots
+                value: "2"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - skynet-wrk-01
+                          - skynet-wrk-02
+                          - skynet-wrk-03
+                          - skynet-wrk-04
+            # The log volume is ReadWriteOnce. Run on the logger's node.
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: netwatch
+                      app.kubernetes.io/component: probe
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: report
+              image: alpine/curl:8.22.0@sha256:e17bf3bdfef2efda277af9b73149ece806d30354b3eebd002555f66a8cabb357
+              imagePullPolicy: IfNotPresent
+              command: ["/bin/sh", "/scripts/report.sh"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              env:
+                - name: HOME
+                  value: /tmp
+                - name: DATA_DIR
+                  value: /data
+                # "auto" reports the previous America/Chicago month.
+                - name: REPORT_MONTH
+                  value: auto
+                - name: WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: netwatch-sms-webhook
+                      key: url
+                - name: WEBHOOK_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: netwatch-sms-webhook
+                      key: token
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: netwatch-data
+            - name: scripts
+              configMap:
+                name: netwatch-scripts
+            - name: tmp
+              emptyDir:
+                sizeLimit: 16Mi

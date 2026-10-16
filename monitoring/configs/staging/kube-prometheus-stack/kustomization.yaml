@@ -5,4 +5,5 @@ resources:
   - grafana-tls-secret.yaml
   - alertmanager-sms-webhook-secret.yaml
   - audiobookshelf-backup-alerts.yaml
+  - cloudflared-alerts.yaml
   - flux-alerts.yaml
