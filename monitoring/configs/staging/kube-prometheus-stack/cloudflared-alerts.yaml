@@ -1,0 +1,56 @@
+# cloudflared runs in namespace cloudflare (Deployment cloudflared, container
+# cloudflared), not a namespace named cloudflared. It exits 0 with
+# "no more connections active and exiting" when the home connection drops, so
+# both replicas restart together. Prometheus only keeps 10 days and has no
+# volume; the page is here, and the durable record is the netwatch log.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cloudflared-tunnel
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: cloudflared.tunnel
+      rules:
+        # Same pod series, so a new pod (counter starts at 0) does not match.
+        # offset 15m keeps the alert firing through a restart loop instead of
+        # paging on every exit. for: 2m ignores a one-scrape blip.
+        # Alertmanager already groups by namespace and alertname, so the two
+        # replicas become one notification.
+        - alert: CloudflaredRestarted
+          expr: |
+            (
+              kube_pod_container_status_restarts_total{namespace="cloudflare",container="cloudflared"}
+              -
+              kube_pod_container_status_restarts_total{namespace="cloudflare",container="cloudflared"} offset 15m
+            ) >= 1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Possible internet or Cloudflare tunnel outage (cloudflared restarted in {{ $labels.namespace }}/{{ $labels.pod }})
+            description: >-
+              Container cloudflared in {{ $labels.namespace }}/{{ $labels.pod }}
+              restarted during the last 15 minutes. cloudflared exits cleanly
+              when the home internet connection drops, so both replicas often
+              restart together. This may be an ISP or tunnel outage rather than
+              an application fault. Check the Deco gateway and the netwatch
+              outage log.
+        - alert: CloudflaredNotReady
+          expr: |
+            kube_deployment_status_replicas_available{namespace="cloudflare",deployment="cloudflared"}
+            <
+            kube_deployment_spec_replicas{namespace="cloudflare",deployment="cloudflared"}
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Possible internet or Cloudflare tunnel outage (cloudflared is not Ready)
+            description: >-
+              Deployment cloudflare/cloudflared has had fewer Ready replicas
+              than desired for more than 5 minutes. A sustained not-Ready
+              tunnel usually means the home internet connection or the
+              Cloudflare tunnel is down. The netwatch log separates an ISP
+              outage (gateway up, external probes down) from a LAN problem.

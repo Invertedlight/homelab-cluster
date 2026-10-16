@@ -1,0 +1,19 @@
+# longhorn (Retain, 3 replicas) so the outage log survives a node loss.
+# local-path is node-bound and is the wrong place for this record.
+# ReadWriteOnce: the monthly job uses pod affinity to mount it on the
+# logger's node. WaitForFirstConsumer comes from the storage class.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: netwatch-data
+  namespace: netwatch
+  labels:
+    app.kubernetes.io/name: netwatch
+    app.kubernetes.io/part-of: skynet
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
