@@ -38,6 +38,12 @@ spec:
           - grs.jameshomelab.org
     alertmanager:
       alertmanagerSpec:
+        # Pin past 0.27.0: it panics when a url_file webhook gets an error reply
+        # (prometheus/alertmanager#3798, fixed in 0.28.0 by #3800).
+        image:
+          registry: quay.io
+          repository: prometheus/alertmanager
+          tag: v0.28.1
         # Mounts Secret alertmanager-sms-webhook at
         # /etc/alertmanager/secrets/alertmanager-sms-webhook/{url,token}.
         secrets:
