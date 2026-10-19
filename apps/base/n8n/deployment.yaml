@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  labels:
+    app: n8n
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      automountServiceAccountToken: false
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03, skynet-wrk-04]
+      containers:
+        - name: n8n
+          image: docker.n8n.io/n8nio/n8n:1.123.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3008
+          env:
+            - name: N8N_HOST
+              value: CHANGEME.jameshomelab.org
+            - name: WEBHOOK_URL
+              value: https://CHANGEME.jameshomelab.org/
+            - name: DB_POSTGRESDB_DATABASE
+              value: CHANGEME
+            - name: N8N_PORT
+              value: "3008"
+            - name: N8N_PROTOCOL
+              value: https
+            - name: N8N_PROXY_HOPS
+              value: "1"
+            - name: N8N_SECURE_COOKIE
+              value: "true"
+            - name: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS
+              value: "true"
+            - name: N8N_RUNNERS_ENABLED
+              value: "true"
+            - name: N8N_DIAGNOSTICS_ENABLED
+              value: "false"
+            - name: N8N_METRICS
+              value: "true"
+            - name: GENERIC_TIMEZONE
+              value: America/Chicago
+            - name: TZ
+              value: America/Chicago
+            - name: DB_TYPE
+              value: postgresdb
+            - name: DB_POSTGRESDB_HOST
+              value: homelab-postgres-rw.database.svc.cluster.local.
+            - name: DB_POSTGRESDB_PORT
+              value: "5432"
+            - name: DB_POSTGRESDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-credentials
+                  key: DB_POSTGRESDB_USER
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-credentials
+                  key: DB_POSTGRESDB_PASSWORD
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-credentials
+                  key: N8N_ENCRYPTION_KEY
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.n8n
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /home/node/.cache
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: n8n-data-longhorn
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}

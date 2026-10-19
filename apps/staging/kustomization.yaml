@@ -7,4 +7,5 @@ resources:
   - devpod
   - linkding
   - mealie
+  - n8n
   - netwatch

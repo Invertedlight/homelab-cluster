@@ -1,0 +1,12 @@
+# Nightly pg_dump target on the NAS (smb class mounts as uid/gid 33, Retain).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-backup-smb
+spec:
+  storageClassName: smb
+  accessModes: [ReadWriteOnce]
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 5Gi

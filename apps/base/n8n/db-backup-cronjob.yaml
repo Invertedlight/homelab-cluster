@@ -1,0 +1,87 @@
+# The shared homelab-postgres has no CNPG backups (no barman/ObjectStore).
+# Follow the audiobookshelf pattern: nightly job to SMB, alerted on staleness.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: n8n-db-backup
+spec:
+  schedule: "30 2 * * *"
+  timeZone: America/Chicago
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app: n8n-db-backup
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 33
+            runAsGroup: 33
+            fsGroup: 33
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: pg-dump
+              image: ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  ts=$(date -u +%Y%m%dT%H%M%SZ)
+                  out="/backup/${PGDATABASE}-${ts}.dump"
+                  pg_dump --format=custom --no-owner --file="${out}.partial"
+                  pg_restore --list "${out}.partial" >/dev/null
+                  mv "${out}.partial" "${out}"
+                  find /backup -maxdepth 1 -name "${PGDATABASE}-*.dump" -mtime +14 -delete
+                  find /backup -maxdepth 1 -name "*.partial" -mmin +60 -delete
+                  ls -l "${out}"
+              env:
+                - name: HOME
+                  value: /tmp
+                - name: PGHOST
+                  value: homelab-postgres-rw.database.svc.cluster.local.
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  value: CHANGEME
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: n8n-credentials
+                      key: DB_POSTGRESDB_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: n8n-credentials
+                      key: DB_POSTGRESDB_PASSWORD
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: n8n-backup-smb
+            - name: tmp
+              emptyDir: {}

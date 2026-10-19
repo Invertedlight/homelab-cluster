@@ -31,6 +31,20 @@ spec:
         existingSecret: grafana-admin-credentials
         userKey: admin-user
         passwordKey: admin-password
+      # Grafana-managed alerting for multi-tenant n8n (Telegram contact point).
+      # Alertmanager -> BlueBubbles (sms receiver) is unchanged.
+      sidecar:
+        alerts:
+          enabled: true
+          label: grafana_alert
+          labelValue: "1"
+          searchNamespace: monitoring
+      envValueFrom:
+        TELEGRAM_BOT_TOKEN:
+          secretKeyRef:
+            name: grafana-telegram
+            key: bot-token
+            optional: true
       ingress:
         enabled: true
         ingressClassName: traefik

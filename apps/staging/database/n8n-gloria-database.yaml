@@ -1,0 +1,10 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: n8n-gloria
+spec:
+  name: n8n_gloria
+  ensure: present
+  owner: n8n_gloria
+  cluster:
+    name: homelab-postgres

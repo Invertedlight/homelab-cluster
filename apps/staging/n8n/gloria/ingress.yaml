@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: n8n
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: gloria-n8n.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: n8n
+                port:
+                  name: http
+  tls:
+    # Served by the Traefik TLSStore default *.jameshomelab.org certificate.
+    - hosts:
+        - gloria-n8n.jameshomelab.org

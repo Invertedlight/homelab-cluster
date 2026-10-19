@@ -7,3 +7,7 @@ resources:
   - audiobookshelf-backup-alerts.yaml
   - cloudflared-alerts.yaml
   - flux-alerts.yaml
+  - grafana-telegram-secret.yaml
+  - n8n-podmonitors.yaml
+  - n8n-grafana-dashboard.yaml
+  - n8n-grafana-alerting.yaml
