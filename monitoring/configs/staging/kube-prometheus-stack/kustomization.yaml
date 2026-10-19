@@ -10,5 +10,6 @@ resources:
   - grafana-telegram-secret.yaml
   - homelab-postgres-backup-alerts.yaml
   - n8n-podmonitors.yaml
+  - garage-servicemonitor.yaml
   - n8n-grafana-dashboard.yaml
   - n8n-grafana-alerting.yaml

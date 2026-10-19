@@ -1,0 +1,35 @@
+# Garage S3 (infrastructure/controllers/base/garage) for barman-cloud WAL archiving
+# and base backups of homelab-postgres.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: garage
+  namespace: database
+spec:
+  retentionPolicy: "14d"
+  configuration:
+    destinationPath: s3://cnpg/
+    endpointURL: http://garage.garage.svc.cluster.local:3900
+    s3Credentials:
+      accessKeyId:
+        name: garage-cnpg-s3
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: garage-cnpg-s3
+        key: ACCESS_SECRET_KEY
+      region:
+        name: garage-cnpg-s3
+        key: REGION
+    wal:
+      compression: gzip
+      maxParallel: 2
+    data:
+      compression: gzip
+      jobs: 2
+  instanceSidecarConfiguration:
+    env:
+      # Garage rejects the newer boto3 default checksum headers.
+      - name: AWS_REQUEST_CHECKSUM_CALCULATION
+        value: when_required
+      - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+        value: when_required
