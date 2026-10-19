@@ -9,6 +9,8 @@ resources:
   - homelab-postgres-n8n-james-secret.yaml
   - homelab-postgres-n8n-gloria-secret.yaml
   - homelab-postgres-backup-secret.yaml
+  - garage-cnpg-s3-secret.yaml
+  - objectstore-garage.yaml
   - mealie-database.yaml
   - dashboard-database.yaml
   - n8n-james-database.yaml
