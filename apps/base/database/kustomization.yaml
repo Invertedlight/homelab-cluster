@@ -5,3 +5,4 @@ resources:
   - postgres-cluster.yaml
   - backup-smb-pvc.yaml
   - backup-cronjob.yaml
+  - scheduled-backup.yaml

@@ -5,6 +5,18 @@ metadata:
 spec:
   instances: 3
   imageName: ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie
+  # Spec changes that restart pods: replicas first, then a switchover (no
+  # in-place primary restart).
+  primaryUpdateStrategy: unsupervised
+  primaryUpdateMethod: switchover
+
+  # WAL archiving + base backups to Garage (ObjectStore database/garage).
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: garage
+        serverName: homelab-postgres
 
   bootstrap:
     initdb:
