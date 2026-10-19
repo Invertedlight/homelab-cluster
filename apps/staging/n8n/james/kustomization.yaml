@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: n8n-james
+labels:
+  - pairs:
+      n8n.jameshomelab.org/customer: james
+    includeSelectors: false
+resources:
+  - ../../../base/n8n/
+  - n8n-credentials-secret.yaml
+  - ingress.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: n8n
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: james-n8n.jameshomelab.org
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: https://james-n8n.jameshomelab.org/
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: n8n_james
+  - target:
+      kind: CronJob
+      name: n8n-db-backup
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/3/value
+        value: n8n_james

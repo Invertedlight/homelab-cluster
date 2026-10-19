@@ -6,5 +6,9 @@ resources:
   - homelab-postgres-linkding-secret.yaml
   - homelab-postgres-mealie-secret.yaml
   - homelab-postgres-dashboard-secret.yaml
+  - homelab-postgres-n8n-james-secret.yaml
+  - homelab-postgres-n8n-gloria-secret.yaml
   - mealie-database.yaml
   - dashboard-database.yaml
+  - n8n-james-database.yaml
+  - n8n-gloria-database.yaml

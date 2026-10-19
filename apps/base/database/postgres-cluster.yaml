@@ -39,6 +39,22 @@ spec:
         createrole: false
         passwordSecret:
           name: homelab-postgres-dashboard
+      - name: n8n_james
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: homelab-postgres-n8n-james
+      - name: n8n_gloria
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: homelab-postgres-n8n-gloria
 
   affinity:
     enablePodAntiAffinity: true

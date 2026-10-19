@@ -1,0 +1,10 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: n8n-james
+spec:
+  name: n8n_james
+  ensure: present
+  owner: n8n_james
+  cluster:
+    name: homelab-postgres
