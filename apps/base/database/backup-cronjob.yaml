@@ -44,7 +44,7 @@ spec:
                   dir="/backup/${ts}"
                   mkdir -p "${dir}.partial"
                   cd "${dir}.partial"
-                  pg_dumpall --globals-only --no-role-passwords --dbname=postgres > globals.sql
+                  pg_dumpall --globals-only --no-role-passwords -l postgres > globals.sql
                   dbs=$(psql -d postgres -tAc "select datname from pg_database where not datistemplate and datallowconn order by 1")
                   for db in ${dbs}; do
                     pg_dump --format=custom --dbname="${db}" --file="${db}.dump"
