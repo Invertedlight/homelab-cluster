@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: garage
+# Garage S3 (3 nodes, replication_factor 3) for CNPG barman-cloud and Longhorn backups.
+# Bootstrap (layout, keys, buckets) is one-time: see README.md.
+resources:
+  - namespace.yaml
+  - crd-garagenodes.yaml
+  - rbac.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - service.yaml
+  - statefulset.yaml
+  - networkpolicy.yaml
+  - rclone-copy.yaml

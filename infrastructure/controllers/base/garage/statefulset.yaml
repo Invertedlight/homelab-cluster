@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garage
+  labels:
+    app: garage
+spec:
+  replicas: 3
+  serviceName: garage-headless
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: garage
+  template:
+    metadata:
+      labels:
+        app: garage
+      annotations:
+        checksum/config: v1
+    spec:
+      serviceAccountName: garage
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [skynet-wrk-02, skynet-wrk-03, skynet-wrk-04]
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: garage
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: garage
+          image: dxflrs/garage:v2.4.1
+          command: ["/garage", "-c", "/etc/garage/garage.toml", "server"]
+          env:
+            - name: GARAGE_RPC_SECRET
+              valueFrom:
+                secretKeyRef: {name: garage-secrets, key: rpc-secret}
+            - name: GARAGE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef: {name: garage-secrets, key: admin-token}
+            - name: RUST_LOG
+              value: garage=info
+          ports:
+            - {name: s3-api, containerPort: 3900}
+            - {name: rpc, containerPort: 3901}
+            - {name: admin, containerPort: 3903}
+          readinessProbe:
+            httpGet: {path: /health, port: admin}
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket: {port: rpc}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: config, mountPath: /etc/garage, readOnly: true}
+            - {name: meta, mountPath: /mnt/meta}
+            - {name: data, mountPath: /mnt/data}
+      volumes:
+        - name: config
+          configMap:
+            name: garage-config
+  volumeClaimTemplates:
+    - metadata:
+        name: meta
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 2Gi
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 150Gi

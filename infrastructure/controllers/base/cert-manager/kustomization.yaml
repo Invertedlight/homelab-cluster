@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Required by the CNPG barman-cloud plugin (self-signed mTLS between operator and plugin).
+resources:
+  - namespace.yaml
+  - helm-repository.yaml
+  - helm-release.yaml

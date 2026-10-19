@@ -4,3 +4,5 @@ resources:
   - namespace.yaml
   - helm-repository.yaml
   - helm-release.yaml
+  - garage-backup-target-secret.yaml
+  - recurring-jobs.yaml
