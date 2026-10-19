@@ -1,0 +1,15 @@
+# Nightly physical base backup to Garage. CNPG cron has seconds and runs in UTC:
+# 06:30 UTC = 01:30 CDT / 00:30 CST.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: homelab-postgres-nightly
+spec:
+  schedule: "0 30 6 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: homelab-postgres
+  method: plugin
+  target: prefer-standby
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
