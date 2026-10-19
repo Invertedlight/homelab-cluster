@@ -16,7 +16,7 @@ spec:
       labels:
         app: garage
       annotations:
-        checksum/config: v1
+        checksum/config: v2
     spec:
       serviceAccountName: garage
       securityContext:
@@ -44,7 +44,7 @@ spec:
       containers:
         - name: garage
           image: dxflrs/garage:v2.4.1
-          command: ["/garage", "-c", "/etc/garage/garage.toml", "server"]
+          command: ["/garage", "server"]
           env:
             - name: GARAGE_RPC_SECRET
               valueFrom:
@@ -63,7 +63,7 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
-            tcpSocket: {port: rpc}
+            tcpSocket: {port: admin}
             initialDelaySeconds: 30
             periodSeconds: 20
           securityContext:
@@ -75,7 +75,8 @@ spec:
             requests: {cpu: 50m, memory: 128Mi}
             limits: {memory: 1Gi}
           volumeMounts:
-            - {name: config, mountPath: /etc/garage, readOnly: true}
+            # Default path, so `garage` CLI via kubectl exec finds it too.
+            - {name: config, mountPath: /etc/garage.toml, subPath: garage.toml, readOnly: true}
             - {name: meta, mountPath: /mnt/meta}
             - {name: data, mountPath: /mnt/data}
       volumes:
