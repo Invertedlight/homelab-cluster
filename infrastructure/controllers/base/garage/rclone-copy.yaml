@@ -1,0 +1,83 @@
+# Nightly off-cluster copy of every Garage bucket to the 32 TB SMB disk.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: garage-offsite-smb
+spec:
+  storageClassName: smb-32tb
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: garage-rclone-copy
+spec:
+  schedule: "0 4 * * *"
+  timeZone: America/Chicago
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 14400
+      template:
+        metadata:
+          labels:
+            app: garage-rclone
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: rclone
+              image: rclone/rclone:1.71.2
+              command:
+                - /bin/sh
+                - -euc
+                - |
+                  for b in cnpg longhorn; do
+                    rclone sync "garage:${b}" "/offsite/${b}" --checksum --transfers 4 --stats-one-line --stats 60s
+                    rclone check "garage:${b}" "/offsite/${b}" --one-way --size-only
+                  done
+                  date -u +%Y-%m-%dT%H:%M:%SZ > /offsite/LAST_SUCCESS
+              env:
+                - {name: HOME, value: /tmp}
+                - {name: RCLONE_CONFIG_GARAGE_TYPE, value: s3}
+                - {name: RCLONE_CONFIG_GARAGE_PROVIDER, value: Other}
+                - {name: RCLONE_CONFIG_GARAGE_ENDPOINT, value: "http://garage.garage.svc.cluster.local:3900"}
+                - {name: RCLONE_CONFIG_GARAGE_REGION, value: garage}
+                - {name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE, value: "true"}
+                - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef: {name: garage-rclone-s3, key: AWS_ACCESS_KEY_ID}
+                - name: RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef: {name: garage-rclone-s3, key: AWS_SECRET_ACCESS_KEY}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests: {cpu: 50m, memory: 128Mi}
+                limits: {memory: 512Mi}
+              volumeMounts:
+                - {name: offsite, mountPath: /offsite}
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            - name: offsite
+              persistentVolumeClaim:
+                claimName: garage-offsite-smb
+            - name: tmp
+              emptyDir: {}

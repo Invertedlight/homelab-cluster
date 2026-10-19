@@ -29,6 +29,11 @@ spec:
       defaultDataLocality: best-effort
       reclaimPolicy: Retain
       volumeBindingMode: WaitForFirstConsumer
+    # Backups go to Garage S3 (infrastructure/controllers/base/garage).
+    defaultBackupStore:
+      backupTarget: s3://longhorn@garage/
+      backupTargetCredentialSecret: garage-longhorn-s3
+      pollInterval: 300
     defaultSettings:
       createDefaultDiskLabeledNodes: true
       defaultDataPath: /var/lib/longhorn
