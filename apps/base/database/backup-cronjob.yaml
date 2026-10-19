@@ -1,0 +1,106 @@
+# No S3-compatible target or Longhorn backup target exists in the homelab, so
+# homelab-postgres is backed up logically: pg_dumpall globals + pg_dump -Fc of
+# every database, verified with pg_restore --list, kept 14 days on SMB.
+# Restore: docs/homelab-postgres.md#backups
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: homelab-postgres-backup
+spec:
+  schedule: "15 2 * * *"
+  timeZone: America/Chicago
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: homelab-postgres-backup
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 33
+            runAsGroup: 33
+            fsGroup: 33
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: pg-dump
+              image: ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie
+              command:
+                - /bin/bash
+                - -euo
+                - pipefail
+                - -c
+                - |
+                  ts=$(date -u +%Y%m%dT%H%M%SZ)
+                  dir="/backup/${ts}"
+                  mkdir -p "${dir}.partial"
+                  cd "${dir}.partial"
+                  pg_dumpall --globals-only --no-role-passwords --dbname=postgres > globals.sql
+                  dbs=$(psql -d postgres -tAc "select datname from pg_database where not datistemplate and datallowconn order by 1")
+                  for db in ${dbs}; do
+                    pg_dump --format=custom --dbname="${db}" --file="${db}.dump"
+                    pg_restore --list "${db}.dump" > /dev/null
+                    echo "ok ${db} $(stat -c %s "${db}.dump")"
+                  done
+                  sha256sum globals.sql *.dump > SHA256SUMS
+                  cd /backup
+                  mv "${dir}.partial" "${dir}"
+                  # Retention: keep 14 days, by name (UTC timestamps).
+                  cutoff=$(date -u -d '14 days ago' +%Y%m%dT%H%M%SZ)
+                  for d in /backup/*/; do
+                    n=$(basename "$d")
+                    case "$n" in
+                      *.partial) [ "$n" != "${ts}.partial" ] && find "$d" -maxdepth 0 -mmin +120 -exec rm -rf {} + ;;
+                      2*) [[ "$n" < "$cutoff" ]] && rm -rf "$d" ;;
+                    esac
+                  done
+                  ls -1 /backup
+              env:
+                - name: HOME
+                  value: /tmp
+                - name: PGHOST
+                  # Dump from a standby to keep load off the primary.
+                  value: homelab-postgres-r.database.svc.cluster.local.
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: homelab-postgres-backup
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: homelab-postgres-backup
+                      key: password
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: homelab-postgres-backup-smb
+            - name: tmp
+              emptyDir: {}

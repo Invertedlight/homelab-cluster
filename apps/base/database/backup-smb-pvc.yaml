@@ -1,0 +1,12 @@
+# Nightly logical backups of every homelab-postgres database (NAS SMB, Retain).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: homelab-postgres-backup-smb
+spec:
+  storageClassName: smb
+  accessModes: [ReadWriteOnce]
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 20Gi
