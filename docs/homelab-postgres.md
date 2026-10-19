@@ -61,3 +61,28 @@ from the current database if rollback is needed. Restoring a dump replaces data
 and requires an explicit maintenance decision. Existing backups and historical
 DOCX reports are preserved. Any external backup jobs must target the new namespace
 and cluster; no CNPG scheduled backup configuration was present during migration.
+
+## Backups
+
+There is no S3-compatible object store and no Longhorn backup target in the
+homelab, and the instance PVCs are `local-path`, so CNPG barman/WAL archiving and
+volume backups are not available. Backups are logical:
+
+- CronJob `database/homelab-postgres-backup`, nightly 02:15 America/Chicago, dumps
+  from a standby (`homelab-postgres-r`) as the read-only managed role `backup`
+  (`pg_read_all_data`).
+- Each run writes `/<UTC timestamp>/` on PVC `homelab-postgres-backup-smb`
+  (storage class `smb`, Retain): `globals.sql` (roles without passwords),
+  `<db>.dump` (pg_dump custom format) per database, and `SHA256SUMS`. Each dump
+  is verified with `pg_restore --list` before the directory is finalised.
+- Retention: 14 days. Recovery point objective is ~24 h (no PITR).
+- Alerts: PrometheusRule `homelab-postgres-backups` (Alertmanager -> BlueBubbles)
+  and Grafana rules `homelab-postgres backup failed/stale` (Telegram).
+
+Manual run: `kubectl -n database create job --from=cronjob/homelab-postgres-backup manual-1`
+
+Restore one database: create the role/Database through Git if missing, then from
+a pod with the dump mounted run
+`pg_restore --clean --if-exists --no-owner --role=<owner> -d <db> <db>.dump`
+against `homelab-postgres-rw` as the database owner. Managed role passwords come
+from SOPS secrets, so `globals.sql` is reference only.

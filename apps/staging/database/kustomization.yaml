@@ -8,6 +8,7 @@ resources:
   - homelab-postgres-dashboard-secret.yaml
   - homelab-postgres-n8n-james-secret.yaml
   - homelab-postgres-n8n-gloria-secret.yaml
+  - homelab-postgres-backup-secret.yaml
   - mealie-database.yaml
   - dashboard-database.yaml
   - n8n-james-database.yaml

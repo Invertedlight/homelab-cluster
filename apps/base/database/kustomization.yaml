@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - postgres-cluster.yaml
+  - backup-smb-pvc.yaml
+  - backup-cronjob.yaml
