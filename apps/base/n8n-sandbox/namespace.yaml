@@ -1,0 +1,13 @@
+# n8n Assistant code sandbox (n8n-io/n8n-sandbox-service). Separate namespace
+# because the Docker-in-Docker runner must run privileged (no sysbox on k3s
+# nodes); the n8n-<customer> namespaces stay PSA "restricted".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: n8n-sandbox
+  labels:
+    app.kubernetes.io/part-of: n8n
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline

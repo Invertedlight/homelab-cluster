@@ -1,0 +1,20 @@
+# Let James' n8n reach the n8n Assistant code sandbox API.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: n8n-egress-sandbox
+spec:
+  podSelector:
+    matchLabels:
+      app: n8n
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: n8n-sandbox
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+      ports:
+        - {protocol: TCP, port: 8080}

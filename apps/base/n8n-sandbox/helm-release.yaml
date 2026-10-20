@@ -1,0 +1,83 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: n8n-sandbox
+  namespace: n8n-sandbox
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: ./charts/n8n-sandbox-service
+      sourceRef:
+        kind: GitRepository
+        name: n8n-sandbox-service
+        namespace: flux-system
+      interval: 24h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    fullnameOverride: sandbox
+    auth:
+      existingSecret: n8n-sandbox-auth
+    tls:
+      mode: certManager
+      certManager:
+        issuerRef:
+          name: sandbox-ca
+          kind: Issuer
+          group: cert-manager.io
+    api:
+      image:
+        tag: "1.9.0"
+      persistence:
+        enabled: true
+        size: 1Gi
+        storageClass: longhorn # Retain
+      resources:
+        requests: {cpu: 50m, memory: 64Mi}
+        limits: {memory: 512Mi}
+    runner:
+      # No sysbox RuntimeClass on the k3s nodes -> privileged DinD.
+      isolation: privileged
+      acknowledgePrivileged: true
+      image:
+        tag: "1.9.0"
+      sandboxImage:
+        tag: "1.9.0"
+      privileged:
+        scheduling:
+          nodeSelector: {}
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03, skynet-wrk-04]
+      # Retained inner-Docker data root (sandbox image + sandbox filesystems).
+      dockerDataRoot:
+        persistence:
+          enabled: true
+          size: 20Gi
+          storageClass: longhorn # Retain
+      config:
+        capacityTotal: "8"
+      resources:
+        requests: {cpu: 250m, memory: 512Mi}
+        limits: {cpu: "4", memory: 6Gi}
+    networkPolicy:
+      enabled: true
+      api:
+        # Only James' n8n may call the sandbox API.
+        httpIngressFrom:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: n8n-james
+            podSelector:
+              matchLabels:
+                app: n8n
