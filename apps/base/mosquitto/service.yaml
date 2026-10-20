@@ -9,5 +9,5 @@ spec:
   type: LoadBalancer
   ports:
     - name: mqtt
-      port: 1884
+      port: 1883
       targetPort: 1883

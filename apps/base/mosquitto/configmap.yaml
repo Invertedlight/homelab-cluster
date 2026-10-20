@@ -4,7 +4,7 @@ metadata:
   name: mosquitto-config
   namespace: mosquitto
 data:
-  kmosquitto.conf: |
+  mosquitto.conf: |
     listener 1883
     allow_anonymous false
     password_file /mosquitto/auth/passwd
