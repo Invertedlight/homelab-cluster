@@ -5,8 +5,6 @@ metadata:
   namespace: mosquitto
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: mosquitto
@@ -15,8 +13,21 @@ spec:
       labels:
         app: mosquitto
     spec:
-      securityContext:
-        fsGroup: 1883
+      initContainers:
+        - name: copy-passwd
+          image: eclipse-mosquitto:2
+          command:
+            [
+              "sh",
+              "-c",
+              "cp /secret/passwd /mosquitto/auth/passwd && chown 1883:1883 /mosquitto/auth/passwd && chmod 0600 /mosquitto/auth/passwd",
+            ]
+          volumeMounts:
+            - name: secret
+              mountPath: /secret
+              readOnly: true
+            - name: auth
+              mountPath: /mosquitto/auth
       containers:
         - name: mosquitto
           image: eclipse-mosquitto:2
@@ -29,7 +40,6 @@ spec:
               subPath: mosquitto.conf
             - name: auth
               mountPath: /mosquitto/auth
-              readOnly: true
           resources:
             requests:
               cpu: 10m
@@ -40,7 +50,8 @@ spec:
         - name: config
           configMap:
             name: mosquitto-config
-        - name: auth
+        - name: secret
           secret:
             secretName: mosquitto-passwd
-            defaultMode: 0440
+        - name: auth
+          emptyDir: {}
