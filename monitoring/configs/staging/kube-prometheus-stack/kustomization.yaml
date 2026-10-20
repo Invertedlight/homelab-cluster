@@ -11,5 +11,6 @@ resources:
   - homelab-postgres-backup-alerts.yaml
   - n8n-podmonitors.yaml
   - garage-servicemonitor.yaml
+  - garage-backup-alerts.yaml
   - n8n-grafana-dashboard.yaml
   - n8n-grafana-alerting.yaml
