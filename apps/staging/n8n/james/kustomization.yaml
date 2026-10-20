@@ -9,6 +9,7 @@ resources:
   - ../../../base/n8n/
   - n8n-credentials-secret.yaml
   - ingress.yaml
+  - networkpolicy-sandbox.yaml
 patches:
   - target:
       kind: Deployment

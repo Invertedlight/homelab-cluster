@@ -1,0 +1,35 @@
+# Private CA for the API <-> runner gRPC mTLS (cert-manager).
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: sandbox-selfsigned
+  namespace: n8n-sandbox
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sandbox-ca
+  namespace: n8n-sandbox
+spec:
+  isCA: true
+  commonName: n8n-sandbox-ca
+  secretName: sandbox-ca
+  duration: 87600h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: sandbox-selfsigned
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: sandbox-ca
+  namespace: n8n-sandbox
+spec:
+  ca:
+    secretName: sandbox-ca

@@ -1,0 +1,14 @@
+# Chart is not published to a Helm repo; pull it from the upstream git tag.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: n8n-sandbox-service
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://github.com/n8n-io/n8n-sandbox-service
+  ref:
+    tag: service/v1.9.0
+  ignore: |
+    /*
+    !/charts/n8n-sandbox-service/

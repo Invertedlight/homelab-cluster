@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# n8n Assistant code sandbox. In-cluster URL for n8n:
+#   http://sandbox-api.n8n-sandbox.svc.cluster.local:8080
+resources:
+  - namespace.yaml
+  - git-repository.yaml
+  - issuer.yaml
+  - networkpolicy.yaml
+  - helm-release.yaml
