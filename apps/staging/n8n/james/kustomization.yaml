@@ -8,6 +8,7 @@ labels:
 resources:
   - ../../../base/n8n/
   - n8n-credentials-secret.yaml
+  - brave-search-api-secret.yaml
   - ingress.yaml
   - networkpolicy-sandbox.yaml
 patches:
