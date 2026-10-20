@@ -6,7 +6,7 @@ metadata:
 spec:
   selector:
     app: mosquitto
-  type: loadBalancer
+  type: LoadBalancer
   ports:
     - name: mqtt
       port: 1884
