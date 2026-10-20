@@ -11,6 +11,7 @@ resources:
   - brave-search-api-secret.yaml
   - ingress.yaml
   - networkpolicy-sandbox.yaml
+  - networkpolicy-bluebubbles.yaml
 patches:
   - target:
       kind: Deployment
