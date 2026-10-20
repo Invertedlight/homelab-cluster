@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - ../../base/n8n-sandbox/
   - n8n-sandbox-auth-secret.yaml
+  - searxng-secret.yaml

@@ -18,3 +18,12 @@ spec:
               app.kubernetes.io/component: api
       ports:
         - {protocol: TCP, port: 8080}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: n8n-sandbox
+          podSelector:
+            matchLabels:
+              app: searxng
+      ports:
+        - {protocol: TCP, port: 8080}
