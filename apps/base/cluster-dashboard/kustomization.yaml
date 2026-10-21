@@ -8,9 +8,12 @@ configMapGenerator:
   - name: cluster-dashboard-icons
     files:
       - static/icons/n8n.webp
-      - static/icons/n8n.svg
-      - static/icons/n8n-color.svg
       - static/icons/grafana.webp
       - static/icons/linkding.webp
       - static/icons/audiobookshelf.webp
       - static/icons/mealie.webp
+      - static/icons/longhorn.webp
+      - static/icons/prometheus.webp
+      - static/icons/alertmanager.webp
+      - static/icons/searxng.webp
+      - static/icons/devpod.webp

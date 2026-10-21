@@ -122,6 +122,16 @@ spec:
               app: n8n
       ports:
         - {protocol: TCP, port: 8080}
+    # Traefik (web UI at searxng.jameshomelab.org, behind Cloudflare Access)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - {protocol: TCP, port: 8080}
   egress:
     - to:
         - ipBlock:

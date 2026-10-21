@@ -10,3 +10,4 @@ resources:
   - networkpolicy.yaml
   - helm-release.yaml
   - searxng.yaml
+  - searxng-ingress.yaml
