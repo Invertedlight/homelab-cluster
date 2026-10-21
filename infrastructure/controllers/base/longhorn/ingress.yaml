@@ -1,0 +1,23 @@
+# Internal UI. Public through the *.jameshomelab.org tunnel wildcard, so a
+# Cloudflare Access app for longhorn.jameshomelab.org MUST exist before this is merged.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: longhorn-ui
+  namespace: longhorn-system
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - longhorn.jameshomelab.org
+  rules:
+    - host: longhorn.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: longhorn-frontend
+                port:
+                  number: 80

@@ -1,0 +1,23 @@
+# Internal UI. Public through the *.jameshomelab.org tunnel wildcard, so a
+# Cloudflare Access app for searxng.jameshomelab.org MUST exist before this is merged.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: searxng
+  namespace: n8n-sandbox
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - searxng.jameshomelab.org
+  rules:
+    - host: searxng.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: searxng
+                port:
+                  number: 8080
