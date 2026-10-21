@@ -4,7 +4,6 @@ namespace: netwatch
 resources:
   - namespace.yaml
   - pvc.yaml
-  - sms-webhook-secret.yaml
   - deployment.yaml
   - cronjob.yaml
 generatorOptions:

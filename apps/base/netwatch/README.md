@@ -41,6 +41,6 @@ The job has to land on the same node as `deploy/netwatch` because the volume is 
 `netwatch-sms-webhook` is namespaced, so it is not the monitoring secret. Copy `url` and `token` from `monitoring/alertmanager-sms-webhook` (the same n8n webhook Alertmanager already uses). The token is the bearer value only. Until those placeholders are replaced, the report is still written and the SMS is skipped.
 
 ```bash
-sops apps/base/netwatch/sms-webhook-secret.yaml
+sops apps/staging/netwatch/sms-webhook-secret.yaml
 # set stringData.url and stringData.token, then save (sops re-encrypts)
 ```
