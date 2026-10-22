@@ -21,7 +21,7 @@ spec:
             value: "2"
       containers:
         - name: cluster-dashboard
-          image: ghcr.io/invertedlight/cluster-dashboard:0.3.0
+          image: ghcr.io/invertedlight/cluster-dashboard:0.4.0
           imagePullPolicy: Always
           ports:
             - name: http
@@ -43,6 +43,32 @@ spec:
                 secretKeyRef:
                   name: cluster-dashboard-database
                   key: secret-key
+            # Edit login (0.4.0). optional: if the Secret is missing the pod still
+            # starts, the home page works and editing stays disabled (fail closed).
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-dashboard-auth
+                  key: admin-username
+                  optional: true
+            - name: ADMIN_PASSWORD_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-dashboard-auth
+                  key: admin-password-hash
+                  optional: true
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-dashboard-auth
+                  key: session-secret
+                  optional: true
+            - name: TOTP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-dashboard-auth
+                  key: totp-secret
+                  optional: true
           readinessProbe:
             httpGet:
               path: /readyz
