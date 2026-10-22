@@ -1,6 +1,6 @@
 # Weekly Ubuntu OS updates (unattended-upgrades + kured)
 
-Last updated: 2026-09-11
+Last updated: 2026-10-21
 
 Ubuntu LTS nodes install security and updates packages automatically.
 **Reboots are owned by Flux-managed [kured](../infrastructure/controllers/base/kured/)**,
@@ -11,7 +11,7 @@ keep SUC (if present) for k3s version bumps only.
 
 | Layer | What | Where |
 | --- | --- | --- |
-| Host packages | `unattended-upgrades` (security + updates), `Automatic-Reboot false` | All six Ubuntu nodes |
+| Host packages | `unattended-upgrades` (security + updates), `Automatic-Reboot false` | All seven Ubuntu nodes (see [Nodes](#nodes)) |
 | Reboot sentinel | `/var/run/reboot-required` | Written by apt when a reboot is needed |
 | Cluster reboot | kured DaemonSet, concurrency 1 | `infrastructure/controllers/base/kured` via Flux |
 
@@ -21,6 +21,21 @@ kured window: **Sunday 02:00–06:00 America/Chicago**, drain timeout 20m, lock 
 tolerated so servers reboot too; concurrency 1 never takes more than one etcd/server
 down at once. kured does not role-order workers before servers; the Ansible bootstrap
 applies workers first, and the cluster-wide lock still serializes every reboot.
+
+## Nodes
+
+| Node | IP | Role | Notes |
+| --- | --- | --- | --- |
+| `skynet-cp-01` … `skynet-cp-03` | — | control-plane, etcd | |
+| `skynet-wrk-01` | `192.168.68.111` | worker | |
+| `skynet-wrk-02` | `192.168.68.112` | worker | Replacement hardware added 2026-10-04 |
+| `skynet-wrk-03` | `192.168.68.113` | worker | |
+| `skynet-wrk-04` | `192.168.68.114` | worker | Former `skynet-wrk-02` laptop, renamed 2026-10-04 |
+
+`skynet-wrk-04` is a laptop. Its charger is on a Tasmota smart plug, and its battery
+is monitored with a weekly battery analysis, so expect its plug to cycle. When adding
+or renaming a node, rerun the bootstrap below. See `docs/k3s-ha-runbook.md` for the
+worker replacement procedure.
 
 ## One-time host bootstrap (required)
 
@@ -39,7 +54,7 @@ ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/os-unattended
 SSH uses `~/.ssh/id_ed25519_ansible`; sudo is NOPASSWD for `cyberstar` (see
 `ansible/README.md`).
 
-Inventory hosts match the six skynet nodes. Adjust `ansible_user` /
+Inventory hosts match the seven skynet nodes. Adjust `ansible_user` /
 `ansible_ssh_private_key_file` in `ansible/inventory/hosts.yaml` if needed. The
 playbook installs packages, drops `/etc/apt/apt.conf.d/20auto-upgrades` and
 `50unattended-upgrades`, and leaves `Unattended-Upgrade::Automatic-Reboot` set to
@@ -47,7 +62,7 @@ playbook installs packages, drops `/etc/apt/apt.conf.d/20auto-upgrades` and
 
 ### Option B — Manual on each node
 
-Run on every node (`skynet-cp-01` … `skynet-wrk-03`), workers first if doing them by hand:
+Run on every node (`skynet-cp-01` … `skynet-wrk-04`), workers first if doing them by hand:
 
 ```bash
 sudo apt-get update
