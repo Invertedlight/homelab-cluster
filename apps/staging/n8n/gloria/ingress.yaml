@@ -1,6 +1,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Gloria n8n"
+    dashboard.jameshomelab.org/description: "Gloria's n8n workflow automation engine"
   name: n8n
 spec:
   ingressClassName: traefik
