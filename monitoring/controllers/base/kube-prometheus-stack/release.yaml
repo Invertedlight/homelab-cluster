@@ -48,6 +48,10 @@ spec:
       ingress:
         enabled: true
         ingressClassName: traefik
+        annotations:
+          dashboard.jameshomelab.org/enable: "true"
+          dashboard.jameshomelab.org/name: "Grafana"
+          dashboard.jameshomelab.org/description: "Cluster metrics and dashboards"
         hosts:
           - grs.jameshomelab.org
     alertmanager:
