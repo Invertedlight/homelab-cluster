@@ -31,6 +31,11 @@ spec:
         existingSecret: grafana-admin-credentials
         userKey: admin-user
         passwordKey: admin-password
+      # Merged into the chart's default grafana.ini. Sign-ups are already off by
+      # default; set explicitly so a chart/default change can't turn them on.
+      grafana.ini:
+        users:
+          allow_sign_up: false
       # Grafana-managed alerting for multi-tenant n8n (Telegram contact point).
       # Alertmanager -> BlueBubbles (sms receiver) is unchanged.
       sidecar:
