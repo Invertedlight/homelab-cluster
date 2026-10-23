@@ -81,3 +81,18 @@ spec:
                 claimName: garage-offsite-raidshare
             - name: tmp
               emptyDir: {}
+---
+# RETIRED: old claim on the dead smb-32tb drive. Kept in Git with Flux pruning
+# disabled so it is never deleted (house rule: never delete PVCs).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: garage-offsite-smb
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  storageClassName: smb-32tb
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 500Gi
