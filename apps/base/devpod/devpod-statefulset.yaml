@@ -170,7 +170,7 @@ spec:
       volumes:
         - name: scratch
           persistentVolumeClaim:
-            claimName: devpod-scratch
+            claimName: devpod-scratch-raidshare
         - name: bootstrap
           configMap:
             name: devpod-bootstrap

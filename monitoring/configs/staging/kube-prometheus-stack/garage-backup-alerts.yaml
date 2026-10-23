@@ -71,10 +71,10 @@ spec:
           for: 5m
           labels: {severity: warning}
           annotations:
-            summary: Nightly rclone copy of Garage to smb-32tb failed
+            summary: Nightly rclone copy of Garage to RaidShare failed
         - alert: GarageOffsiteCopyStale
           expr: (time() - kube_cronjob_status_last_successful_time{namespace="garage",cronjob="garage-rclone-copy"} > 93600) or ((time() - kube_cronjob_created{namespace="garage",cronjob="garage-rclone-copy"} > 93600) unless on(namespace,cronjob) kube_cronjob_status_last_successful_time{namespace="garage",cronjob="garage-rclone-copy"})
           for: 30m
           labels: {severity: warning}
           annotations:
-            summary: Garage off-site copy to smb-32tb has not succeeded in 26 hours
+            summary: Garage off-site copy to RaidShare has not succeeded in 26 hours

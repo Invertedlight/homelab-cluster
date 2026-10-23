@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: devpod-scratch
+  name: devpod-scratch-raidshare
   namespace: devpod
   labels:
     app.kubernetes.io/name: devpod-scratch
@@ -12,4 +12,4 @@ spec:
   resources:
     requests:
       storage: 500Gi
-  storageClassName: smb-32tb-devstorage
+  storageClassName: smb-uid1000
