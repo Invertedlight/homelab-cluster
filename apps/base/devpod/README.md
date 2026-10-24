@@ -98,18 +98,17 @@ kubectl -n devpod rollout restart statefulset/devpod
 
 After a rotation, on each Mac run `ssh-keygen -R devpod-0` and `ssh-keygen -R devpod-1`, then reconnect and accept the new fingerprint (or add the new `ssh_host_ed25519_key.pub` to `~/.ssh/known_hosts` as `devpod-0 ssh-ed25519 …` and `devpod-1 ssh-ed25519 …`).
 
-## Scratch storage (`smb-32tb`)
+## Scratch storage (RaidShare)
 
-- Appliance: `32TB_SSD` @ `192.168.71.249`, share `G` (guest).
-- Also File-Shared from mini as `//192.168.68.70/32TB_SSD` for Mac clients.
-- Cluster StorageClass: `smb-32tb` (CSI → appliance directly). Prefer a `DevStorage/` subdir for DevPod scratch PVCs.
+- The old `32TB_SSD` USB drive on the Deco (`//192.168.71.249/G`) was a fake and was retired on 2026-10-23.
+- Scratch now lives on RaidShare on the Mac mini (`//192.168.68.70/PVC`) via StorageClass `smb-uid1000`.
 - Do **not** put databases, Forgejo git data, or DevPod workspace home disks here — use Longhorn.
 
-## Standing PVC: `devpod-scratch`
+## Standing PVC: `devpod-scratch-raidshare`
 
 - Namespace: `devpod`
-- StorageClass: `smb-32tb-devstorage` → `//192.168.71.249/G/DevStorage`
-- Size: 500Gi (quota allows up to 3Ti total / 2Ti per PVC)
+- StorageClass: `smb-uid1000` → `//192.168.68.70/PVC`
+- Size: 500Gi
 - Access: RWX — mount into DevPod workspaces for bulky on/off scratch
 
 ## Base environment bootstrap

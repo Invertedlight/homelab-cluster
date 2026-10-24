@@ -13,23 +13,3 @@ spec:
     requests:
       storage: 500Gi
   storageClassName: smb-uid1000
----
-# RETIRED: old scratch claim on the dead smb-32tb-devstorage drive. Kept with
-# Flux pruning disabled so it is never deleted (house rule: never delete PVCs).
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: devpod-scratch
-  namespace: devpod
-  labels:
-    app.kubernetes.io/name: devpod-scratch-retired
-    app.kubernetes.io/part-of: homelab-dev
-  annotations:
-    kustomize.toolkit.fluxcd.io/prune: disabled
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 500Gi
-  storageClassName: smb-32tb-devstorage

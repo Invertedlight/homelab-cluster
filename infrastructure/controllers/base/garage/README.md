@@ -10,7 +10,7 @@ Buckets / keys (key material is SOPS-encrypted in `secrets.yaml`, copies in
 |---|---|---|
 | `cnpg` | `cnpg` | read/write — CNPG barman-cloud plugin |
 | `longhorn` | `longhorn` | read/write — Longhorn backup target |
-| both | `rclone` | read — nightly copy to `smb-32tb` (`garage-rclone-copy`, 04:00 CT) |
+| both | `rclone` | read — nightly copy to RaidShare (`smb-uid1000`) (`garage-rclone-copy`, 04:00 CT) |
 
 ## One-time bootstrap (already done; repeat only on a fresh cluster)
 
