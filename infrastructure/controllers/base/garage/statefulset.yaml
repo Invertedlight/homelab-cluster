@@ -43,7 +43,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
         - name: garage
-          image: dxflrs/garage:v2.4.1
+          image: dxflrs/garage:v2.5.0
           command: ["/garage", "server"]
           env:
             - name: GARAGE_RPC_SECRET
