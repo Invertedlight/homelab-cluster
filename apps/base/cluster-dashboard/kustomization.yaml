@@ -16,3 +16,8 @@ configMapGenerator:
       - static/icons/audiobookshelf.webp
       - static/icons/mealie.webp
       - static/icons/node-red.webp
+      - static/icons/longhorn.webp
+      - static/icons/prometheus.webp
+      - static/icons/alertmanager.webp
+      - static/icons/searxng.webp
+      - static/icons/devpod.webp

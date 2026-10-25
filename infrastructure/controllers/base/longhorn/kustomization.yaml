@@ -6,3 +6,4 @@ resources:
   - helm-release.yaml
   - garage-backup-target-secret.yaml
   - recurring-jobs.yaml
+  - ingress.yaml
