@@ -2663,8 +2663,8 @@ spec:
           protocol: TCP
         readinessProbe:
           httpGet:
-            path: /
-            port: http
+            path: /readyz
+            port: healthz
         resources:
           limits:
             cpu: 1000m
