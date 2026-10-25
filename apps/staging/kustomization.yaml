@@ -11,3 +11,4 @@ resources:
   - n8n
   - n8n-sandbox
   - netwatch
+  - node-red

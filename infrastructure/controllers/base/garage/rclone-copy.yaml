@@ -1,10 +1,10 @@
-# Nightly off-cluster copy of every Garage bucket to the 32 TB SMB disk.
+# Nightly off-cluster copy of every Garage bucket to RaidShare/PVC on the Mac mini.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: garage-offsite-smb
+  name: garage-offsite-raidshare
 spec:
-  storageClassName: smb-32tb
+  storageClassName: smb-uid1000
   accessModes: [ReadWriteOnce]
   resources:
     requests:
@@ -78,6 +78,6 @@ spec:
           volumes:
             - name: offsite
               persistentVolumeClaim:
-                claimName: garage-offsite-smb
+                claimName: garage-offsite-raidshare
             - name: tmp
               emptyDir: {}

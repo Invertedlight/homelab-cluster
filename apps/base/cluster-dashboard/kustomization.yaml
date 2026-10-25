@@ -4,14 +4,18 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - service.yaml
+  - rbac.yaml
 configMapGenerator:
   - name: cluster-dashboard-icons
     files:
       - static/icons/n8n.webp
+      - static/icons/n8n.svg
+      - static/icons/n8n-color.svg
       - static/icons/grafana.webp
       - static/icons/linkding.webp
       - static/icons/audiobookshelf.webp
       - static/icons/mealie.webp
+      - static/icons/node-red.webp
       - static/icons/longhorn.webp
       - static/icons/prometheus.webp
       - static/icons/alertmanager.webp

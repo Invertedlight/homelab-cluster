@@ -5,6 +5,10 @@ kind: Ingress
 metadata:
   name: alertmanager
   namespace: monitoring
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Alertmanager"
+    dashboard.jameshomelab.org/description: "Alert routing and silences"
 spec:
   ingressClassName: traefik
   tls:

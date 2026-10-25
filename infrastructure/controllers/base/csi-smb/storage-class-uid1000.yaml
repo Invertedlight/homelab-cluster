@@ -1,0 +1,27 @@
+# RaidShare/PVC on the Mac mini, mounted as uid/gid 1000 for non-root workloads
+# (garage rclone copy, devpod scratch). Replaces smb-32tb / smb-32tb-devstorage,
+# whose target (USB drive on the Deco, //192.168.71.249/G) was a fake and died Oct 2026.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: smb-uid1000
+provisioner: smb.csi.k8s.io
+parameters:
+  source: //192.168.68.70/PVC
+  onDelete: retain
+  csi.storage.k8s.io/provisioner-secret-name: smb-credentials
+  csi.storage.k8s.io/provisioner-secret-namespace: linkding
+  csi.storage.k8s.io/node-stage-secret-name: smb-credentials
+  csi.storage.k8s.io/node-stage-secret-namespace: linkding
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+mountOptions:
+  - dir_mode=0770
+  - file_mode=0660
+  - uid=1000
+  - gid=1000
+  - noperm
+  - mfsymlinks
+  - cache=strict
+  - noserverino

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: node-red
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Node-RED"
+    dashboard.jameshomelab.org/description: "Flow-based automation"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - nodered.jameshomelab.org
+  rules:
+    - host: nodered.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: node-red
+                port:
+                  number: 1880

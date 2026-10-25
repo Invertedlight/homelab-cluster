@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-red
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: node-red
+  template:
+    metadata:
+      labels:
+        app: node-red
+    spec:
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03, skynet-wrk-04]
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: node-red
+          image: nodered/node-red:5.0.9-24
+          args: ["--settings", "/config/settings.js"]
+          ports:
+            - name: http
+              containerPort: 1880
+          env:
+            - name: TZ
+              value: America/Chicago
+            - name: NODE_RED_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: node-red-admin
+                  key: admin-user
+            - name: NODE_RED_ADMIN_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: node-red-admin
+                  key: admin-hash
+            - name: NODE_RED_CREDENTIAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: node-red-admin
+                  key: credential-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: node-red-data
+              mountPath: /data
+            - name: node-red-settings
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: node-red-data
+          persistentVolumeClaim:
+            claimName: node-red-data-longhorn
+        - name: node-red-settings
+          configMap:
+            name: node-red-settings

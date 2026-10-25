@@ -5,6 +5,10 @@ kind: Ingress
 metadata:
   name: prometheus
   namespace: monitoring
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Prometheus"
+    dashboard.jameshomelab.org/description: "Metrics and queries"
 spec:
   ingressClassName: traefik
   tls:

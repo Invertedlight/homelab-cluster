@@ -5,6 +5,10 @@ kind: Ingress
 metadata:
   name: longhorn-ui
   namespace: longhorn-system
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Longhorn"
+    dashboard.jameshomelab.org/description: "Distributed block storage and backups"
 spec:
   ingressClassName: traefik
   tls:

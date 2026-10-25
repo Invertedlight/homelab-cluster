@@ -5,6 +5,10 @@ kind: Ingress
 metadata:
   name: searxng
   namespace: n8n-sandbox
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "SearXNG"
+    dashboard.jameshomelab.org/description: "Private metasearch for n8n"
 spec:
   ingressClassName: traefik
   tls:
