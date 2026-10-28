@@ -38,7 +38,7 @@ spec:
                     values: [skynet-wrk-01, skynet-wrk-02, skynet-wrk-03, skynet-wrk-04]
       containers:
         - name: n8n
-          image: docker.n8n.io/n8nio/n8n:2.46.0
+          image: docker.n8n.io/n8nio/n8n:2.46.1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
