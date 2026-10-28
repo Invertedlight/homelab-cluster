@@ -12,7 +12,7 @@ spec:
         spec:
           containers:
             - name: renovate
-              image: renovate/renovate:44.188.0
+              image: renovate/renovate:44.190.2
               args:
                 - Invertedlight/homelab-cluster
 
