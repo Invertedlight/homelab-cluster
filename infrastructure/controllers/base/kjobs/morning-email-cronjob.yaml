@@ -5,6 +5,7 @@ metadata:
   namespace: kjobs
 spec:
   schedule: "5 8 * * *"
+  timeZone: America/Chicago
   jobTemplate:
     spec:
       template:
