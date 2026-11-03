@@ -72,6 +72,62 @@ spec:
         secrets:
           - alertmanager-sms-webhook
       config:
+        # Setting inhibit_rules replaces the chart default list, so the four
+        # chart rules are copied here unchanged. Maintenance rules are added
+        # below them. group_by, group_wait, group_interval, repeat_interval,
+        # and send_resolved are unchanged.
+        inhibit_rules:
+          - source_matchers:
+              - 'severity = critical'
+            target_matchers:
+              - 'severity =~ warning|info'
+            equal:
+              - 'namespace'
+              - 'alertname'
+          - source_matchers:
+              - 'severity = warning'
+            target_matchers:
+              - 'severity = info'
+            equal:
+              - 'namespace'
+              - 'alertname'
+          - source_matchers:
+              - 'alertname = InfoInhibitor'
+            target_matchers:
+              - 'severity = info'
+            equal:
+              - 'namespace'
+          - target_matchers:
+              - 'alertname = InfoInhibitor'
+          # Source alerts are PrometheusRules in
+          # monitoring/configs/staging/kube-prometheus-stack/node-maintenance-alerts.yaml.
+          # They are routed to null below; inhibition does not require a notification.
+          # Same-node: any other alert that already carries this node name.
+          - source_matchers:
+              - 'alertname = NodeInMaintenance'
+            target_matchers:
+              - 'alertname !~ "NodeInMaintenance|GarageNodeInMaintenance"'
+            equal:
+              - node
+          # No node label. One marked node mutes these names for the whole cluster
+          # until the label is removed. KubeDaemonSetNotScheduled is the same
+          # DaemonSet failure mode as MisScheduled and RolloutStuck.
+          - source_matchers:
+              - 'alertname = NodeInMaintenance'
+            target_matchers:
+              - 'alertname =~ "TargetDown|KubeDaemonSetMisScheduled|KubeDaemonSetRolloutStuck|KubeDaemonSetNotScheduled|KubePodNotReady"'
+          # Garage is pinned to skynet-wrk-02/03/04. Mute its nodeless alerts only
+          # while one of those nodes is marked, not during maintenance of any node.
+          - source_matchers:
+              - 'alertname = GarageNodeInMaintenance'
+            target_matchers:
+              - 'alertname =~ "GarageClusterUnhealthy|GarageStorageNodesDegraded"'
+          - source_matchers:
+              - 'alertname = GarageNodeInMaintenance'
+            target_matchers:
+              - 'alertname = KubeStatefulSetReplicasMismatch'
+              - 'namespace = garage'
+              - 'statefulset = garage'
         route:
           group_by: ["namespace", "alertname"]
           group_wait: 30s
@@ -81,9 +137,10 @@ spec:
           receiver: sms
           routes:
             # Watchdog and InfoInhibitor are always firing; keep them off the phone.
+            # NodeInMaintenance and GarageNodeInMaintenance are inhibit sources only.
             - receiver: "null"
               matchers:
-                - alertname =~ "Watchdog|InfoInhibitor"
+                - alertname =~ "Watchdog|InfoInhibitor|NodeInMaintenance|GarageNodeInMaintenance"
         receivers:
           - name: "null"
           - name: sms
@@ -121,6 +178,10 @@ spec:
     # A stored artifact does not keep Ready=True: the metric copies
     # status.conditions[type=Ready], which is False while fetch is failing.
     kube-state-metrics:
+      # kube_node_labels only includes Kubernetes labels named here.
+      # `maintenance=true` is the node maintenance marker (docs/node-maintenance.md).
+      metricLabelsAllowlist:
+        - "nodes=[maintenance]"
       rbac:
         extraRules:
           - apiGroups: ["source.toolkit.fluxcd.io"]
