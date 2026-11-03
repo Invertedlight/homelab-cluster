@@ -1,0 +1,59 @@
+# Inhibit sources for a node labeled maintenance=true.
+# Alertmanager routes both alerts to the null receiver and uses them as
+# inhibit sources. See the inhibit_rules on the kube-prometheus-stack
+# HelmRelease and docs/node-maintenance.md.
+#
+# kube-state-metrics exports label_maintenance only because the HelmRelease
+# sets metricLabelsAllowlist to nodes=[maintenance]. The label value must
+# be the string true.
+#
+# GarageNodeInMaintenance is limited to the nodes in
+# infrastructure/controllers/base/garage/statefulset.yaml nodeAffinity.
+# Keep that list in sync with this selector.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: node-maintenance
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: node-maintenance
+      rules:
+        # No `for`: the stock node and DaemonSet alerts wait 10m–15m, so this
+        # source is firing before they notify when the label is applied first.
+        - alert: NodeInMaintenance
+          expr: |
+            max by (node) (
+              kube_node_labels{job="kube-state-metrics", label_maintenance="true"}
+            ) == 1
+          labels:
+            severity: info
+          annotations:
+            summary: Node {{ $labels.node }} is marked for maintenance
+            description: >-
+              Node {{ $labels.node }} has label maintenance=true. This alert
+              is routed to the null receiver. It inhibits SMS for alerts that
+              carry the same node label, and for TargetDown, KubePodNotReady,
+              and the DaemonSet scheduling alerts, until the label is removed
+              with kubectl label node {{ $labels.node }} maintenance-.
+        - alert: GarageNodeInMaintenance
+          expr: |
+            max by (node) (
+              kube_node_labels{
+                job="kube-state-metrics",
+                label_maintenance="true",
+                node=~"skynet-wrk-02|skynet-wrk-03|skynet-wrk-04"
+              }
+            ) == 1
+          labels:
+            severity: info
+          annotations:
+            summary: Garage node {{ $labels.node }} is marked for maintenance
+            description: >-
+              {{ $labels.node }} hosts Garage (local-path on skynet-wrk-02,
+              skynet-wrk-03, and skynet-wrk-04). This alert is routed to the
+              null receiver. It inhibits GarageClusterUnhealthy,
+              GarageStorageNodesDegraded, and KubeStatefulSetReplicasMismatch
+              for the garage StatefulSet until maintenance=true is removed.

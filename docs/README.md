@@ -27,5 +27,6 @@ Operational guides and migration records for the homelab cluster. Migration reco
 - [Tab Shade notarization addendum](Tab_Shade_Notarization_Addendum.docx)
 - [homelab-postgres](homelab-postgres.md)
 - [k3s-ha-runbook](k3s-ha-runbook.md)
+- [Node maintenance and SMS alerts](node-maintenance.md)
 - [Weekly Ubuntu OS updates (unattended-upgrades + kured)](os-updates.md)
 - [Homelab Weekly OS Updates Runbook (Word)](Homelab_Weekly_OS_Updates_Runbook.docx)

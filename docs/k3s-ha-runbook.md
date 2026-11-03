@@ -24,12 +24,16 @@ https://192.168.68.40:6443
 
 The API certificate includes the virtual address and all three control-plane servers run embedded etcd. PostgreSQL is not the K3s datastore. The shared CloudNativePG cluster `database/homelab-postgres` hosts application databases. Linkding retains its own `linkding` database and nonsuperuser role. See [shared PostgreSQL operations](homelab-postgres.md).
 
+## Node maintenance and SMS
+
+Before cordon, drain, or powering a node off, set the node label `maintenance=true` so Alertmanager inhibits the node-down texts. Remove the label only after the node is Ready. The full mark, drain, work, uncordon, unmark sequence, the alert list, and the Mac mini helper `~/bin/maint-silence.sh` are in [node-maintenance.md](node-maintenance.md).
+
 ## Worker replacement procedure (used 2026-10-04 for skynet-wrk-02)
 
 Old `skynet-wrk-02` (laptop, MAC `C8:2A:14:02:91:23`) became `skynet-wrk-04` at `192.168.68.114`; new hardware (MAC `C4:65:16:1B:33:9E`, NIC `eno1`, 238 GB NVMe) took `skynet-wrk-02` at `192.168.68.112`. Nodes keep DHCP; the address comes from the Deco reservation.
 
 1. Longhorn: set the Longhorn node `allowScheduling=false`, `evictionRequested=true`; wait until it holds zero replicas and every volume has 3 replicas elsewhere.
-2. `kubectl cordon` and `kubectl drain --ignore-daemonsets --delete-emptydir-data`.
+2. Label the node `maintenance=true` ([node maintenance](node-maintenance.md)), then `kubectl cordon` and `kubectl drain --ignore-daemonsets --delete-emptydir-data`. Remove the label after the node is Ready again, or when the node object has been deleted if it is not coming back.
 3. On the old host: back up `/etc/rancher/k3s`, run `k3s-agent-uninstall.sh`, then `kubectl delete node <name>` (k3s removes the node-password secret; Longhorn removes its node record). Move `/var/lib/longhorn` aside.
 4. Rename (`hostnamectl`, `/etc/hosts`), change the Deco reservation (remove old MAC entry, add MAC to the new address), renew DHCP, add AdGuard rewrite and PTR rule.
 5. Rejoin: restore `node-token` and the resolv drop-in (or run `ansible/playbooks/k3s-upstream-resolv.yaml`), then `curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.3+k3s1 K3S_URL=https://192.168.68.40:6443 K3S_TOKEN_FILE=/etc/rancher/k3s/node-token sh -s - agent --node-name <name>`.

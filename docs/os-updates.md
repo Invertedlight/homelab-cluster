@@ -22,6 +22,10 @@ tolerated so servers reboot too; concurrency 1 never takes more than one etcd/se
 down at once. kured does not role-order workers before servers; the Ansible bootstrap
 applies workers first, and the cluster-wide lock still serializes every reboot.
 
+kured cordons a node for that reboot. The cordon is not the `maintenance=true` label.
+Leave the label unset for the Sunday window so a reboot that stays down still texts.
+Set the label only for planned node work ([node maintenance](node-maintenance.md)).
+
 ## Nodes
 
 | Node | IP | Role | Notes |
