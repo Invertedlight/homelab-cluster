@@ -136,6 +136,18 @@ spec:
           repeat_interval: 6h
           receiver: sms
           routes:
+            # NodeDown: one loud CRITICAL ANNOUNCE text per down node, repeated
+            # every 30m until acked ("cmd ack [node]" creates a silence for
+            # alertname=NodeDown). It only matches NodeDown, so every other alert
+            # still reaches the default sms route unchanged. continue: false so the
+            # default route does not send a second copy every 6h.
+            - receiver: sms-critical
+              matchers:
+                - alertname = "NodeDown"
+              group_by: ["node"]
+              group_wait: 0s
+              group_interval: 1m
+              repeat_interval: 30m
             # Watchdog and InfoInhibitor are always firing; keep them off the phone.
             # NodeInMaintenance and GarageNodeInMaintenance are inhibit sources only.
             - receiver: "null"
@@ -144,6 +156,15 @@ spec:
         receivers:
           - name: "null"
           - name: sms
+            webhook_configs:
+              - url_file: /etc/alertmanager/secrets/alertmanager-sms-webhook/url
+                send_resolved: true
+                http_config:
+                  authorization:
+                    type: Bearer
+                    credentials_file: /etc/alertmanager/secrets/alertmanager-sms-webhook/token
+          # Same webhook and secret as sms; the routine formats NodeDown as CRITICAL.
+          - name: sms-critical
             webhook_configs:
               - url_file: /etc/alertmanager/secrets/alertmanager-sms-webhook/url
                 send_resolved: true
