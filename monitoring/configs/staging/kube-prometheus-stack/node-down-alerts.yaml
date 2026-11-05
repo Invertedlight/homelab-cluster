@@ -1,0 +1,49 @@
+# CRITICAL "node offline" announcement (2026-11-04).
+# Adds one extra alert; it does not inhibit or replace any other alert, so the
+# normal per-alert SMS texts still show what is impacted.
+# Routed to receiver sms-critical in the kube-prometheus-stack HelmRelease
+# (repeat_interval 30m). The webhook routine formats it as
+# "ANNOUNCE: CRITICAL. Skynet node X (ip) is OFFLINE since ..." so the iPhone
+# ANNOUNCE: automation plays it loud. Ack by texting "cmd ack [node]", which
+# creates an Alertmanager silence for alertname=NodeDown (and node=X).
+#
+# Fires when kubelet Ready is false, or node-exporter on that node is down
+# (joined to the node through the DaemonSet pod, because wrk-02/04 report an
+# IPv6 internal_ip). Skipped while the node is labeled maintenance=true.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: node-down
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: node-down
+      rules:
+        - alert: NodeDown
+          expr: |
+            (
+              max by (node) (
+                kube_node_status_condition{job="kube-state-metrics", condition="Ready", status="true"} == 0
+              )
+              or
+              max by (node) (
+                (up{job="node-exporter"} == 0)
+                * on (namespace, pod) group_left (node)
+                max by (namespace, pod, node) (kube_pod_info{job="kube-state-metrics"})
+              )
+            )
+            unless on (node)
+            max by (node) (kube_node_labels{job="kube-state-metrics", label_maintenance="true"})
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            ip: >-
+              {{ with printf `label_replace(up{job="node-exporter"} and on (namespace, pod) kube_pod_info{job="kube-state-metrics",node="%s"}, "ip", "$1", "instance", "([^:]+):.*")` $labels.node | query }}{{ with first . }}{{ .Labels.ip }}{{ end }}{{ end }}
+            summary: Node {{ $labels.node }} is offline
+            description: >-
+              {{ $labels.node }} is NotReady or its node-exporter is unreachable.
+              Repeats every 30m until acknowledged with "cmd ack {{ $labels.node }}"
+              (or "cmd ack" for all down nodes).
