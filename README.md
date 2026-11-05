@@ -8,6 +8,8 @@ Operator documentation:
 
 - [Shared PostgreSQL operations](docs/homelab-postgres.md)
 
+- [Node-RED flows and palette packages](apps/base/node-red/README.md)
+
 - [All project documents and Word runbooks](docs/README.md)
 
 - [Weekly Ubuntu OS updates](docs/os-updates.md)

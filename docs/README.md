@@ -28,5 +28,6 @@ Operational guides and migration records for the homelab cluster. Migration reco
 - [homelab-postgres](homelab-postgres.md)
 - [k3s-ha-runbook](k3s-ha-runbook.md)
 - [Node maintenance and SMS alerts](node-maintenance.md)
+- [Node-RED flows and palette packages](../apps/base/node-red/README.md)
 - [Weekly Ubuntu OS updates (unattended-upgrades + kured)](os-updates.md)
 - [Homelab Weekly OS Updates Runbook (Word)](Homelab_Weekly_OS_Updates_Runbook.docx)
