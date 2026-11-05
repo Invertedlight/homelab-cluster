@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "description": "Palette packages to install when they are missing from the Node-RED Longhorn volume. Ranges are the live install recorded with the June 3 2023 weather flow. This file is merged into /data/package.json; it does not replace it.",
+  "dependencies": {
+    "@digitaloak/node-red-contrib-digitaloak-postgresql": "~0.3.2",
+    "node-red-contrib-ui-led": "~0.4.11",
+    "node-red-dashboard": "~3.4.0"
+  }
+}

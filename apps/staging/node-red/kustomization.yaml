@@ -2,6 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: node-red
 resources:
+  # Flow exports and palette/package.json live in the base directory. This
+  # overlay adds the Ingress and the SOPS admin secret, and does not copy them.
   - ../../base/node-red/
   - ingress.yaml
   # James creates this from node-red-admin-secret.example.yaml and encrypts it with sops.

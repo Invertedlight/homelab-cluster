@@ -30,6 +30,29 @@ spec:
         fsGroup: 1000
         runAsUser: 1000
         runAsGroup: 1000
+      initContainers:
+        # Same image as the app container. Installs palette packages that are
+        # missing from the volume and seeds flows.json only when it is absent.
+        - name: gitops-sync
+          image: nodered/node-red:5.0.9-24
+          command: ["/bin/sh", "/gitops/sync-gitops.sh"]
+          env:
+            - name: NPM_CONFIG_CACHE
+              value: /tmp/npm-cache
+          securityContext:
+            allowPrivilegeEscalation: false
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: node-red-data
+              mountPath: /data
+            - name: node-red-gitops
+              mountPath: /gitops
+              readOnly: true
       containers:
         - name: node-red
           image: nodered/node-red:5.0.9-24
@@ -81,6 +104,9 @@ spec:
             - name: node-red-settings
               mountPath: /config
               readOnly: true
+            - name: node-red-gitops
+              mountPath: /gitops
+              readOnly: true
       volumes:
         - name: node-red-data
           persistentVolumeClaim:
@@ -88,3 +114,6 @@ spec:
         - name: node-red-settings
           configMap:
             name: node-red-settings
+        - name: node-red-gitops
+          configMap:
+            name: node-red-gitops
