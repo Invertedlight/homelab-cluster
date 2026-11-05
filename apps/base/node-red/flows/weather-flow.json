@@ -1,0 +1,1427 @@
+[
+  {
+    "id": "e957afae9c5319c9",
+    "type": "tab",
+    "label": "Flow 1",
+    "disabled": false,
+    "info": "",
+    "env": []
+  },
+  {
+    "id": "ed4a450b9ac5ab42",
+    "type": "mqtt-broker",
+    "name": "ibm-mqisdp",
+    "broker": "localhost",
+    "port": "1883",
+    "clientid": "RecieveWeatherData",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": ""
+  },
+  {
+    "id": "b6d92e0a600e272b",
+    "type": "digitaloak-postgresql-connection-manager",
+    "name": "WeatherData",
+    "host": "localhost",
+    "port": "5432",
+    "database": "weather data",
+    "tls": "",
+    "use_tls": false,
+    "pool_max_clients": "10",
+    "pool_client_max_idle": "10000",
+    "client_query_timeout": "",
+    "client_statement_timeout": "",
+    "client_connection_timeout_millis": "",
+    "is_client_enabled": "1"
+  },
+  {
+    "id": "628ef8144d99a970",
+    "type": "ui_tab",
+    "name": "Weather Data",
+    "icon": "dashboard",
+    "disabled": false,
+    "hidden": false
+  },
+  {
+    "id": "9e04b297fd721364",
+    "type": "ui_base",
+    "theme": {
+      "name": "theme-dark",
+      "lightTheme": {
+        "default": "#0094CE",
+        "baseColor": "#0094CE",
+        "baseFont": "Century Gothic,CenturyGothic,AppleGothic,sans-serif",
+        "edited": true,
+        "reset": false
+      },
+      "darkTheme": {
+        "default": "#097479",
+        "baseColor": "#097479",
+        "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+        "edited": true,
+        "reset": false
+      },
+      "customTheme": {
+        "name": "Default Theme 1",
+        "default": "#4B7930",
+        "baseColor": "#ece50e",
+        "baseFont": "Arial Black,Arial Black,Gadget,sans-serif",
+        "reset": false
+      },
+      "themeState": {
+        "base-color": {
+          "default": "#097479",
+          "value": "#097479",
+          "edited": true
+        },
+        "page-titlebar-backgroundColor": {
+          "value": "#097479",
+          "edited": false
+        },
+        "page-backgroundColor": {
+          "value": "#111111",
+          "edited": false
+        },
+        "page-sidebar-backgroundColor": {
+          "value": "#333333",
+          "edited": false
+        },
+        "group-textColor": {
+          "value": "#0eb8c0",
+          "edited": false
+        },
+        "group-borderColor": {
+          "value": "#555555",
+          "edited": false
+        },
+        "group-backgroundColor": {
+          "value": "#333333",
+          "edited": false
+        },
+        "widget-textColor": {
+          "value": "#eeeeee",
+          "edited": false
+        },
+        "widget-backgroundColor": {
+          "value": "#097479",
+          "edited": false
+        },
+        "widget-borderColor": {
+          "value": "#333333",
+          "edited": false
+        },
+        "base-font": {
+          "value": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+        }
+      },
+      "angularTheme": {
+        "primary": "indigo",
+        "accents": "blue",
+        "warn": "red",
+        "background": "grey",
+        "palette": "light"
+      }
+    },
+    "site": {
+      "name": "Node-RED Dashboard",
+      "hideToolbar": "true",
+      "allowSwipe": "false",
+      "lockMenu": "false",
+      "allowTempTheme": "false",
+      "dateFormat": "DD/MM/YYYY",
+      "sizes": {
+        "sx": 48,
+        "sy": 12,
+        "gx": 6,
+        "gy": 6,
+        "cx": 6,
+        "cy": 6,
+        "px": 0,
+        "py": 0
+      }
+    }
+  },
+  {
+    "id": "6dd2fb88d99ba040",
+    "type": "ui_group",
+    "name": "Weather Data",
+    "tab": "628ef8144d99a970",
+    "order": 1,
+    "disp": true,
+    "width": 20,
+    "collapse": false,
+    "className": ""
+  },
+  {
+    "id": "3cf0ddc0fadcaba8",
+    "type": "ui_spacer",
+    "z": "e957afae9c5319c9",
+    "name": "spacer",
+    "group": "6dd2fb88d99ba040",
+    "order": 7,
+    "width": 8,
+    "height": 1
+  },
+  {
+    "id": "9a304351a2553950",
+    "type": "ui_spacer",
+    "z": "e957afae9c5319c9",
+    "name": "spacer",
+    "group": "6dd2fb88d99ba040",
+    "order": 9,
+    "width": 8,
+    "height": 1
+  },
+  {
+    "id": "85b28b4eff423005",
+    "type": "ui_spacer",
+    "z": "e957afae9c5319c9",
+    "name": "spacer",
+    "group": "6dd2fb88d99ba040",
+    "order": 13,
+    "width": 1,
+    "height": 1
+  },
+  {
+    "id": "5c36f86b5bc02fe4",
+    "type": "ui_spacer",
+    "z": "e957afae9c5319c9",
+    "name": "spacer",
+    "group": "6dd2fb88d99ba040",
+    "order": 15,
+    "width": 2,
+    "height": 1
+  },
+  {
+    "id": "1d1706423033665c",
+    "type": "mqtt in",
+    "z": "e957afae9c5319c9",
+    "name": "GetWeatherData",
+    "topic": "sensors/weather",
+    "qos": "2",
+    "datatype": "auto-detect",
+    "broker": "ed4a450b9ac5ab42",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 100,
+    "y": 320,
+    "wires": [
+      [
+        "653df23813717388",
+        "4fce83246e9c208d"
+      ]
+    ]
+  },
+  {
+    "id": "653df23813717388",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 1",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 300,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "567b6cd20ad39947",
+    "type": "inject",
+    "z": "e957afae9c5319c9",
+    "name": "Inject DB Data",
+    "props": [
+      {
+        "p": "query",
+        "v": "insert into weatherdata (altitude, pressure, temperature, humidity, lat, lng) values (2970, 680, 71, 21, 34.76543, -113.876543);",
+        "vt": "str"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "read/database",
+    "x": 160,
+    "y": 780,
+    "wires": [
+      [
+        "d573406aaa5189d4"
+      ]
+    ]
+  },
+  {
+    "id": "4cbe3c910985da52",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 2",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "false",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 740,
+    "y": 780,
+    "wires": []
+  },
+  {
+    "id": "4fce83246e9c208d",
+    "type": "json",
+    "z": "e957afae9c5319c9",
+    "name": "weather_data_stream",
+    "property": "payload",
+    "action": "obj",
+    "pretty": true,
+    "x": 160,
+    "y": 460,
+    "wires": [
+      [
+        "7ebea0f35d88142f",
+        "9217f241bcbdca5a",
+        "3b65a4ae70602491"
+      ]
+    ]
+  },
+  {
+    "id": "d3763a03310e238a",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 3",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 560,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "d573406aaa5189d4",
+    "type": "digitaloak-postgresql-query",
+    "z": "e957afae9c5319c9",
+    "name": "WeatherDataInsert",
+    "server": "b6d92e0a600e272b",
+    "inputs": 1,
+    "outputs": 1,
+    "x": 530,
+    "y": 780,
+    "wires": [
+      [
+        "4cbe3c910985da52"
+      ]
+    ]
+  },
+  {
+    "id": "4a3ad02db8bb7754",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "Get Weather Values",
+    "func": "var weather = msg.payload;\n\nvar inHG_to_hPa = 33.8638866667;\n//var adjust_sensor = -48 //100.326;\n//var hPA_to_inHG = 0.02952998307;\n\nvar pressure = global.get(\"pressure\");\nvar temperature = global.get(\"temperature\");\nvar humidity = global.get(\"humidity\");\nvar lat = global.get(\"lat\");\nvar lng = global.get(\"lng\");\nvar altitude = global.get(\"alt\");\n\n// Conver to hPA if pressure is in inHg mode.\nif (global.get(\"Toggle_units\") == false) {\n    pressure = pressure * inHG_to_hPa;\n}\n\nmsg.query = \"insert into weatherdata (altitude, pressure, temperature, humidity, lat, lng) values (\" + altitude + \",\" + pressure.toFixed(2)  + \",\" +  temperature + \",\" + humidity + \",\" + lat + \",\" + lng + \");\"\n\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 270,
+    "y": 700,
+    "wires": [
+      [
+        "d573406aaa5189d4",
+        "bfe9e513a2896a98"
+      ]
+    ]
+  },
+  {
+    "id": "bfe9e513a2896a98",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 4",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "query",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 500,
+    "y": 700,
+    "wires": []
+  },
+  {
+    "id": "239ce81efe57e8ea",
+    "type": "inject",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"lat\":34.76543,\"lng\":-113.876543,\"alt\":2942}",
+    "payloadType": "json",
+    "x": 110,
+    "y": 40,
+    "wires": [
+      [
+        "0e15fc1e58e21ac4"
+      ]
+    ]
+  },
+  {
+    "id": "977c7df824b49e0a",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 5",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "false",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 500,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "0e15fc1e58e21ac4",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 1",
+    "func": "global.set(\"lat\", msg.payload.lat);\nglobal.set(\"lng\", msg.payload.lng);\nglobal.set(\"alt\", msg.payload.lng);\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 280,
+    "y": 40,
+    "wires": [
+      [
+        "977c7df824b49e0a"
+      ]
+    ]
+  },
+  {
+    "id": "610657d48f88e051",
+    "type": "udp in",
+    "z": "e957afae9c5319c9",
+    "name": "UDP Capture",
+    "iface": "",
+    "port": "5005",
+    "ipv": "udp4",
+    "multicast": "false",
+    "group": "",
+    "datatype": "utf8",
+    "x": 130,
+    "y": 860,
+    "wires": [
+      [
+        "06cb951da84b65da"
+      ]
+    ]
+  },
+  {
+    "id": "7519ee081466907f",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 6",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "false",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 740,
+    "y": 860,
+    "wires": []
+  },
+  {
+    "id": "a1b03b48642b55c4",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 2",
+    "func": "global.set(\"lat\", msg.payload.lat);\nglobal.set(\"lng\", msg.payload.lng);\nglobal.set(\"alt\", msg.payload.alt);\nglobal.set(\"Toggle_units\", false);\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 500,
+    "y": 860,
+    "wires": [
+      [
+        "7519ee081466907f"
+      ]
+    ]
+  },
+  {
+    "id": "06cb951da84b65da",
+    "type": "json",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "property": "payload",
+    "action": "",
+    "pretty": false,
+    "x": 330,
+    "y": 860,
+    "wires": [
+      [
+        "a1b03b48642b55c4"
+      ]
+    ]
+  },
+  {
+    "id": "4c03ed8a1d95ea76",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 7",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 500,
+    "y": 960,
+    "wires": []
+  },
+  {
+    "id": "a27ba91b01ed0d7c",
+    "type": "inject",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 140,
+    "y": 960,
+    "wires": [
+      [
+        "7489bb08f7eb8483"
+      ]
+    ]
+  },
+  {
+    "id": "cbb4ba7e0f920e45",
+    "type": "ui_gauge",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "group": "6dd2fb88d99ba040",
+    "order": 4,
+    "width": 10,
+    "height": 10,
+    "gtype": "gage",
+    "title": "Barometric Pressure {{msg.payload.pressure}} {{msg.payload.unit_text}}",
+    "label": "(Normalized to Sea Level) {{msg.payload.unit_text}}",
+    "format": "{{msg.payload.adj_pressure}} ",
+    "min": "20",
+    "max": "40",
+    "colors": [
+      "#ff0000",
+      "#26fa09",
+      "#ffff00"
+    ],
+    "seg1": "",
+    "seg2": "",
+    "diff": true,
+    "className": "",
+    "x": 990,
+    "y": 460,
+    "wires": [],
+    "inputLabels": [
+      "Pressure hPa"
+    ]
+  },
+  {
+    "id": "2f9188f163801664",
+    "type": "ui_text",
+    "z": "e957afae9c5319c9",
+    "group": "6dd2fb88d99ba040",
+    "order": 1,
+    "width": 10,
+    "height": 3,
+    "name": "",
+    "label": "Altitude",
+    "format": "{{msg.payload}} ft",
+    "layout": "row-center",
+    "className": "Big_Heading",
+    "x": 600,
+    "y": 380,
+    "wires": []
+  },
+  {
+    "id": "7ebea0f35d88142f",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 3",
+    "func": "msg.payload = global.get(\"alt\");\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 460,
+    "y": 400,
+    "wires": [
+      [
+        "2f9188f163801664",
+        "36ddf6a85b46b2f6"
+      ]
+    ]
+  },
+  {
+    "id": "36ddf6a85b46b2f6",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 8",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 600,
+    "y": 420,
+    "wires": []
+  },
+  {
+    "id": "9217f241bcbdca5a",
+    "type": "ui_text",
+    "z": "e957afae9c5319c9",
+    "group": "6dd2fb88d99ba040",
+    "order": 2,
+    "width": 10,
+    "height": 3,
+    "name": "",
+    "label": "Humidity",
+    "format": "{{msg.payload.humidity}} %",
+    "layout": "row-center",
+    "className": "Big_Heading",
+    "x": 460,
+    "y": 340,
+    "wires": []
+  },
+  {
+    "id": "433a5c43e967832e",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 4",
+    "func": "\nvar pressure = global.get(\"pressure\");\nvar adj_pressure = global.get(\"adj_pressure\");\nvar temperature = global.get(\"temperature\");\nvar humidity = global.get(\"humidity\");\nvar altitude = global.get(\"alt\");\nvar unit_text = \"hPa\";\nvar ui_control = global.get(\"ui_control\");\nvar msg = msg;\nmsg.payload = {};\n// Normalize adjust hPA to altitude reading, limit decimal places\n//var adj_pressure = pressure + hPa_delta;\n\nif (context.global.get(\"Toggle_units\") == true){\n    unit_text = \"hPa\";\n}\nelse {\n    unit_text = \"inHg\";\n}\n// set msg pressure and adj_pressure\nmsg.payload.pressure = parseFloat(pressure.toFixed(2));\nmsg.payload.adj_pressure = parseFloat(adj_pressure.toFixed(2));\nmsg.payload.temperature = temperature;\nmsg.payload.humidity = humidity;\nmsg.payload.unit_text = unit_text;\nmsg.ui_control = ui_control;\n\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 800,
+    "y": 440,
+    "wires": [
+      [
+        "cbb4ba7e0f920e45",
+        "6ca7393ef66bb8cf"
+      ]
+    ]
+  },
+  {
+    "id": "6ca7393ef66bb8cf",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 10",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1000,
+    "y": 420,
+    "wires": []
+  },
+  {
+    "id": "f83c3ed9070388f0",
+    "type": "inject",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "1",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 150,
+    "y": 1040,
+    "wires": [
+      [
+        "0c47aafe8fcbd957"
+      ]
+    ]
+  },
+  {
+    "id": "6372b6a956407d0a",
+    "type": "ui_text",
+    "z": "e957afae9c5319c9",
+    "group": "6dd2fb88d99ba040",
+    "order": 14,
+    "width": 17,
+    "height": 1,
+    "name": "",
+    "label": "",
+    "format": "{{msg.payload}}",
+    "layout": "row-center",
+    "className": "Med_Heading",
+    "x": 490,
+    "y": 1040,
+    "wires": []
+  },
+  {
+    "id": "0c47aafe8fcbd957",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 5",
+    "func": "msg.payload = new Date().toLocaleString(); // 11/16/2015, 11:18:48 PM();\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 340,
+    "y": 1040,
+    "wires": [
+      [
+        "6372b6a956407d0a"
+      ]
+    ]
+  },
+  {
+    "id": "064b8f40158bb6de",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 11",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 940,
+    "y": 120,
+    "wires": []
+  },
+  {
+    "id": "da7fd764bf151b00",
+    "type": "inject",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "Toggle_units",
+    "payload": "toggle_units",
+    "payloadType": "global",
+    "x": 150,
+    "y": 120,
+    "wires": [
+      [
+        "0376c2f325602019"
+      ]
+    ]
+  },
+  {
+    "id": "0376c2f325602019",
+    "type": "ui_switch",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "label": "inHg/hPa",
+    "tooltip": "",
+    "group": "6dd2fb88d99ba040",
+    "order": 8,
+    "width": 3,
+    "height": 2,
+    "passthru": true,
+    "decouple": "false",
+    "topic": "topic/Toggle_units",
+    "topicType": "msg",
+    "style": "",
+    "onvalue": "true",
+    "onvalueType": "bool",
+    "onicon": "",
+    "oncolor": "",
+    "offvalue": "false",
+    "offvalueType": "bool",
+    "officon": "",
+    "offcolor": "",
+    "animate": false,
+    "className": "",
+    "x": 340,
+    "y": 120,
+    "wires": [
+      [
+        "9ff796d2663996e4"
+      ]
+    ]
+  },
+  {
+    "id": "9ff796d2663996e4",
+    "type": "change",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "rules": [
+      {
+        "t": "set",
+        "p": "Toggle_units",
+        "pt": "global",
+        "to": "payload",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 540,
+    "y": 120,
+    "wires": [
+      [
+        "9a8fede877f9c736",
+        "124bab4642dc5aa6"
+      ]
+    ]
+  },
+  {
+    "id": "3b65a4ae70602491",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "Set Global Weather Vars",
+    "func": "\nvar inHG_to_hPa = 33.8638866667;\nvar adjust_sensor = -48 //100.326;\nvar hPA_to_inHG = 0.02952998307;\nvar correction_factor = 32.5 //correction factor to OWM value\nvar pressure = msg.payload.pressure + adjust_sensor;\nvar adj_pressure = 0.0;\nvar temperature = msg.payload.temperature;\nvar humidity = msg.payload.humidity;\nvar altitude = global.get(\"alt\");\nvar unit_text = \"hPa\";\nvar control = { \"min\": 25, \"max\": 35 };\n\n// Calc inHG delta adjustment \n//  .06 inHG for every 50 ft above sea level\nvar inHG_delta = altitude / 50 * .06;\n\n// Normalize hPa reading to sea level reading\nvar hPa_delta = inHG_delta * inHG_to_hPa;\n\n// Normalize adjust hPA to altitude reading, limit decimal places\nadj_pressure = pressure + hPa_delta + correction_factor; //ADD CORRECTION FACTOR\n\nif (context.global.get(\"Toggle_units\") == true) {\n    unit_text = \"hPa\";\n    control = { \"min\": 800, \"max\": 1200 };\n}\nelse {\n    adj_pressure = adj_pressure * hPA_to_inHG ;\n    pressure = (pressure + correction_factor) * hPA_to_inHG\n    unit_text = \"inHg\";\n    control = { \"min\": 25, \"max\": 35 };\n}\n\n// set global pressure and adj_pressure\nglobal.set(\"pressure\", parseFloat(pressure.toFixed(2)));\nglobal.set(\"adj_pressure\", parseFloat(adj_pressure.toFixed(2)))\nglobal.set(\"temperature\", parseFloat(temperature.toFixed(1)));\nglobal.set(\"humidity\", parseFloat(humidity.toFixed(2)));\nglobal.set(\"ui_control\", control);\n\nmsg.payload.pressure = parseFloat(pressure.toFixed(2));\nmsg.payload.adj_pressure = parseFloat(adj_pressure.toFixed(2));\nmsg.payload.temperature = parseFloat(temperature.toFixed(1));\nmsg.payload.humidity = parseFloat(humidity.toFixed(2));\nmsg.ui_control = control;\n\n\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 250,
+    "y": 600,
+    "wires": [
+      [
+        "4a3ad02db8bb7754",
+        "433a5c43e967832e",
+        "d3763a03310e238a",
+        "367c5321a1bf6671",
+        "ed9ca4a309ecda01",
+        "1e834a014ba7b585",
+        "b463245f86a83ad4"
+      ]
+    ]
+  },
+  {
+    "id": "9a8fede877f9c736",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 6",
+    "func": "var inHG_to_hPa = 33.8638866667;\nvar adjust_sensor = -48 //100.326;\nvar hPA_to_inHG = 0.02952998307;\nvar unit_text = \"inHg\";\nvar pressure = global.get(\"pressure\");\nvar adj_pressure = global.get(\"adj_pressure\");\nvar temperature = global.get(\"temperature\");\nvar humidity = global.get(\"humidity\");\nvar control = {};\nmsg.payload = {}\n\nif (context.global.get(\"Toggle_units\") == true) {\n    pressure = pressure * inHG_to_hPa;\n    adj_pressure = adj_pressure * inHG_to_hPa;\n    unit_text = \"hPa\";\n    control = { \"min\": 800, \"max\": 1200 };   \n}\nelse {\n    pressure = pressure * hPA_to_inHG;\n    adj_pressure = adj_pressure * hPA_to_inHG;\n    unit_text = \"inHg\";\n    control = { \"min\": 25, \"max\": 35};\n}\n\nif (pressure > 1500 || pressure < 10)\n{\n    return;\n}\nelse {\nglobal.set(\"pressure\", pressure);\nglobal.set(\"adj_pressure\", adj_pressure);\nglobal.set(\"ui_control\", control);\n}\nmsg.payload.pressure = pressure.toFixed(2);\nmsg.payload.adj_pressure = adj_pressure.toFixed(2);\nmsg.payload.temperature = temperature;\nmsg.payload.humidity = humidity;\nmsg.ui_control = control;\n\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 740,
+    "y": 140,
+    "wires": [
+      [
+        "433a5c43e967832e",
+        "064b8f40158bb6de"
+      ]
+    ]
+  },
+  {
+    "id": "124bab4642dc5aa6",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 12",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "false",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 740,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "7489bb08f7eb8483",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "Add Altitude",
+    "func": "global.set(\"alt\", 2943.1);\nmsg.payload = 2943.1;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 350,
+    "y": 960,
+    "wires": [
+      [
+        "4c03ed8a1d95ea76"
+      ]
+    ]
+  },
+  {
+    "id": "48185b58d54f8dcb",
+    "type": "inject",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "props": [
+      {
+        "p": "query",
+        "v": "select concat('{\"x\": ', extract(epoch from timelog) , ', \"y\": ' , pressure , '}') from weatherdata;",
+        "vt": "str"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "Pressure",
+    "x": 380,
+    "y": 1140,
+    "wires": [
+      [
+        "c026f975443ca95e"
+      ]
+    ]
+  },
+  {
+    "id": "79b12b2e0c4e4199",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 13",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 980,
+    "y": 680,
+    "wires": []
+  },
+  {
+    "id": "367c5321a1bf6671",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "Chart Pressure",
+    "func": "var inHG_to_hPa = 33.8638866667;\n\nvar pressure = global.get(\"pressure\");\n\n// Conver to hPA if pressure is in inHg mode.\nif (global.get(\"Toggle_units\") == false) {\n    pressure = pressure * inHG_to_hPa ;\n}\n\n// { topic: \"temperature\", payload: 22 }\nmsg.payload =  parseFloat(pressure.toFixed(2));\nmsg.topic = \"Pressure\";\n\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 640,
+    "wires": [
+      [
+        "79b12b2e0c4e4199",
+        "32b70472627c1f89"
+      ]
+    ]
+  },
+  {
+    "id": "c026f975443ca95e",
+    "type": "digitaloak-postgresql-query",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "server": "b6d92e0a600e272b",
+    "inputs": 1,
+    "outputs": 1,
+    "x": 610,
+    "y": 1140,
+    "wires": [
+      [
+        "09767e7740f6e227"
+      ]
+    ]
+  },
+  {
+    "id": "09767e7740f6e227",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 15",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload.rows",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 820,
+    "y": 1000,
+    "wires": []
+  },
+  {
+    "id": "ed9ca4a309ecda01",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "Chart Humidity",
+    "func": "var inHG_to_hPa = 33.8638866667;\n\nvar humidity = global.get(\"humidity\");\n\n// { topic: \"temperature\", payload: 22 }\nmsg.payload =  parseFloat(humidity.toFixed(2));\nmsg.topic = \"Humidity\";\n\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 680,
+    "wires": [
+      [
+        "90ba46d7d4d368e5"
+      ]
+    ]
+  },
+  {
+    "id": "32b70472627c1f89",
+    "type": "ui_chart",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "group": "6dd2fb88d99ba040",
+    "order": 11,
+    "width": 20,
+    "height": 11,
+    "label": "Pressure",
+    "chartType": "line",
+    "legend": "false",
+    "xformat": "M/D - HH:mm:ss",
+    "interpolate": "bezier",
+    "nodata": "",
+    "dot": false,
+    "ymin": "",
+    "ymax": "",
+    "removeOlder": "4",
+    "removeOlderPoints": "",
+    "removeOlderUnit": "86400",
+    "cutout": 0,
+    "useOneColor": false,
+    "useUTC": false,
+    "colors": [
+      "#ff3a2f",
+      "#aec7e8",
+      "#ff7f0e",
+      "#2ca02c",
+      "#98df8a",
+      "#d62728",
+      "#ff9896",
+      "#9467bd",
+      "#c5b0d5"
+    ],
+    "outputs": 1,
+    "useDifferentColor": false,
+    "className": "",
+    "x": 980,
+    "y": 640,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "90ba46d7d4d368e5",
+    "type": "ui_chart",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "group": "6dd2fb88d99ba040",
+    "order": 12,
+    "width": 20,
+    "height": 11,
+    "label": "Humidity",
+    "chartType": "line",
+    "legend": "false",
+    "xformat": "M/D - HH:mm:ss",
+    "interpolate": "bezier",
+    "nodata": "",
+    "dot": false,
+    "ymin": "",
+    "ymax": "",
+    "removeOlder": "4",
+    "removeOlderPoints": "",
+    "removeOlderUnit": "86400",
+    "cutout": 0,
+    "useOneColor": false,
+    "useUTC": false,
+    "colors": [
+      "#1f77b4",
+      "#aec7e8",
+      "#ff7f0e",
+      "#2ca02c",
+      "#98df8a",
+      "#d62728",
+      "#ff9896",
+      "#9467bd",
+      "#c5b0d5"
+    ],
+    "outputs": 1,
+    "useDifferentColor": false,
+    "className": "",
+    "x": 980,
+    "y": 720,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "4156c212eb25e8c4",
+    "type": "ui_gauge",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "group": "6dd2fb88d99ba040",
+    "order": 3,
+    "width": 10,
+    "height": 10,
+    "gtype": "gage",
+    "title": "Temperature {{msg.payload.temperature}}\u00b0F",
+    "label": "\u00b0F",
+    "format": "{{msg.payload.temperature}}\u00b0F",
+    "min": "-10",
+    "max": "110",
+    "colors": [
+      "#1dcdff",
+      "#00ff00",
+      "#ff0000"
+    ],
+    "seg1": "65",
+    "seg2": "85",
+    "diff": false,
+    "className": "",
+    "x": 530,
+    "y": 460,
+    "wires": []
+  },
+  {
+    "id": "1e834a014ba7b585",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "Chart Humidity",
+    "func": "var inHG_to_hPa = 33.8638866667;\n\nvar temperature = global.get(\"temperature\");\n\n// { topic: \"temperature\", payload: 22 }\nmsg.payload = parseFloat(temperature.toFixed(2));\nmsg.topic = \"Temperature\";\n\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 600,
+    "wires": [
+      [
+        "109c0ed6bd3eb8b9"
+      ]
+    ]
+  },
+  {
+    "id": "109c0ed6bd3eb8b9",
+    "type": "ui_chart",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "group": "6dd2fb88d99ba040",
+    "order": 10,
+    "width": 20,
+    "height": 11,
+    "label": "Temperature",
+    "chartType": "line",
+    "legend": "false",
+    "xformat": "M/D - HH:mm:ss",
+    "interpolate": "bezier",
+    "nodata": "",
+    "dot": false,
+    "ymin": "",
+    "ymax": "",
+    "removeOlder": "4",
+    "removeOlderPoints": "",
+    "removeOlderUnit": "86400",
+    "cutout": 0,
+    "useOneColor": false,
+    "useUTC": false,
+    "colors": [
+      "#1f77b4",
+      "#aec7e8",
+      "#ff7f0e",
+      "#2ca02c",
+      "#98df8a",
+      "#d62728",
+      "#ff9896",
+      "#9467bd",
+      "#c5b0d5"
+    ],
+    "outputs": 1,
+    "useDifferentColor": false,
+    "className": "",
+    "x": 990,
+    "y": 600,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "b463245f86a83ad4",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 8",
+    "func": "var temp = global.get(\"temperature\");\nmsg.payload.temperature = temp;\nmsg.ui_control = {\"min\":-10, \"max\": 110};\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 500,
+    "wires": [
+      [
+        "4156c212eb25e8c4"
+      ]
+    ]
+  },
+  {
+    "id": "b276158669fd6010",
+    "type": "inject",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 0.1,
+    "topic": "sensore/weather",
+    "payload": "",
+    "payloadType": "date",
+    "x": 800,
+    "y": 520,
+    "wires": [
+      [
+        "433a5c43e967832e"
+      ]
+    ]
+  },
+  {
+    "id": "ef350cbe64eac9f8",
+    "type": "ui_led",
+    "z": "e957afae9c5319c9",
+    "order": 5,
+    "group": "6dd2fb88d99ba040",
+    "width": 1,
+    "height": 2,
+    "label": "",
+    "labelPlacement": "left",
+    "labelAlignment": "center",
+    "colorForValue": [
+      {
+        "color": "#ff0000",
+        "value": "false",
+        "valueType": "bool"
+      },
+      {
+        "color": "#008000",
+        "value": "true",
+        "valueType": "bool"
+      }
+    ],
+    "allowColorForValueInMessage": false,
+    "shape": "circle",
+    "showGlow": false,
+    "name": "",
+    "x": 530,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "7c471a09c60fb7d9",
+    "type": "mqtt in",
+    "z": "e957afae9c5319c9",
+    "name": "",
+    "topic": "sensors/status/weather",
+    "qos": "2",
+    "datatype": "auto-detect",
+    "broker": "ed4a450b9ac5ab42",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 140,
+    "y": 200,
+    "wires": [
+      [
+        "5dec56f582ff6a87",
+        "6bba062f6d2a0169",
+        "ef350cbe64eac9f8"
+      ]
+    ]
+  },
+  {
+    "id": "5dec56f582ff6a87",
+    "type": "debug",
+    "z": "e957afae9c5319c9",
+    "name": "debug 16",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "false",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 680,
+    "y": 200,
+    "wires": []
+  },
+  {
+    "id": "41ac8a0831d2dbc0",
+    "type": "ui_text",
+    "z": "e957afae9c5319c9",
+    "group": "6dd2fb88d99ba040",
+    "order": 6,
+    "width": 8,
+    "height": 2,
+    "name": "",
+    "label": "Updated Last: ",
+    "format": "{{msg.payload}}",
+    "layout": "row-left",
+    "className": "",
+    "x": 660,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "6bba062f6d2a0169",
+    "type": "function",
+    "z": "e957afae9c5319c9",
+    "name": "function 9",
+    "func": "msg.payload = new Date().toLocaleString(); // 11/16/2015, 11:18:48 PM();\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 240,
+    "wires": [
+      [
+        "41ac8a0831d2dbc0"
+      ]
+    ]
+  },
+  {
+    "id": "c190de61be427174",
+    "type": "ui_template",
+    "z": "e957afae9c5319c9",
+    "group": "6dd2fb88d99ba040",
+    "name": "css",
+    "order": 15,
+    "width": 0,
+    "height": 0,
+    "format": "<style>\ndiv.led_84.led_contents, div.led_171.led_contents, div.led_117.led_contents {\n    min-height: 15px;\n    min-width: 15px;\n    width:15px;\n    height:15px;\n}\n\n.Big_Heading , .nr-dashboard-gauge-title {\nfont-size: 3em;\n}\n\n.Med_Heading{\nfont-size: 2.25em;\n}\n</style>",
+    "storeOutMessages": true,
+    "fwdInMessages": true,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 130,
+    "y": 1160,
+    "wires": [
+      []
+    ]
+  }
+]
