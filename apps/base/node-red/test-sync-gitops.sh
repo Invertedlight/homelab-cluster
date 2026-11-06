@@ -93,7 +93,7 @@ function walk(value, where) {
 walk(flow, "$");
 const deps = JSON.parse(fs.readFileSync(process.argv[3], "utf8")).dependencies;
 const expected = {
-  "node-red-dashboard": "~3.4.0",
+  "node-red-dashboard": "~3.6.0",
   "@digitaloak/node-red-contrib-digitaloak-postgresql": "~0.3.2",
   "node-red-contrib-ui-led": "~0.4.11",
 };
@@ -112,6 +112,72 @@ for (const name of expectedNames) {
 PY
 ok "committed weather flow is 65 nodes and the palette ranges match"
 
+# Range checks follow npm for ~, ^, exact, comparators, and a few other forms the
+# palette file is allowed to contain. Cases that do not satisfy must take the
+# install path, including a version on the other side of the range.
+node - "$ROOT/sync-gitops.js" << 'PY'
+const { versionSatisfies } = require(process.argv[2]);
+const cases = [
+  ["3.4.0", "~3.6.0", false],
+  ["3.6.0", "~3.6.0", true],
+  ["3.6.5", "~3.6.0", true],
+  ["3.7.0", "~3.6.0", false],
+  ["0.3.2", "~0.3.2", true],
+  ["0.3.9", "~0.3.2", true],
+  ["0.4.0", "~0.3.2", false],
+  ["0.4.11", "~0.4.11", true],
+  ["0.4.20", "~0.4.11", true],
+  ["0.5.0", "~0.4.11", false],
+  ["1.2.3", "~1.2.3", true],
+  ["1.2.9", "~1.2", true],
+  ["1.3.0", "~1.2", false],
+  ["1.2.3", "^1.2.3", true],
+  ["1.9.0", "^1.2.3", true],
+  ["2.0.0", "^1.2.3", false],
+  ["0.2.3", "^0.2.3", true],
+  ["0.2.9", "^0.2.3", true],
+  ["0.3.0", "^0.2.3", false],
+  ["0.0.3", "^0.0.3", true],
+  ["0.0.4", "^0.0.3", false],
+  ["1.2.3", "1.2.3", true],
+  ["1.2.4", "1.2.3", false],
+  ["1.2.3", "=1.2.3", true],
+  ["1.2.3", "==1.2.3", false],
+  ["v1.2.3", "1.2.3", true],
+  ["1.2.3", "v1.2.3", true],
+  ["1.2.3+build.4", "1.2.3", true],
+  ["1.2.3-beta.1", "~1.2.3", false],
+  ["1.2.4-rc.1", "~1.2.3", false],
+  ["1.2.3-beta.2", "^1.2.3-beta.1", true],
+  ["1.2.4-beta.1", "^1.2.3-beta.1", false],
+  ["1.2.3-beta.1", "^1.2.3-beta.1", true],
+  ["3.6.0", ">=3.6.0 <3.7.0", true],
+  ["3.6.5", ">=3.6.0 <3.7.0", true],
+  ["3.7.0", ">=3.6.0 <3.7.0", false],
+  ["3.5.9", ">=3.6.0 <3.7.0", false],
+  ["1.2.0", "1.2.x", true],
+  ["1.2.9", "1.2.x", true],
+  ["1.3.0", "1.2.x", false],
+  ["1.2.3", "1.2", true],
+  ["1.3.0", "1.2", false],
+  ["2.1.0", "^1.2.3 || ^2.0.0", true],
+  ["1.2.3", "1.2.3 - 2.0.0", true],
+  ["2.0.0", "1.2.3 - 2.0.0", true],
+  ["2.0.1", "1.2.3 - 2.0.0", false],
+  ["1.0.0", "*", true],
+  ["1.0.0-rc.1", "*", false],
+  ["3.6.0", "~ 3.6.0", true],
+];
+for (const [version, range, expected] of cases) {
+  const got = versionSatisfies(version, range);
+  if (got !== expected) {
+    console.error(version + " vs " + range + " got " + got + " expected " + expected);
+    process.exit(1);
+  }
+}
+PY
+ok "version ranges match npm for ~, ^, exact, and comparators"
+
 # Fresh volume: seed the flow bytes and ask npm to install. Leave credentials absent.
 fresh_gitops="$TMP/fresh-gitops"
 fresh_data="$TMP/fresh-data"
@@ -121,12 +187,19 @@ reset_npm
 run_sync "$fresh_gitops" "$fresh_data"
 cmp -s "$ROOT/flows/weather-flow.json" "$fresh_data/flows.json" || fail "fresh seed did not copy the weather flow bytes"
 [ ! -e "$fresh_data/flows_cred.json" ] || fail "fresh seed created flows_cred.json"
-node -e 'const p=require(process.argv[1]); const d=p.dependencies; if (!d["node-red-dashboard"] || !d["node-red-contrib-ui-led"] || !d["@digitaloak/node-red-contrib-digitaloak-postgresql"]) process.exit(1)' "$fresh_data/package.json" || fail "fresh package.json missing palette deps"
+node - "$fresh_data/package.json" << 'PY' || fail "fresh package.json missing palette deps"
+const doc = require(process.argv[2]);
+const deps = doc.dependencies;
+if (deps["node-red-dashboard"] !== "~3.6.0") process.exit(1);
+if (deps["node-red-contrib-ui-led"] !== "~0.4.11") process.exit(1);
+if (deps["@digitaloak/node-red-contrib-digitaloak-postgresql"] !== "~0.3.2") process.exit(1);
+PY
 grep -q "npm install" "$NPM_LOG" || fail "fresh volume did not npm install"
 grep -q "$fresh_data" "$NPM_LOG" || fail "npm install ran outside the data directory"
 ok "empty volume seeds the weather flow and installs the palette"
 
-# Existing volume: flows, credentials, extra palette packages, and version specs stay put.
+# Installed versions already satisfy the Git ranges. Flows, credentials, editor
+# packages, and the recorded specs stay put, and npm does not run.
 live_gitops="$TMP/live-gitops"
 live_data="$TMP/live-data"
 flatten "$live_gitops"
@@ -139,7 +212,7 @@ cat > "$live_data/package.json" << 'EOF'
     "name": "node-red-project",
     "private": true,
     "dependencies": {
-        "node-red-dashboard": "~3.6.5",
+        "node-red-dashboard": "~3.6.0",
         "node-red-contrib-extra": "1.2.3",
         "@digitaloak/node-red-contrib-digitaloak-postgresql": "~0.3.2",
         "node-red-contrib-ui-led": "~0.4.11"
@@ -162,9 +235,144 @@ EOF
 cmp -s "$live_data/important.txt" - << 'EOF' || fail "unrelated data file changed"
 KEEP
 EOF
-cmp -s "$live_data/package.json" "$TMP/live-package.json" || fail "live package.json was rewritten"
-[ ! -s "$NPM_LOG" ] || fail "npm ran even though every GitOps package was already installed"
-ok "existing flows, credentials, and installed packages are left in place"
+cmp -s "$live_data/package.json" "$TMP/live-package.json" || fail "satisfying package.json was rewritten"
+cmp -s "$live_data/node_modules/node-red-contrib-extra/package.json" - << 'EOF' || fail "editor-only module was changed"
+{"name":"node-red-contrib-extra","version":"1.2.3"}
+EOF
+[ ! -s "$NPM_LOG" ] || fail "npm ran even though every GitOps package already satisfied its range"
+ok "installed versions that satisfy the Git ranges are left in place"
+
+# The editor recorded a different spec, but the installed version already
+# satisfies the Git range. Git's spec replaces it and npm does not run.
+# Packages that are only on the volume stay.
+match_gitops="$TMP/match-gitops"
+match_data="$TMP/match-data"
+flatten "$match_gitops"
+mkdir -p "$match_data"
+printf 'LIVE-FLOWS\n' > "$match_data/flows.json"
+printf 'LIVE-CRED\n' > "$match_data/flows_cred.json"
+cat > "$match_data/package.json" << 'EOF'
+{
+  "name": "node-red-project",
+  "description": "keep-me",
+  "private": true,
+  "dependencies": {
+    "node-red-dashboard": "~3.6.5",
+    "node-red-contrib-extra": "1.2.3",
+    "@digitaloak/node-red-contrib-digitaloak-postgresql": "~0.3.2",
+    "node-red-contrib-ui-led": "~0.4.11"
+  }
+}
+EOF
+install_module "$match_data" node-red-dashboard 3.6.5
+install_module "$match_data" node-red-contrib-ui-led 0.4.11
+install_module "$match_data" @digitaloak/node-red-contrib-digitaloak-postgresql 0.3.2
+install_module "$match_data" node-red-contrib-extra 1.2.3
+reset_npm
+run_sync "$match_gitops" "$match_data"
+node - "$match_data/package.json" << 'PY' || fail "satisfying install did not record the Git range"
+const fs = require("fs");
+const doc = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+if (doc.description !== "keep-me") process.exit(1);
+const deps = doc.dependencies;
+if (deps["node-red-dashboard"] !== "~3.6.0") process.exit(1);
+if (deps["node-red-contrib-extra"] !== "1.2.3") process.exit(1);
+if (deps["node-red-contrib-ui-led"] !== "~0.4.11") process.exit(1);
+if (deps["@digitaloak/node-red-contrib-digitaloak-postgresql"] !== "~0.3.2") process.exit(1);
+PY
+cmp -s "$match_data/flows.json" - << 'EOF' || fail "flows changed while aligning a satisfying spec"
+LIVE-FLOWS
+EOF
+cmp -s "$match_data/flows_cred.json" - << 'EOF' || fail "credentials changed while aligning a satisfying spec"
+LIVE-CRED
+EOF
+cmp -s "$match_data/node_modules/node-red-dashboard/package.json" - << 'EOF' || fail "satisfying module was reinstalled"
+{"name":"node-red-dashboard","version":"3.6.5"}
+EOF
+[ ! -s "$NPM_LOG" ] || fail "npm ran even though the installed version satisfies the Git range"
+ok "a satisfying install records the Git range and skips npm"
+
+# Git moved the dashboard range above the copy on the volume (3.4.0 -> ~3.6.0).
+# Record the new range and npm install. Editor-only packages stay.
+bump_gitops="$TMP/bump-gitops"
+bump_data="$TMP/bump-data"
+flatten "$bump_gitops"
+mkdir -p "$bump_data"
+printf 'LIVE-FLOWS\n' > "$bump_data/flows.json"
+printf 'LIVE-CRED\n' > "$bump_data/flows_cred.json"
+cat > "$bump_data/package.json" << 'EOF'
+{
+  "name": "node-red-project",
+  "private": true,
+  "dependencies": {
+    "node-red-dashboard": "~3.4.0",
+    "node-red-contrib-extra": "1.2.3",
+    "@digitaloak/node-red-contrib-digitaloak-postgresql": "~0.3.2",
+    "node-red-contrib-ui-led": "~0.4.11"
+  }
+}
+EOF
+install_module "$bump_data" node-red-dashboard 3.4.0
+install_module "$bump_data" node-red-contrib-ui-led 0.4.11
+install_module "$bump_data" @digitaloak/node-red-contrib-digitaloak-postgresql 0.3.2
+install_module "$bump_data" node-red-contrib-extra 1.2.3
+reset_npm
+run_sync "$bump_gitops" "$bump_data"
+node - "$bump_data/package.json" << 'PY' || fail "bumped range was not recorded beside the editor package"
+const fs = require("fs");
+const doc = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const deps = doc.dependencies;
+if (deps["node-red-dashboard"] !== "~3.6.0") process.exit(1);
+if (deps["node-red-contrib-extra"] !== "1.2.3") process.exit(1);
+if (deps["node-red-contrib-ui-led"] !== "~0.4.11") process.exit(1);
+if (deps["@digitaloak/node-red-contrib-digitaloak-postgresql"] !== "~0.3.2") process.exit(1);
+PY
+cmp -s "$bump_data/flows.json" - << 'EOF' || fail "flows changed during a palette upgrade"
+LIVE-FLOWS
+EOF
+cmp -s "$bump_data/flows_cred.json" - << 'EOF' || fail "credentials changed during a palette upgrade"
+LIVE-CRED
+EOF
+cmp -s "$bump_data/node_modules/node-red-contrib-extra/package.json" - << 'EOF' || fail "editor-only module was changed during upgrade"
+{"name":"node-red-contrib-extra","version":"1.2.3"}
+EOF
+grep -q "npm install" "$NPM_LOG" || fail "range bump above the installed version did not npm install"
+grep -q "$bump_data" "$NPM_LOG" || fail "upgrade npm install ran outside the data directory"
+ok "a Git range above the installed version upgrades that package only"
+
+# The spec on the volume already matches Git, but node_modules is still older.
+# npm install has to run again; rewriting the spec is not enough.
+stale_gitops="$TMP/stale-gitops"
+stale_data="$TMP/stale-data"
+flatten "$stale_gitops"
+mkdir -p "$stale_data"
+printf 'LIVE-FLOWS\n' > "$stale_data/flows.json"
+printf 'LIVE-CRED\n' > "$stale_data/flows_cred.json"
+cat > "$stale_data/package.json" << 'EOF'
+{
+  "name": "node-red-project",
+  "private": true,
+  "dependencies": {
+    "node-red-contrib-extra": "1.2.3",
+    "node-red-dashboard": "~3.6.0",
+    "@digitaloak/node-red-contrib-digitaloak-postgresql": "~0.3.2",
+    "node-red-contrib-ui-led": "~0.4.11"
+  }
+}
+EOF
+cp "$stale_data/package.json" "$TMP/stale-package.json"
+install_module "$stale_data" node-red-dashboard 3.4.0
+install_module "$stale_data" node-red-contrib-ui-led 0.4.11
+install_module "$stale_data" @digitaloak/node-red-contrib-digitaloak-postgresql 0.3.2
+install_module "$stale_data" node-red-contrib-extra 1.2.3
+reset_npm
+run_sync "$stale_gitops" "$stale_data"
+cmp -s "$stale_data/package.json" "$TMP/stale-package.json" || fail "matching specs were rewritten"
+cmp -s "$stale_data/flows_cred.json" - << 'EOF' || fail "credentials changed while retrying npm install"
+LIVE-CRED
+EOF
+grep -q "npm install" "$NPM_LOG" || fail "stale install whose spec already matches Git did not npm install"
+ok "a stale module is installed again when its spec already matches Git"
 
 # A missing module is added beside packages James installed in the editor.
 miss_gitops="$TMP/miss-gitops"
@@ -191,10 +399,10 @@ node - "$miss_data/package.json" << 'PY' || fail "missing package was not record
 const fs = require("fs");
 const doc = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const deps = doc.dependencies;
-if (deps["node-red-dashboard"] !== "~3.6.5") process.exit(1);
+if (deps["node-red-dashboard"] !== "~3.6.0") process.exit(1);
 if (deps["node-red-contrib-extra"] !== "1.2.3") process.exit(1);
 if (deps["node-red-contrib-ui-led"] !== "~0.4.11") process.exit(1);
-if (deps["@digitaloak/node-red-contrib-digitaloak-postgresql"] !== "0.3.2") process.exit(1);
+if (deps["@digitaloak/node-red-contrib-digitaloak-postgresql"] !== "~0.3.2") process.exit(1);
 PY
 cmp -s "$miss_data/flows.json" - << 'EOF' || fail "flows changed while recording a missing package"
 LIVE-FLOWS

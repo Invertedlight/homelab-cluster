@@ -31,8 +31,8 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
       initContainers:
-        # Same image as the app container. Installs palette packages that are
-        # missing from the volume and seeds flows.json only when it is absent.
+        # Same image as the app container. Reconciles listed palette packages
+        # to the Git ranges and seeds flows.json only when it is absent.
         - name: gitops-sync
           image: nodered/node-red:5.0.9-24
           command: ["/bin/sh", "/gitops/sync-gitops.sh"]

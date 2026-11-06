@@ -2,10 +2,12 @@
 //
 // The Longhorn volume remains the runtime copy. This script:
 // - copies a flow export to flows.json only when that file is absent
-// - adds palette dependencies only when the package is missing from node_modules
-// - leaves an existing dependency spec and an already-installed version alone
+// - sets each Git palette dependency to the committed range
+// - asks for npm install when a listed package is missing, or the installed
+//   version does not satisfy that range
+// - leaves packages that are not listed in Git untouched
 // - writes nothing except flows.json (when absent) and package.json (when a
-//   missing package needs a spec)
+//   listed spec changes)
 // flows_cred.json is never read or written. Credentials stay on the volume.
 "use strict";
 
@@ -18,10 +20,6 @@ const dataDir = process.env.DATA_DIR;
 function fail(message) {
   console.error("sync-gitops: " + message);
   process.exit(1);
-}
-
-if (!gitopsDir || !dataDir) {
-  fail("GITOPS_DIR and DATA_DIR are required");
 }
 
 const RANGE = /^[0-9A-Za-z.*^~<>=| xX-]+$/;
@@ -236,42 +234,483 @@ function seedFlows(chosen, loaded) {
   console.error("sync-gitops: seeded flows.json from " + chosen.join(", ") + " (" + merged.length + " nodes)");
 }
 
-function applyPalette(state, desired) {
-  let missingModule = false;
-  let addedSpec = false;
-  for (const [name, spec] of Object.entries(desired)) {
-    const installed = installedVersion(name);
-    if (installed) {
-      if (!Object.prototype.hasOwnProperty.call(state.current.dependencies, name)) {
-        // Pin the copy already on the volume so npm does not treat it as extraneous.
-        state.current.dependencies[name] = installed;
-        addedSpec = true;
-        console.error("sync-gitops: " + name + "@" + installed + " is installed; recording that version");
-      } else {
-        console.error("sync-gitops: " + name + "@" + installed + " already installed");
-      }
-      continue;
+// npm semver 7 range rules for the operators palette/package.json may contain
+// (~, ^, exact, comparators, x-ranges, hyphen ranges, and ||). A version or
+// range that cannot be evaluated does not satisfy, so the caller runs
+// npm install instead of leaving a stale module in place.
+function isPrereleaseId(id) {
+  return /^(?:0|[1-9]\d*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)$/.test(id);
+}
+
+function isWild(id) {
+  return id == null || id === "" || id === "*" || id.toLowerCase() === "x";
+}
+
+function parseVersion(input) {
+  if (typeof input !== "string") {
+    return null;
+  }
+  const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(
+    input
+  );
+  if (!match) {
+    return null;
+  }
+  const prerelease = match[4] ? match[4].split(".") : [];
+  if (!prerelease.every(isPrereleaseId)) {
+    return null;
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: prerelease,
+  };
+}
+
+function parsePartial(input) {
+  let trimmed = String(input).trim();
+  if (trimmed.charAt(0) === "v") {
+    trimmed = trimmed.slice(1);
+  }
+  if (trimmed === "*" || trimmed === "x" || trimmed === "X") {
+    return { major: "*", minor: null, patch: null, prerelease: null };
+  }
+  const match = /^(0|[1-9]\d*|x|X|\*)(?:\.(0|[1-9]\d*|x|X|\*)(?:\.(0|[1-9]\d*|x|X|\*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?)?)?$/.exec(
+    trimmed
+  );
+  if (!match) {
+    return null;
+  }
+  const prerelease = match[4] || null;
+  if (prerelease && !prerelease.split(".").every(isPrereleaseId)) {
+    return null;
+  }
+  const parts = { major: match[1], minor: match[2] || null, patch: match[3] || null, prerelease: prerelease };
+  if (isWild(parts.major) && parts.minor != null && !isWild(parts.minor)) {
+    return null;
+  }
+  if (isWild(parts.minor) && parts.patch != null && !isWild(parts.patch)) {
+    return null;
+  }
+  if (prerelease && (isWild(parts.major) || isWild(parts.minor) || isWild(parts.patch) || parts.patch == null)) {
+    return null;
+  }
+  return parts;
+}
+
+function concrete(major, minor, patch, prerelease) {
+  const version = {
+    major: Number(major),
+    minor: Number(minor),
+    patch: Number(patch),
+    prerelease: prerelease ? String(prerelease).split(".") : [],
+  };
+  if (!Number.isInteger(version.major) || !Number.isInteger(version.minor) || !Number.isInteger(version.patch)) {
+    throw new Error("bad version");
+  }
+  if (!version.prerelease.every(isPrereleaseId)) {
+    throw new Error("bad prerelease");
+  }
+  return version;
+}
+
+function partialToVersion(parts) {
+  return concrete(parts.major, parts.minor, parts.patch, parts.prerelease);
+}
+
+function comparator(op, version) {
+  return { op: op, version: version };
+}
+
+function compareIdentifiers(left, right) {
+  const leftNum = /^(?:0|[1-9]\d*)$/.test(left);
+  const rightNum = /^(?:0|[1-9]\d*)$/.test(right);
+  if (leftNum && rightNum) {
+    return left === right ? 0 : Number(left) < Number(right) ? -1 : 1;
+  }
+  if (leftNum) {
+    return -1;
+  }
+  if (rightNum) {
+    return 1;
+  }
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+}
+
+function compareVersions(left, right) {
+  if (left.major !== right.major) {
+    return left.major < right.major ? -1 : 1;
+  }
+  if (left.minor !== right.minor) {
+    return left.minor < right.minor ? -1 : 1;
+  }
+  if (left.patch !== right.patch) {
+    return left.patch < right.patch ? -1 : 1;
+  }
+  if (left.prerelease.length === 0 && right.prerelease.length === 0) {
+    return 0;
+  }
+  if (left.prerelease.length === 0) {
+    return 1;
+  }
+  if (right.prerelease.length === 0) {
+    return -1;
+  }
+  const length = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let i = 0; i < length; i++) {
+    if (i >= left.prerelease.length) {
+      return -1;
     }
-    missingModule = true;
-    if (!Object.prototype.hasOwnProperty.call(state.current.dependencies, name)) {
-      state.current.dependencies[name] = spec;
-      addedSpec = true;
-      console.error("sync-gitops: recording missing palette package " + name + "@" + spec);
-    } else {
-      console.error(
-        "sync-gitops: " + name + " is missing from node_modules; npm will use " + state.current.dependencies[name]
-      );
+    if (i >= right.prerelease.length) {
+      return 1;
+    }
+    const diff = compareIdentifiers(left.prerelease[i], right.prerelease[i]);
+    if (diff !== 0) {
+      return diff;
     }
   }
-  if (addedSpec) {
+  return 0;
+}
+
+function comparatorMatches(entry, version) {
+  const diff = compareVersions(version, entry.version);
+  if (entry.op === "=") {
+    return diff === 0;
+  }
+  if (entry.op === ">") {
+    return diff > 0;
+  }
+  if (entry.op === ">=") {
+    return diff >= 0;
+  }
+  if (entry.op === "<") {
+    return diff < 0;
+  }
+  if (entry.op === "<=") {
+    return diff <= 0;
+  }
+  return false;
+}
+
+function testComparatorSet(set, version) {
+  for (let i = 0; i < set.length; i++) {
+    if (!comparatorMatches(set[i], version)) {
+      return false;
+    }
+  }
+  if (version.prerelease.length === 0) {
+    return true;
+  }
+  for (let i = 0; i < set.length; i++) {
+    const allowed = set[i].version;
+    if (
+      allowed.prerelease.length > 0 &&
+      allowed.major === version.major &&
+      allowed.minor === version.minor &&
+      allowed.patch === version.patch
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function tildeComparators(body) {
+  const parts = parsePartial(body);
+  if (!parts) {
+    return null;
+  }
+  if (isWild(parts.major)) {
+    return [];
+  }
+  if (isWild(parts.minor)) {
+    return [
+      comparator(">=", concrete(parts.major, 0, 0)),
+      comparator("<", concrete(Number(parts.major) + 1, 0, 0, "0")),
+    ];
+  }
+  if (isWild(parts.patch)) {
+    return [
+      comparator(">=", concrete(parts.major, parts.minor, 0)),
+      comparator("<", concrete(parts.major, Number(parts.minor) + 1, 0, "0")),
+    ];
+  }
+  return [
+    comparator(">=", partialToVersion(parts)),
+    comparator("<", concrete(parts.major, Number(parts.minor) + 1, 0, "0")),
+  ];
+}
+
+function caretComparators(body) {
+  const parts = parsePartial(body);
+  if (!parts) {
+    return null;
+  }
+  if (isWild(parts.major)) {
+    return [];
+  }
+  if (isWild(parts.minor)) {
+    return [
+      comparator(">=", concrete(parts.major, 0, 0)),
+      comparator("<", concrete(Number(parts.major) + 1, 0, 0, "0")),
+    ];
+  }
+  if (isWild(parts.patch)) {
+    if (parts.major === "0") {
+      return [
+        comparator(">=", concrete(parts.major, parts.minor, 0)),
+        comparator("<", concrete(parts.major, Number(parts.minor) + 1, 0, "0")),
+      ];
+    }
+    return [
+      comparator(">=", concrete(parts.major, parts.minor, 0)),
+      comparator("<", concrete(Number(parts.major) + 1, 0, 0, "0")),
+    ];
+  }
+  const lower = partialToVersion(parts);
+  if (parts.major === "0") {
+    if (parts.minor === "0") {
+      return [comparator(">=", lower), comparator("<", concrete(parts.major, parts.minor, Number(parts.patch) + 1, "0"))];
+    }
+    return [comparator(">=", lower), comparator("<", concrete(parts.major, Number(parts.minor) + 1, 0, "0"))];
+  }
+  return [comparator(">=", lower), comparator("<", concrete(Number(parts.major) + 1, 0, 0, "0"))];
+}
+
+function expandWildcard(op, parts) {
+  let major = parts.major;
+  let minor = parts.minor;
+  let patch = parts.patch;
+  const wildMajor = isWild(major);
+  const wildMinor = wildMajor || isWild(minor);
+  const wildPatch = wildMinor || isWild(patch);
+  if (wildMajor) {
+    if (op === ">" || op === "<") {
+      return [comparator("<", concrete(0, 0, 0, "0"))];
+    }
+    return [];
+  }
+  if (op !== "=" && wildPatch) {
+    if (wildMinor) {
+      minor = "0";
+    }
+    patch = "0";
+    if (op === ">") {
+      op = ">=";
+      if (wildMinor) {
+        major = String(Number(major) + 1);
+        minor = "0";
+        patch = "0";
+      } else {
+        minor = String(Number(minor) + 1);
+        patch = "0";
+      }
+    } else if (op === "<=") {
+      op = "<";
+      if (wildMinor) {
+        major = String(Number(major) + 1);
+        minor = "0";
+        patch = "0";
+      } else {
+        minor = String(Number(minor) + 1);
+        patch = "0";
+      }
+    }
+    if (op === "<") {
+      return [comparator("<", concrete(major, minor, patch, "0"))];
+    }
+    return [comparator(op, concrete(major, minor, patch))];
+  }
+  if (wildMinor) {
+    return [
+      comparator(">=", concrete(major, 0, 0)),
+      comparator("<", concrete(Number(major) + 1, 0, 0, "0")),
+    ];
+  }
+  return [
+    comparator(">=", concrete(major, minor, 0)),
+    comparator("<", concrete(major, Number(minor) + 1, 0, "0")),
+  ];
+}
+
+function expandToken(token) {
+  if (token === "*" || token === "x" || token === "X") {
+    return [];
+  }
+  if (token.charAt(0) === "~") {
+    return tildeComparators(token.replace(/^~>?/, ""));
+  }
+  if (token.charAt(0) === "^") {
+    return caretComparators(token.slice(1));
+  }
+  const opMatch = /^(>=|<=|>|<|=)(.+)$/.exec(token);
+  let op = "=";
+  let rest = token;
+  if (opMatch) {
+    op = opMatch[1];
+    rest = opMatch[2];
+  }
+  if (rest === "*" || rest === "x" || rest === "X") {
+    if (op === ">" || op === "<") {
+      return [comparator("<", concrete(0, 0, 0, "0"))];
+    }
+    return [];
+  }
+  const parts = parsePartial(rest);
+  if (!parts) {
+    return null;
+  }
+  if (isWild(parts.major) || isWild(parts.minor) || isWild(parts.patch) || parts.minor == null || parts.patch == null) {
+    return expandWildcard(op, parts);
+  }
+  return [comparator(op, partialToVersion(parts))];
+}
+
+function hyphenTokens(part) {
+  const match = /^(\S+)\s+-\s+(\S+)$/.exec(part);
+  if (!match) {
+    return null;
+  }
+  const from = parsePartial(match[1]);
+  const to = parsePartial(match[2]);
+  if (!from || !to) {
+    return null;
+  }
+  const tokens = [];
+  if (!isWild(from.major)) {
+    if (isWild(from.minor)) {
+      tokens.push(">=" + from.major + ".0.0");
+    } else if (isWild(from.patch)) {
+      tokens.push(">=" + from.major + "." + from.minor + ".0");
+    } else {
+      tokens.push(">=" + match[1].replace(/^v/, ""));
+    }
+  }
+  if (!isWild(to.major)) {
+    if (isWild(to.minor)) {
+      tokens.push("<" + String(Number(to.major) + 1) + ".0.0-0");
+    } else if (isWild(to.patch)) {
+      tokens.push("<" + to.major + "." + String(Number(to.minor) + 1) + ".0-0");
+    } else if (to.prerelease) {
+      tokens.push("<=" + to.major + "." + to.minor + "." + to.patch + "-" + to.prerelease);
+    } else {
+      tokens.push("<=" + match[2].replace(/^v/, ""));
+    }
+  }
+  return tokens;
+}
+
+function compileAnd(part) {
+  const normalized = part
+    .replace(/~\s+/g, "~")
+    .replace(/\^\s+/g, "^")
+    .replace(/(>=|<=|>|<|=)\s+/g, "$1");
+  const hyphen = hyphenTokens(normalized);
+  const tokens = hyphen || normalized.split(" ").filter(Boolean);
+  const comparators = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const expanded = expandToken(tokens[i]);
+    if (expanded == null) {
+      return null;
+    }
+    for (let j = 0; j < expanded.length; j++) {
+      comparators.push(expanded[j]);
+    }
+  }
+  return comparators;
+}
+
+function compileRange(range) {
+  if (typeof range !== "string" || range.trim() === "") {
+    return null;
+  }
+  const parts = range
+    .trim()
+    .replace(/\s+/g, " ")
+    .split("||")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) {
+    return null;
+  }
+  const sets = [];
+  for (let i = 0; i < parts.length; i++) {
+    const set = compileAnd(parts[i]);
+    // An empty list is the "*" range. null means the text did not parse.
+    if (set == null) {
+      return null;
+    }
+    sets.push(set);
+  }
+  return sets;
+}
+
+function versionSatisfies(version, range) {
+  try {
+    const parsed = parseVersion(version);
+    if (!parsed) {
+      return false;
+    }
+    const sets = compileRange(range);
+    if (!sets) {
+      return false;
+    }
+    for (let i = 0; i < sets.length; i++) {
+      if (testComparatorSet(sets[i], parsed)) {
+        return true;
+      }
+    }
+    return false;
+  } catch (err) {
+    return false;
+  }
+}
+
+function applyPalette(state, desired) {
+  let needsInstall = false;
+  let changedSpec = false;
+  for (const [name, spec] of Object.entries(desired)) {
+    const hasRecorded = Object.prototype.hasOwnProperty.call(state.current.dependencies, name);
+    const recorded = hasRecorded ? state.current.dependencies[name] : undefined;
+    if (recorded !== spec) {
+      state.current.dependencies[name] = spec;
+      changedSpec = true;
+    }
+    const installed = installedVersion(name);
+    if (!installed || !versionSatisfies(installed, spec)) {
+      needsInstall = true;
+      if (!installed) {
+        console.error("sync-gitops: " + name + " is missing; npm will install " + spec);
+      } else {
+        console.error(
+          "sync-gitops: " + name + "@" + installed + " does not satisfy " + spec + "; npm will install"
+        );
+      }
+    } else if (recorded !== spec) {
+      console.error("sync-gitops: " + name + "@" + installed + " satisfies " + spec + "; recording " + spec);
+    } else {
+      console.error("sync-gitops: " + name + "@" + installed + " satisfies " + spec);
+    }
+  }
+  if (changedSpec) {
     const tmp = state.pkgPath + ".gitops-tmp";
     fs.writeFileSync(tmp, JSON.stringify(state.current, null, 2) + "\n");
     fs.renameSync(tmp, state.pkgPath);
   }
-  return missingModule ? "install" : "skip";
+  return needsInstall ? "install" : "skip";
 }
 
 function main() {
+  if (!gitopsDir || !dataDir) {
+    fail("GITOPS_DIR and DATA_DIR are required");
+  }
   const desired = loadPalette();
   const sources = flowSourceNames();
   const loaded = new Map();
@@ -284,4 +723,9 @@ function main() {
   process.stdout.write(action + "\n");
 }
 
-main();
+// Exported for test-sync-gitops.sh. The pod runs this file as a script.
+module.exports = { versionSatisfies: versionSatisfies };
+
+if (require.main === module) {
+  main();
+}

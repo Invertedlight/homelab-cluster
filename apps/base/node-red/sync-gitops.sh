@@ -13,7 +13,7 @@ fi
 
 case "$action" in
   skip)
-    echo "sync-gitops: palette already installed" >&2
+    echo "sync-gitops: installed palette satisfies Git ranges" >&2
     ;;
   install)
     echo "sync-gitops: npm install in $DATA_DIR" >&2
