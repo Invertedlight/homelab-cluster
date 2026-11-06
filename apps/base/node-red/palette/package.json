@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "Palette packages to install when they are missing from the Node-RED Longhorn volume. Ranges are the live install recorded with the June 3 2023 weather flow. This file is merged into /data/package.json; it does not replace it.",
+  "description": "Palette packages Git keeps on the Node-RED Longhorn volume. On pod start each listed range is written into /data/package.json, and npm install runs when that package is missing or outside the range. Packages that are only on the volume are left alone.",
   "dependencies": {
     "@digitaloak/node-red-contrib-digitaloak-postgresql": "~0.3.2",
     "node-red-contrib-ui-led": "~0.4.11",

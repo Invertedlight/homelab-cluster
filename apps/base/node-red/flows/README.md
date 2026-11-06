@@ -13,7 +13,7 @@ The palette also needs these packages installed in `/data`:
 
 ```sh
 npm install --prefix /data \
-  node-red-dashboard@~3.4.0 \
+  node-red-dashboard@~3.6.0 \
   @digitaloak/node-red-contrib-digitaloak-postgresql@~0.3.2 \
   node-red-contrib-ui-led@~0.4.11
 ```
