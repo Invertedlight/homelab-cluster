@@ -51,7 +51,7 @@ spec:
         - name: netwatch
           # alpine/curl is BusyBox 1.37 (nc -z, awk, date) plus curl for the
           # monthly HTTPS post. nc -z is an unprivileged TCP connect.
-          image: alpine/curl:8.23.0@sha256:96a0479d24c465a7d8d29ebf5ebe92b82536e8443a870d2654e66d3ac235441f
+          image: alpine/curl:8.23.0@sha256:423fe846edd6e4d3181e3092f2c322c85861871d0dc1e774346e1d02684e5e4c
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "/scripts/probe.sh", "run"]
           securityContext:
