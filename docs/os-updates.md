@@ -1,6 +1,6 @@
 # Weekly Ubuntu OS updates (unattended-upgrades + kured)
 
-Last updated: 2026-10-21
+Last updated: 2026-11-08
 
 Ubuntu LTS nodes install security and updates packages automatically.
 **Reboots are owned by Flux-managed [kured](../infrastructure/controllers/base/kured/)**,
@@ -23,8 +23,12 @@ down at once. kured does not role-order workers before servers; the Ansible boot
 applies workers first, and the cluster-wide lock still serializes every reboot.
 
 kured cordons a node for that reboot. The cordon is not the `maintenance=true` label.
-Leave the label unset for the Sunday window so a reboot that stays down still texts.
-Set the label only for planned node work ([node maintenance](node-maintenance.md)).
+Leave the label unset for the Sunday window. A kured reboot that returns Ready
+within 10 minutes does not send the critical `NodeDown` page. One that is still
+NotReady after 10 minutes does, including node, elapsed time, and kured context.
+Anything that is not that reboot still pages on the existing timers. See
+[kured reboot grace](node-reboot-alerts.md). Set the label only for other planned
+node work ([node maintenance](node-maintenance.md)).
 
 ## Nodes
 

@@ -12,6 +12,13 @@ Flux-managed node reboot daemon for Ubuntu package updates that write
 - Temporary PreferNoSchedule taint `weave.works/kured-node-reboot` while reboot is pending.
 - Tolerates control-plane taints so servers are covered; prefer workers first only by operational ordering (kured lock is cluster-wide, not role-ordered).
 
+## NodeDown during the reboot
+
+`annotateNodes: true` is what identifies the reboot. The critical offline page
+uses that annotation plus the cordon, and gives the node 10 minutes to become
+Ready. It does not use `kured_reboot_required` and it does not mute the Sunday
+window. See [kured reboot grace](../../../../docs/node-reboot-alerts.md).
+
 ## Verify
 
 ```bash

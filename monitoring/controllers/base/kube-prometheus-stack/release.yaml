@@ -138,9 +138,11 @@ spec:
           routes:
             # NodeDown: one loud CRITICAL ANNOUNCE text per down node, repeated
             # every 30m until acked ("cmd ack [node]" creates a silence for
-            # alertname=NodeDown). It only matches NodeDown, so every other alert
-            # still reaches the default sms route unchanged. continue: false so the
-            # default route does not send a second copy every 6h.
+            # alertname=NodeDown). The kured maintenance-failure page is the same
+            # alertname, so this route, the 30m repeat, and that silence cover it.
+            # The PrometheusRule decides when it fires; this route does not match
+            # any other alert. continue: false so the default route does not send
+            # a second copy every 6h.
             - receiver: sms-critical
               matchers:
                 - alertname = "NodeDown"
@@ -203,6 +205,12 @@ spec:
       # `maintenance=true` is the node maintenance marker (docs/node-maintenance.md).
       metricLabelsAllowlist:
         - "nodes=[maintenance]"
+      # kube_node_annotations is empty unless an annotation key is listed.
+      # kured 1.23 already sets weave.works/kured-reboot-in-progress
+      # (annotateNodes: true). The key is exposed as
+      # annotation_weave_works_kured_reboot_in_progress. See docs/node-reboot-alerts.md.
+      metricAnnotationsAllowList:
+        - "nodes=[weave.works/kured-reboot-in-progress]"
       rbac:
         extraRules:
           - apiGroups: ["source.toolkit.fluxcd.io"]

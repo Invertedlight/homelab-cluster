@@ -1,15 +1,19 @@
 # CRITICAL "node offline" announcement (2026-11-04).
-# Adds one extra alert; it does not inhibit or replace any other alert, so the
-# normal per-alert SMS texts still show what is impacted.
-# Routed to receiver sms-critical in the kube-prometheus-stack HelmRelease
-# (repeat_interval 30m). The webhook routine formats it as
-# "ANNOUNCE: CRITICAL. Skynet node X (ip) is OFFLINE since ..." so the iPhone
-# ANNOUNCE: automation plays it loud. Ack by texting "cmd ack [node]", which
-# creates an Alertmanager silence for alertname=NodeDown (and node=X).
+# One alert name, NodeDown. It does not inhibit or replace any other alert.
+# Alertmanager routes alertname=NodeDown to receiver sms-critical
+# (group_by node, repeat_interval 30m). The webhook routine is not in this
+# repo; it is described as formatting "ANNOUNCE: CRITICAL. Skynet node X (ip)
+# is OFFLINE since ..." and silencing alertname=NodeDown on "cmd ack [node]".
 #
-# Fires when kubelet Ready is false, or node-exporter on that node is down
-# (joined to the node through the DaemonSet pod, because wrk-02/04 report an
-# IPv6 internal_ip). Skipped while the node is labeled maintenance=true.
+# Two mutually exclusive expressions share that alertname so the route, the
+# 30m repeat, and the ack silence stay as they are:
+#   - unexpected offline: for 2m, summary "Node X is offline"
+#   - kured reboot still NotReady after 10m: maintenance-failure summary
+#
+# A positively identified kured reboot (annotation present AND node cordoned)
+# suppresses NodeDown only for 10m from the observed outage start. The Sunday
+# window alone does not suppress anything. Manual maintenance=true is unchanged
+# and still mutes NodeDown with no time limit. See docs/node-reboot-alerts.md.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -20,8 +24,16 @@ metadata:
 spec:
   groups:
     - name: node-down
+      # Pinned so the 270s timestamp carry below stays 9 evaluations.
+      # Prometheus itself drops a series 5m after its last sample.
+      interval: 30s
       rules:
-        - alert: NodeDown
+        # Same offline signal as the original NodeDown expression.
+        # A sample exists (often with value 0) while the node is NotReady or
+        # its node-exporter scrape is down. Absence means we do not call it
+        # offline. kube_node_status_condition is not exported with
+        # lastTransitionTime, so outage age is recorded below.
+        - record: node:offline
           expr: |
             (
               max by (node) (
@@ -34,8 +46,158 @@ spec:
                 max by (namespace, pod, node) (kube_pod_info{job="kube-state-metrics"})
               )
             )
-            unless on (node)
-            max by (node) (kube_node_labels{job="kube-state-metrics", label_maintenance="true"})
+        # kube-state-metrics 2.14 (chart 5.27, bundled with kube-prometheus-stack
+        # 66.2.2) emits this label only when metricAnnotationsAllowList contains
+        # nodes=[weave.works/kured-reboot-in-progress]. The label is
+        # annotation_ plus the key with every non [A-Za-z0-9_] turned into _.
+        # kured 1.23 writes the annotation inside the reboot window when the
+        # sentinel is present, before it takes the lock, and deletes it after
+        # the node is back and the sentinel is gone. The value is RFC3339 of
+        # that first mark, which can be hours before this node's turn, so it
+        # is not the reboot-start clock. Presence is the signal.
+        - record: node:kured_reboot_in_progress
+          expr: |
+            max by (node) (
+              kube_node_annotations{
+                job="kube-state-metrics",
+                annotation_weave_works_kured_reboot_in_progress=~".+"
+              }
+            )
+        # drain() cordons immediately before the reboot command. Nodes that
+        # only have the annotation are still waiting for the lock and are not
+        # in this reboot. The PreferNoSchedule taint is the opposite signal
+        # (set while waiting) and is not used here.
+        - record: node:kured_reboot_cordoned
+          expr: |
+            node:kured_reboot_in_progress
+            and on (node) (
+              max by (node) (kube_node_spec_unschedulable{job="kube-state-metrics"}) == 1
+            )
+        # Latches once this Prometheus has seen the cordoned node offline, and
+        # stays latched while the annotation series keeps being written.
+        # 270s is inside Prometheus's 5m staleness window: a scrape hole shorter
+        # than that keeps the latch; a longer hole starts clean instead of
+        # treating a leftover annotation as a new reboot forever.
+        - record: node:kured_reboot_outage_seen
+          expr: |
+            (
+              node:kured_reboot_outage_seen
+              and on (node) node:kured_reboot_in_progress
+              and (timestamp(node:kured_reboot_outage_seen) > (time() - 270))
+            )
+            or on (node) (
+              node:offline
+              and on (node) node:kured_reboot_cordoned
+            )
+        # The annotation normally disappears on the successful-reboot path,
+        # after uncordon. If the node is Ready and schedulable again while the
+        # annotation remains, this Prometheus saw the cycle finish and the
+        # marker must not cover a later outage. Pre-reboot (annotation set,
+        # node still schedulable, no outage seen yet) is not stale.
+        - record: node:kured_reboot_marker_stale
+          expr: |
+            (
+              node:kured_reboot_marker_stale
+              and on (node) node:kured_reboot_in_progress
+              and (timestamp(node:kured_reboot_marker_stale) > (time() - 270))
+            )
+            or on (node) (
+              node:kured_reboot_in_progress
+              and on (node) node:kured_reboot_outage_seen
+              and on (node) (
+                max by (node) (
+                  kube_node_status_condition{job="kube-state-metrics", condition="Ready", status="true"}
+                ) == 1
+              )
+              and on (node) (
+                max by (node) (kube_node_spec_unschedulable{job="kube-state-metrics"}) == 0
+              )
+            )
+        # Active kured maintenance outage. Manual maintenance=true keeps the
+        # older total mute and is excluded here so it cannot also raise the
+        # maintenance-failure page.
+        - record: node:kured_maintenance_offline
+          expr: |
+            (
+              node:offline
+              and on (node) node:kured_reboot_cordoned
+            )
+            unless on (node) node:kured_reboot_marker_stale
+            unless on (node) (
+              max by (node) (
+                kube_node_labels{job="kube-state-metrics", label_maintenance="true"}
+              )
+            )
+        # Unix time of this reboot attempt's first offline sample.
+        # Prometheus writes a stale marker as soon as a recording rule stops
+        # returning a series, so the timestamp has to be rewritten on every
+        # evaluation for the whole attempt (annotation still present and the
+        # marker is not stale), including a Ready blip while the node is still
+        # cordoned. The value is only seeded once the node is actually offline.
+        # A timestamp more than 60s in the future is dropped. When the attempt
+        # ends, the series is marked stale; the next attempt gets a new clock.
+        # A scrape hole long enough to drop the series starts one new 10m grace,
+        # then the failure page fires. It cannot suppress NodeDown forever.
+        - record: node:kured_maintenance_offline_since:unixtime
+          expr: |
+            (
+              (
+                (
+                  node:kured_maintenance_offline_since:unixtime
+                  and on (node) node:kured_reboot_in_progress
+                )
+                unless on (node) node:kured_reboot_marker_stale
+              )
+              and on (node) (
+                node:kured_maintenance_offline_since:unixtime <= (time() + 60)
+              )
+            )
+            or on (node) (
+              (node:kured_maintenance_offline * 0 + time())
+              unless on (node) (
+                (
+                  (
+                    node:kured_maintenance_offline_since:unixtime
+                    and on (node) node:kured_reboot_in_progress
+                  )
+                  unless on (node) node:kured_reboot_marker_stale
+                )
+                and on (node) (
+                  node:kured_maintenance_offline_since:unixtime <= (time() + 60)
+                )
+              )
+            )
+        # Suppress the generic page for the first 10m, and after that only
+        # while the node is still NotReady (the failure alert owns that case).
+        # A negative age does not suppress. Ready plus a dead exporter after
+        # the grace falls through to the generic page.
+        - record: node:kured_maintenance_holds_nodedown
+          expr: |
+            (
+              node:kured_maintenance_offline
+              and on (node) ((time() - node:kured_maintenance_offline_since:unixtime) >= 0)
+              and on (node) ((time() - node:kured_maintenance_offline_since:unixtime) < 600)
+            )
+            or on (node) (
+              node:kured_maintenance_offline
+              and on (node) ((time() - node:kured_maintenance_offline_since:unixtime) >= 600)
+              and on (node) (
+                max by (node) (
+                  kube_node_status_condition{job="kube-state-metrics", condition="Ready", status="true"} == 0
+                )
+              )
+            )
+        - alert: NodeDown
+          expr: |
+            (
+              node:offline
+              unless on (node) (
+                max by (node) (
+                  kube_node_labels{job="kube-state-metrics", label_maintenance="true"}
+                )
+              )
+              unless on (node) node:kured_maintenance_holds_nodedown
+            )
           for: 2m
           labels:
             severity: critical
@@ -47,3 +209,27 @@ spec:
               {{ $labels.node }} is NotReady or its node-exporter is unreachable.
               Repeats every 30m until acknowledged with "cmd ack {{ $labels.node }}"
               (or "cmd ack" for all down nodes).
+        - alert: NodeDown
+          expr: |
+            (
+              (time() - node:kured_maintenance_offline_since:unixtime)
+              and on (node) node:kured_maintenance_offline
+              and on (node) (
+                max by (node) (
+                  kube_node_status_condition{job="kube-state-metrics", condition="Ready", status="true"} == 0
+                )
+              )
+            ) >= 600
+          labels:
+            severity: critical
+            # Distinguishes this rule from the generic NodeDown rule. Alertmanager
+            # matches alertname=NodeDown, so the sms-critical route and a
+            # "cmd ack" silence still apply.
+            reason: maintenance-reboot
+          annotations:
+            ip: >-
+              {{ with printf `label_replace(up{job="node-exporter"} and on (namespace, pod) kube_pod_info{job="kube-state-metrics",node="%s"}, "ip", "$1", "instance", "([^:]+):.*")` $labels.node | query }}{{ with first . }}{{ .Labels.ip }}{{ end }}{{ end }}
+            summary: Node {{ $labels.node }} failed to return online after scheduled maintenance reboot
+            outage: '{{ $value | humanizeDuration }}'
+            maintenance_context: 'kured scheduled reboot; node {{ $labels.node }} cordoned with weave.works/kured-reboot-in-progress; 10m grace from observed outage start; no cause claimed'
+            description: '{{ $labels.node }} has not returned Ready for {{ $value | humanizeDuration }} after that scheduled maintenance reboot. Repeats every 30m until acknowledged with "cmd ack {{ $labels.node }}" (or "cmd ack" for all down nodes).'

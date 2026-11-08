@@ -1,0 +1,434 @@
+# promtool unit tests for node-down-alerts.yaml.
+# The runner materializes the PrometheusRule spec as node-down.rules.yml.
+# Series interval is 30s. "0xN" is N+1 samples starting at t=0 (last sample at N*30s).
+# A "_" sample is absent at that step. Prometheus still returns the previous
+# sample for 5m, so a short "_" run is not an outage reset.
+rule_files:
+  - node-down.rules.yml
+evaluation_interval: 30s
+tests:
+  # Planned kured reboot, back before 10m. No NodeDown at all, including after
+  # recovery, so nothing is left pending to fire or replay.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x7 1x40'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x7 0x40'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x7 _x40'
+    promql_expr_test:
+      - expr: 'node:kured_maintenance_offline_since:unixtime{node="skynet-wrk-03"}'
+        eval_time: 2m
+        exp_samples:
+          - labels: '{__name__="node:kured_maintenance_offline_since:unixtime",node="skynet-wrk-03"}'
+            value: 0
+      - expr: 'node:kured_maintenance_holds_nodedown{node="skynet-wrk-03"}'
+        eval_time: 2m
+        exp_samples:
+          - labels: '{__name__="node:kured_maintenance_holds_nodedown",node="skynet-wrk-03"}'
+            value: 0
+      - expr: 'node:kured_maintenance_offline{node="skynet-wrk-03"}'
+        eval_time: 5m
+        exp_samples: []
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: NodeDown
+        exp_alerts: []
+
+  # Still NotReady at 10m. Generic page stays quiet; the failure page carries
+  # node, elapsed outage, and kured context, and is still firing at 15m.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x40'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x40'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 9m30s
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              reason: maintenance-reboot
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 failed to return online after scheduled maintenance reboot
+              outage: 10m 0s
+              maintenance_context: 'kured scheduled reboot; node skynet-wrk-03 cordoned with weave.works/kured-reboot-in-progress; 10m grace from observed outage start; no cause claimed'
+              description: 'skynet-wrk-03 has not returned Ready for 10m 0s after that scheduled maintenance reboot. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: ""
+      - eval_time: 15m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              reason: maintenance-reboot
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 failed to return online after scheduled maintenance reboot
+              outage: 15m 0s
+              maintenance_context: 'kured scheduled reboot; node skynet-wrk-03 cordoned with weave.works/kured-reboot-in-progress; 10m grace from observed outage start; no cause claimed'
+              description: 'skynet-wrk-03 has not returned Ready for 15m 0s after that scheduled maintenance reboot. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # 9m30s is under the grace. Recovery at 10m must not produce a delayed page.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x19 1x20'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x19 0x20'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x19 _x20'
+    alert_rule_test:
+      - eval_time: 9m30s
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: NodeDown
+        exp_alerts: []
+
+  # Unexpected outage has no kured cordon marker, so the 2m page still fires
+  # even while another node is inside a kured grace. The window is not a mute.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-04",condition="Ready",status="true"}'
+        values: '0x40'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-04"}'
+        values: '0x40'
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x7 1x33'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x7 0x33'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x7 _x33'
+    alert_rule_test:
+      - eval_time: 90s
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: skynet-wrk-04
+            exp_annotations:
+              summary: Node skynet-wrk-04 is offline
+              description: 'skynet-wrk-04 is NotReady or its node-exporter is unreachable. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-04" (or "cmd ack" for all down nodes).'
+              ip: ""
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: skynet-wrk-04
+            exp_annotations:
+              summary: Node skynet-wrk-04 is offline
+              description: 'skynet-wrk-04 is NotReady or its node-exporter is unreachable. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-04" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # Annotation without a cordon means the node is queued, not rebooting.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-02",condition="Ready",status="true"}'
+        values: '0x20'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-02"}'
+        values: '0x20'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-02",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:00:00Z"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: skynet-wrk-02
+            exp_annotations:
+              summary: Node skynet-wrk-02 is offline
+              description: 'skynet-wrk-02 is NotReady or its node-exporter is unreachable. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-02" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # Marker left behind after a finished cycle must not grant another grace,
+  # even if the node is cordoned again.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x5 1x5 0x30'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x5 0x5 1x30'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 is offline
+              description: 'skynet-wrk-03 is NotReady or its node-exporter is unreachable. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: ""
+      - eval_time: 16m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 is offline
+              description: 'skynet-wrk-03 is NotReady or its node-exporter is unreachable. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # No annotation metric at all (allowlist not applied, or kured never marked
+  # the node). Fail open to the 2m page.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-01",condition="Ready",status="true"}'
+        values: '0x20'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-01"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: skynet-wrk-01
+            exp_annotations:
+              summary: Node skynet-wrk-01 is offline
+              description: 'skynet-wrk-01 is NotReady or its node-exporter is unreachable. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-01" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # Two nodes in maintenance at once. One returns; the other is still NotReady
+  # at 10m and pages alone.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x7 1x33'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x7 0x33'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x7 _x33'
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-01",condition="Ready",status="true"}'
+        values: '0x40'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-01"}'
+        values: '1x40'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-01",annotation_weave_works_kured_reboot_in_progress="2026-11-08T08:00:00Z"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              reason: maintenance-reboot
+              node: skynet-wrk-01
+            exp_annotations:
+              summary: Node skynet-wrk-01 failed to return online after scheduled maintenance reboot
+              outage: 10m 0s
+              maintenance_context: 'kured scheduled reboot; node skynet-wrk-01 cordoned with weave.works/kured-reboot-in-progress; 10m grace from observed outage start; no cause claimed'
+              description: 'skynet-wrk-01 has not returned Ready for 10m 0s after that scheduled maintenance reboot. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-01" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # maintenance=true still mutes NodeDown with no time limit, including when
+  # kured markers are also present. No maintenance-failure page either.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-04",condition="Ready",status="true"}'
+        values: '0x40'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-04"}'
+        values: '1x40'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-04",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x40'
+      - series: 'kube_node_labels{job="kube-state-metrics",node="skynet-wrk-04",label_maintenance="true"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: NodeDown
+        exp_alerts: []
+
+  # Ready again for 2m while the cordon and annotation remain (boot flap).
+  # The outage clock stays on the original start, so 10m from the first sample
+  # still raises the failure page.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x5 1x3 0x30'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x40'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x40'
+    promql_expr_test:
+      - expr: 'node:kured_maintenance_offline_since:unixtime{node="skynet-wrk-03"}'
+        eval_time: 7m
+        exp_samples:
+          - labels: '{__name__="node:kured_maintenance_offline_since:unixtime",node="skynet-wrk-03"}'
+            value: 0
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 9m30s
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              reason: maintenance-reboot
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 failed to return online after scheduled maintenance reboot
+              outage: 10m 0s
+              maintenance_context: 'kured scheduled reboot; node skynet-wrk-03 cordoned with weave.works/kured-reboot-in-progress; 10m grace from observed outage start; no cause claimed'
+              description: 'skynet-wrk-03 has not returned Ready for 10m 0s after that scheduled maintenance reboot. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # Node is Ready but node-exporter is down during a cordoned kured reboot.
+  # Grace applies. After 10m this is not a failed return, so the generic page
+  # fires (its 2m pending starts when the grace ends).
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '1x40'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x40'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x40'
+      - series: 'up{job="node-exporter",namespace="monitoring",pod="prom-node-exporter-wrk03",instance="192.168.68.113:9100"}'
+        values: '0x40'
+      - series: 'kube_pod_info{job="kube-state-metrics",namespace="monitoring",pod="prom-node-exporter-wrk03",node="skynet-wrk-03"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 is offline
+              description: 'skynet-wrk-03 is NotReady or its node-exporter is unreachable. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: 192.168.68.113
+
+  # Metrics vanish long enough for staleness to drop the outage clock. The
+  # next episode gets a new 10m grace, then the failure page. A hole cannot
+  # suppress the page forever.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '0x16 _x24 0x30'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x16 _x24 1x30'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x16 _x24 1x30'
+    promql_expr_test:
+      - expr: 'node:kured_maintenance_offline_since:unixtime{node="skynet-wrk-03"}'
+        eval_time: 22m
+        exp_samples:
+          - labels: '{__name__="node:kured_maintenance_offline_since:unixtime",node="skynet-wrk-03"}'
+            value: 1230
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 30m30s
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              reason: maintenance-reboot
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 failed to return online after scheduled maintenance reboot
+              outage: 10m 0s
+              maintenance_context: 'kured scheduled reboot; node skynet-wrk-03 cordoned with weave.works/kured-reboot-in-progress; 10m grace from observed outage start; no cause claimed'
+              description: 'skynet-wrk-03 has not returned Ready for 10m 0s after that scheduled maintenance reboot. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: ""
+
+  # Drain cordons the node while it is still Ready. The 10m clock starts when
+  # the node actually goes offline, not when the annotation or cordon appears.
+  - interval: 30s
+    input_series:
+      - series: 'kube_node_status_condition{job="kube-state-metrics",node="skynet-wrk-03",condition="Ready",status="true"}'
+        values: '1x3 0x30'
+      - series: 'kube_node_spec_unschedulable{job="kube-state-metrics",node="skynet-wrk-03"}'
+        values: '1x40'
+      - series: 'kube_node_annotations{job="kube-state-metrics",node="skynet-wrk-03",annotation_weave_works_kured_reboot_in_progress="2026-11-08T07:29:42Z"}'
+        values: '1x40'
+    promql_expr_test:
+      - expr: 'node:kured_maintenance_offline_since:unixtime{node="skynet-wrk-03"}'
+        eval_time: 1m
+        exp_samples: []
+      - expr: 'node:kured_maintenance_offline_since:unixtime{node="skynet-wrk-03"}'
+        eval_time: 4m
+        exp_samples:
+          - labels: '{__name__="node:kured_maintenance_offline_since:unixtime",node="skynet-wrk-03"}'
+            value: 120
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: NodeDown
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              reason: maintenance-reboot
+              node: skynet-wrk-03
+            exp_annotations:
+              summary: Node skynet-wrk-03 failed to return online after scheduled maintenance reboot
+              outage: 10m 0s
+              maintenance_context: 'kured scheduled reboot; node skynet-wrk-03 cordoned with weave.works/kured-reboot-in-progress; 10m grace from observed outage start; no cause claimed'
+              description: 'skynet-wrk-03 has not returned Ready for 10m 0s after that scheduled maintenance reboot. Repeats every 30m until acknowledged with "cmd ack skynet-wrk-03" (or "cmd ack" for all down nodes).'
+              ip: ""
