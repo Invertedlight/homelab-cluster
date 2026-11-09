@@ -1,12 +1,12 @@
 # Node maintenance and SMS alerts
 
-Last updated: 2026-11-03
+Last updated: 2026-11-08
 
 kube-prometheus-stack sends every firing alert to the Alertmanager receiver `sms` (an n8n webhook that texts). Planned work on one node, such as the skynet-wrk-04 battery swap, makes that node NotReady and then pages the follow-on alerts that a single down node produces.
 
 Mark the node with the label `maintenance=true` before the work. Alertmanager then inhibits the alerts below. `group_by`, `group_wait`, `group_interval`, `repeat_interval`, and `send_resolved` are unchanged. With no node labeled, every alert is delivered as it is today.
 
-The label is the marker, and it does not cordon or drain the node. Cordon still controls scheduling. kured cordons a node for the Sunday reboot window; that cordon is not this label, so a reboot that stays down still texts. Set the label only for work you intend to mute.
+The label is the marker, and it does not cordon or drain the node. Cordon still controls scheduling. kured cordons a node for its own Sunday reboot. That cordon is not this label. A kured reboot that is Ready again within 10 minutes does not send `NodeDown`. One that is still NotReady after 10 minutes does, as a maintenance-failure page. The Sunday window is not itself a mute. Details are in [node-reboot-alerts.md](node-reboot-alerts.md). Set `maintenance=true` only for work you intend to mute, and leave it off for the kured window.
 
 ## Mark and unmark
 
