@@ -1,0 +1,38 @@
+# Tuned so the current tree lints cleanly. docs/ and safari-tab-shade/
+# are out of scope for this check.
+extends: default
+
+ignore: |
+  docs/
+  safari-tab-shade/
+
+rules:
+  # SOPS ciphertext, embedded Grafana JSON, and the Flux install manifest
+  # are single long lines. A length cap would only fail those.
+  line-length: disable
+
+  # Manifests in this repo omit a leading "---".
+  document-start: disable
+
+  # infrastructure/controllers/base/garage/crd-garagenodes.yaml is an
+  # upstream CRD with no trailing newline. The manifest is left unchanged.
+  new-line-at-end-of-file: disable
+
+  # GitHub Actions needs a top-level "on:" key. Values are still checked,
+  # so an unquoted yes/no/on/off value still fails.
+  truthy:
+    check-keys: false
+
+  comments:
+    # A few deployments put one space before a trailing comment, and one
+    # comment has no leading space.
+    require-starting-space: false
+    min-spaces-from-content: 1
+
+  indentation:
+    # Hand-written manifests indent sequences. The Flux install manifest
+    # and clusters/staging/flux-system/kustomization.yaml do not. Each file
+    # is internally consistent.
+    spaces: consistent
+    indent-sequences: consistent
+    check-multi-line-strings: false

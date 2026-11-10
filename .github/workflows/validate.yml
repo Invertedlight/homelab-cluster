@@ -1,0 +1,81 @@
+# Offline validation for the skynet Flux repo.
+# clusters/staging is the production Flux root. This workflow never talks to
+# the cluster and uses no credentials. It does not block merge until branch
+# protection requires the offline-validation check.
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "validate-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  offline-validation:
+    name: offline-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Do not let a self-hosted runner, or a stray kubeconfig, point these
+      # tools at a cluster. kustomize build and kubeconform do not need one.
+      KUBECONFIG: /dev/null
+      KUBERNETES_SERVICE_HOST: ""
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned tools
+        run: |
+          set -euo pipefail
+          bindir="${HOME}/.local/bin"
+          mkdir -p "${bindir}"
+          case "$(uname -m)" in
+            x86_64)
+              kustomize_asset="kustomize_v5.8.3_linux_amd64.tar.gz"
+              kustomize_sha="cb9e31198d3f63b44848bd0afc4c8efc56e6cfef9c93a4a39a211940e6decd61"
+              kubeconform_asset="kubeconform-linux-amd64.tar.gz"
+              kubeconform_sha="9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883"
+              ;;
+            aarch64)
+              kustomize_asset="kustomize_v5.8.3_linux_arm64.tar.gz"
+              kustomize_sha="9867b76482cfc6d25b546abc1d2b5a32bd137505aba640649b4b378f64f6d68f"
+              kubeconform_asset="kubeconform-linux-arm64.tar.gz"
+              kubeconform_sha="1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87"
+              ;;
+            *)
+              echo "unsupported architecture: $(uname -m)" >&2
+              exit 1
+              ;;
+          esac
+          tmp="$(mktemp -d)"
+          curl -fsSL -o "${tmp}/kustomize.tar.gz" \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.3/${kustomize_asset}"
+          echo "${kustomize_sha}  ${tmp}/kustomize.tar.gz" | sha256sum -c -
+          tar -xzf "${tmp}/kustomize.tar.gz" -C "${bindir}" kustomize
+          curl -fsSL -o "${tmp}/kubeconform.tar.gz" \
+            "https://github.com/yannh/kubeconform/releases/download/v0.8.0/${kubeconform_asset}"
+          echo "${kubeconform_sha}  ${tmp}/kubeconform.tar.gz" | sha256sum -c -
+          tar -xzf "${tmp}/kubeconform.tar.gz" -C "${bindir}" kubeconform
+          chmod 755 "${bindir}/kustomize" "${bindir}/kubeconform"
+          python3 -m venv "${tmp}/venv"
+          "${tmp}/venv/bin/pip" install --disable-pip-version-check \
+            "yamllint==1.38.0" \
+            "pathspec==1.1.1" \
+            "PyYAML==6.0.3"
+          echo "${bindir}" >> "${GITHUB_PATH}"
+          echo "${tmp}/venv/bin" >> "${GITHUB_PATH}"
+          "${bindir}/kustomize" version
+          "${bindir}/kubeconform" -v
+          "${tmp}/venv/bin/python" -m yamllint --version
+
+      - name: Validate manifests offline
+        run: python3 .github/scripts/validate-offline.py
