@@ -20,10 +20,32 @@ New apps only need a Kubernetes Ingress (and a working Service). Examples:
 
 ## Secret
 
+The skynet token is `infrastructure/controllers/skynet/cloudflared/tunnel-token.secret.yaml`.
+It is not stored in this directory, so vm-staging can reuse the namespace and
+Deployment.
+
 ```bash
-cp tunnel-token.secret.yaml.example tunnel-token.secret.yaml
+cp tunnel-token.secret.yaml.example \
+  ../../skynet/cloudflared/tunnel-token.secret.yaml
 # paste the skynet tunnel token into stringData.token
-sops -e -i tunnel-token.secret.yaml
+sops -e -i ../../skynet/cloudflared/tunnel-token.secret.yaml
 ```
 
-Do not commit a plaintext token.
+The example's nearest SOPS policy is the repo-root `.sops.yaml` (same age
+recipient as `clusters/skynet/.sops.yaml`). Do not commit a plaintext token.
+
+## vm-staging
+
+Staging apps use single-level hostnames `<app>-staging.jameshomelab.org`.
+Universal SSL covers those names. An explicit record beats the production
+`*` wildcard.
+
+Each app needs all of the following, managed in Cloudflare and not in this repo:
+
+- a tunnel ingress rule to `http://traefik.kube-system.svc.cluster.local:80`
+- an explicit proxied CNAME to `4d5bec49-fe28-4a85-bb5b-1727b4cd46f9.cfargotunnel.com`
+- an Access application
+
+The connector for tunnel `vm-staging` is
+`infrastructure/controllers/vm-staging/cloudflared`. Its token is encrypted
+to the vm-staging age recipient only.
