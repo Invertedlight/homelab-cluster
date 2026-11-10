@@ -63,6 +63,8 @@ spec:
           env:
             - name: TZ
               value: America/Chicago
+            # Same admin user and hash authorize HTTP In routes and signed-in
+            # dashboard writes. /ui itself is not challenged.
             - name: NODE_RED_ADMIN_USER
               valueFrom:
                 secretKeyRef:

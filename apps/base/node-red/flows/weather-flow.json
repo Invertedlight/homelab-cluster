@@ -4,7 +4,7 @@
     "type": "tab",
     "label": "Flow 1",
     "disabled": false,
-    "info": "",
+    "info": "Weather Data on /ui is public and view-only. inHg and hPa are editor injects. Dashboard controls accept input only after the admin HTTP login.",
     "env": []
   },
   {
@@ -785,13 +785,16 @@
     "id": "da7fd764bf151b00",
     "type": "inject",
     "z": "e957afae9c5319c9",
-    "name": "",
+    "name": "Editor: inHg",
     "props": [
       {
-        "p": "payload"
+        "p": "payload",
+        "v": false,
+        "vt": "bool"
       },
       {
         "p": "topic",
+        "v": "Toggle_units",
         "vt": "str"
       }
     ],
@@ -800,42 +803,40 @@
     "once": false,
     "onceDelay": 0.1,
     "topic": "Toggle_units",
-    "payload": "toggle_units",
-    "payloadType": "global",
+    "payload": false,
+    "payloadType": "bool",
     "x": 150,
     "y": 120,
     "wires": [
       [
-        "0376c2f325602019"
+        "9ff796d2663996e4"
       ]
     ]
   },
   {
     "id": "0376c2f325602019",
-    "type": "ui_switch",
+    "type": "inject",
     "z": "e957afae9c5319c9",
-    "name": "",
-    "label": "inHg/hPa",
-    "tooltip": "",
-    "group": "6dd2fb88d99ba040",
-    "order": 8,
-    "width": 3,
-    "height": 2,
-    "passthru": true,
-    "decouple": "false",
-    "topic": "topic/Toggle_units",
-    "topicType": "msg",
-    "style": "",
-    "onvalue": "true",
-    "onvalueType": "bool",
-    "onicon": "",
-    "oncolor": "",
-    "offvalue": "false",
-    "offvalueType": "bool",
-    "officon": "",
-    "offcolor": "",
-    "animate": false,
-    "className": "",
+    "name": "Editor: hPa",
+    "props": [
+      {
+        "p": "payload",
+        "v": true,
+        "vt": "bool"
+      },
+      {
+        "p": "topic",
+        "v": "Toggle_units",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "Toggle_units",
+    "payload": true,
+    "payloadType": "bool",
     "x": 340,
     "y": 120,
     "wires": [

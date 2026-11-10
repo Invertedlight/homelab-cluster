@@ -4,13 +4,38 @@ Flux applies this app from `apps/skynet/node-red`, which includes this directory
 
 | Path | What it is |
 | --- | --- |
-| `flows/weather-flow.json` | June 3, 2023 weather flow. 65 nodes, one tab (`Flow 1`). Same export as `flows_Mac-mini.local.json`. MQTT and PostgreSQL credentials are not in the file. |
+| `flows/weather-flow.json` | Weather flow, 65 nodes, one tab (`Flow 1`). Started from the June 3, 2023 Mac mini export. The public inHg/hPa switch is now two editor injects, so the Weather Data page has no input widget. MQTT and PostgreSQL credentials are not in the file. |
+| `http-node-auth.js` | HTTP and dashboard-socket gate. Mounted next to `settings.js`. Reuses `NODE_RED_ADMIN_USER` and `NODE_RED_ADMIN_HASH`. |
 | `palette/package.json` | Palette ranges Git applies on each pod start: `node-red-dashboard@~3.6.0`, `@digitaloak/node-red-contrib-digitaloak-postgresql@~0.3.2`, and `node-red-contrib-ui-led@~0.4.11`. |
 | `/data/flows.json` | Live flow. The editor writes it on every deploy. |
 | `/data/flows_cred.json` | Live credentials, encrypted with `credential-secret` from the SOPS secret `node-red-admin`. This file stays on the volume. |
 | `/data/package.json` and `/data/node_modules` | Palette packages actually installed, including any James has added in the editor and not yet recorded here. |
 
-`flows/weather-flow.json` is the same file as the open backup in PR #134. This directory wires that export and the palette list into the Deployment. Staging does not keep a second copy.
+`flows/weather-flow.json` started as the open backup in PR #134. The public unit switch has since been removed from that export. This directory wires the export and the palette list into the Deployment. Staging does not keep a second copy.
+
+## Who can use the dashboard
+
+The palette package is `node-red-dashboard@~3.6.0`. Those are the `ui_*` nodes (gauges, charts, text, the old switch). It is not `@flowfuse/node-red-dashboard` (Dashboard 2). Dashboard 2 would mean rewriting every dashboard node, and its auth still covers the whole HTTP app. The 3.6 setting `ui.readOnly` drops widget input for every socket, including one that has signed in, so settings.js does not set it.
+
+Anonymous visitors of `https://nodered.jameshomelab.org/ui` can load Weather Data and see the gauges, text, LED, and charts. The browser socket stays up. The only client event that socket may send is `ui-replay-state`, which is how the page paints the current values.
+
+Anonymous visitors cannot change a widget. A switch, a chart click, a template `send`, or a button added later arrives as a socket event and is discarded before a node runs. They also cannot call an HTTP In route. The weather flow has none. A route added later asks for the existing admin username and password hash (`NODE_RED_ADMIN_USER` and `NODE_RED_ADMIN_HASH` from the secret `node-red-admin`). There is no second password.
+
+The editor and the admin API (`/flows`, `/settings`, `/nodes`) stay on `adminAuth`. That login form does not send the HTTP basic header the dashboard socket checks. To operate a dashboard control, open `https://nodered.jameshomelab.org/node-red-http-login`, sign in with the same admin user, then reload `/ui`.
+
+`httpNodeAuth` is a middleware function. On Node-RED 5.0.9 the `{user, pass}` form is mounted on the shared HTTP app, and this dashboard serves `/ui` from that app, so the object form would challenge the graphs. socket.io is attached to the HTTP server in front of Express: engine.io takes `/ui/socket.io` before Express runs, so HTTP auth never sees a widget message. The socket filter does.
+
+Opening `/ui` still creates a socket. A `ui_control` node added later would hear connect and disconnect from that, including from an anonymous viewer. This flow has no `ui_control` node. Tab changes, group collapse, audio status, query params, and refresh events from an anonymous socket are discarded.
+
+Grafana is a different app and is unchanged.
+
+## The live flow file
+
+`gitops-sync` copies the export to `/data/flows.json` only when `/data/flows.json` is missing. Committing a new export rolls the pod, because the gitops ConfigMap hash changes, and leaves the file on the volume in place. `settings.js` is its own ConfigMap, so the HTTP and socket rules apply on that roll even while the volume still contains the old switch. After the roll an anonymous click on that switch does not enter the flow. The widget can remain on screen until the volume's flow changes.
+
+The committed export has no public switch. `Editor: hPa` and `Editor: inHg` set global `Toggle_units` and run only when clicked in the editor. A new or emptied volume gets that page. The running volume keeps its current flow, including cluster MQTT and PostgreSQL hosts that are not in the export.
+
+To make the live page match the export, change the flow in the editor and deploy. That writes `/data/flows.json` immediately. Export all flows back over `weather-flow.json` when the editor copy should become the Git seed. Deleting `/data/flows.json` so the init container reseeds also puts the export's `localhost` MQTT broker and PostgreSQL host back. Prefer the editor edit unless a reseed is intentional. Leave `flows_cred.json` and the `node-red-admin` secret where they are.
 
 ## How the pod applies Git
 
@@ -50,7 +75,7 @@ kubectl -n node-red scale deploy/node-red --replicas=0
 kubectl -n node-red scale deploy/node-red --replicas=1
 ```
 
-The init container seeds `/data/flows.json` because the file is gone. The June 3, 2023 export still points the MQTT broker and the DigitalOak PostgreSQL connection at `localhost`, and the database name in that export is `weather data`. After a seed onto a new volume, set the broker to `mosquitto.mosquitto.svc.cluster.local` port `1883` and point PostgreSQL at the database you use in the cluster, then enter those passwords again in the editor. The live volume is expected to already have those hosts configured; a normal Git commit does not copy over that work.
+The init container seeds `/data/flows.json` because the file is gone. The committed export still points the MQTT broker and the DigitalOak PostgreSQL connection at `localhost`, and the database name in that export is `weather data`. It also has the editor unit injects instead of the public switch. After a seed onto a new volume, set the broker to `mosquitto.mosquitto.svc.cluster.local` port `1883` and point PostgreSQL at the database you use in the cluster, then enter those passwords again in the editor. The live volume is expected to already have those hosts configured; a normal Git commit does not copy over that work.
 
 ## When you install a palette node
 
@@ -83,4 +108,4 @@ The three packages recorded today are the ones the weather flow imports:
 sh apps/base/node-red/test-sync-gitops.sh
 ```
 
-The test uses a stub `npm` and a temporary data directory. It does not talk to the cluster.
+The test uses a stub `npm` and a temporary data directory, and checks the dashboard auth helper. It does not talk to the cluster. A bcrypt library is optional in that shell. The Node-RED image supplies `@node-rs/bcrypt` or `bcryptjs` when the pod compares the admin hash.

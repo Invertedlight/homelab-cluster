@@ -56,7 +56,8 @@ run_sync() {
   GITOPS_DIR=$gitops DATA_DIR=$data sh "$SCRIPT"
 }
 
-# The committed weather export is the 65-node June 2023 flow and has no secrets.
+# The committed weather export is the 65-node flow and has no secrets.
+# The public dashboard has no input widgets. Unit choice is two editor injects.
 node - "$ROOT/flows/weather-flow.json" "$ROOT/palette/package.json" << 'PY'
 const fs = require("fs");
 const flow = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
@@ -65,11 +66,43 @@ if (!Array.isArray(flow) || flow.length !== 65) {
   process.exit(1);
 }
 const types = new Set(flow.map((node) => node.type));
-for (const required of ["mqtt-broker", "digitaloak-postgresql-connection-manager", "digitaloak-postgresql-query", "ui_led", "ui_base"]) {
+for (const required of ["mqtt-broker", "digitaloak-postgresql-connection-manager", "digitaloak-postgresql-query", "ui_led", "ui_base", "ui_chart", "ui_gauge"]) {
   if (!types.has(required)) {
     console.error("missing node type " + required);
     process.exit(1);
   }
+}
+const inputWidgets = ["ui_button", "ui_dropdown", "ui_switch", "ui_slider", "ui_numeric", "ui_text_input", "ui_date_picker", "ui_colour_picker", "ui_form"];
+for (const node of flow) {
+  if (inputWidgets.includes(node.type)) {
+    console.error("public flow still has input widget " + node.type + " " + node.id);
+    process.exit(1);
+  }
+}
+const changeId = "9ff796d2663996e4";
+function wiresTo(node, id) {
+  return Array.isArray(node.wires) && node.wires.some((ports) => Array.isArray(ports) && ports.includes(id));
+}
+const hpa = flow.find((node) => node.type === "inject" && node.name === "Editor: hPa");
+const inhg = flow.find((node) => node.type === "inject" && node.name === "Editor: inHg");
+if (!hpa || hpa.payload !== true || hpa.payloadType !== "bool" || hpa.once !== false || !wiresTo(hpa, changeId)) {
+  console.error("Editor: hPa inject is missing or not wired to the unit change");
+  process.exit(1);
+}
+if (!inhg || inhg.payload !== false || inhg.payloadType !== "bool" || inhg.once !== false || !wiresTo(inhg, changeId)) {
+  console.error("Editor: inHg inject is missing or not wired to the unit change");
+  process.exit(1);
+}
+for (const node of flow) {
+  if (typeof node.type === "string" && node.type.startsWith("ui_") && wiresTo(node, changeId)) {
+    console.error("a dashboard node still wires into the unit change: " + node.type);
+    process.exit(1);
+  }
+}
+const template = flow.find((node) => node.type === "ui_template");
+if (!template || /scope\.send|ng-click|ng-change|ng-submit|socket\.emit/.test(template.format || "")) {
+  console.error("ui_template can send from the browser");
+  process.exit(1);
 }
 const secretKey = /^(password|passwd|secret|token|apikey|api_key|credential|credentialsecret|access_token|refresh_token|authorization)$/i;
 function walk(value, where) {
@@ -110,7 +143,7 @@ for (const name of expectedNames) {
   }
 }
 PY
-ok "committed weather flow is 65 nodes and the palette ranges match"
+ok "committed weather flow is 65 nodes, view-only, and the palette ranges match"
 
 # Range checks follow npm for ~, ^, exact, comparators, and a few other forms the
 # palette file is allowed to contain. Cases that do not satisfy must take the
@@ -493,5 +526,12 @@ fi
 [ ! -e "$url_data/flows.json" ] || fail "rejected palette spec still seeded a flow"
 [ ! -e "$url_data/package.json" ] || fail "rejected palette spec wrote package.json"
 ok "palette specs stay version ranges"
+
+# Dashboard HTTP and socket rules. settings.js must load the helper from the
+# settings ConfigMap, and the docs must name the login path and the seed rule.
+grep -q "http-node-auth.js" "$ROOT/kustomization.yaml" || fail "settings ConfigMap does not mount http-node-auth.js"
+grep -q "node-red-http-login" "$ROOT/README.md" || fail "README does not name the HTTP login path"
+grep -q "only when" "$ROOT/README.md" || fail "README does not say flows.json is seeded only when missing"
+node "$ROOT/test-dashboard-auth.js" || fail "dashboard auth checks failed"
 
 echo "all node-red gitops sync tests passed"
