@@ -175,7 +175,7 @@ spec:
           configMap:
             name: devpod-bootstrap
             defaultMode: 0755
-        # SOPS secret from apps/staging/devpod/github-credentials.yaml.
+        # SOPS secret from apps/skynet/devpod/github-credentials.yaml.
         # Root-only on disk; devpod-runtime.sh copies the token to
         # /run/devpod-github (container fs, not the PVC) for vscode.
         - name: github-credentials

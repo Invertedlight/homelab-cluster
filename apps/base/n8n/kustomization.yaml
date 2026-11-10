@@ -1,6 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Shared per-customer n8n base. Each overlay under apps/staging/n8n/<customer>
+# Shared per-customer n8n base. Each overlay under apps/skynet/n8n/<customer>
 # sets the namespace (n8n-<customer>), hostname, database and SOPS secret.
 resources:
   - namespace.yaml

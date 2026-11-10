@@ -450,18 +450,9 @@ def collect_generated_resources(directory: Path) -> list[str]:
 
 
 # Production and the second cluster. Paths inside them come from their
-# Flux Kustomization manifests. clusters/staging is not a root; it is a shim.
+# Flux Kustomization manifests.
 CLUSTER_ROOTS = ("clusters/skynet", "clusters/vm-staging")
 APP_OVERLAY_ROOTS = ("apps/skynet", "apps/vm-staging")
-# Removed in a later PR, after the in-cluster paths have moved.
-# Each shim must render byte-for-byte the same as its canonical directory.
-STAGING_SHIMS = {
-    "clusters/staging": "clusters/skynet",
-    "apps/staging": "apps/skynet",
-    "infrastructure/controllers/staging": "infrastructure/controllers/skynet",
-    "monitoring/controllers/staging": "monitoring/controllers/skynet",
-    "monitoring/configs/staging": "monitoring/configs/skynet",
-}
 
 
 def discover_flux_kustomizations(repo: Path) -> list[dict]:
@@ -815,9 +806,6 @@ def manifest_checks(repo: Path) -> list[str]:
     print("app overlays:")
     for overlay in overlays:
         print(f"  - {overlay}")
-    print("staging shims (must match skynet byte-for-byte):")
-    for shim, canonical in STAGING_SHIMS.items():
-        print(f"  - {shim} == {canonical}")
 
     targets: list[tuple[str, object]] = []
     seen: set[str] = set()
@@ -842,12 +830,6 @@ def manifest_checks(repo: Path) -> list[str]:
         if cluster not in seen:
             targets.append((cluster, None))
             seen.add(cluster)
-    post_by_path = {item["path"]: item["postBuild"] for item in flux_items}
-    for shim in STAGING_SHIMS:
-        if shim in seen:
-            continue
-        targets.append((shim, post_by_path.get(STAGING_SHIMS[shim])))
-        seen.add(shim)
 
     cache = Path(tempfile.mkdtemp(prefix="kubeconform-"))
     try:
@@ -858,19 +840,6 @@ def manifest_checks(repo: Path) -> list[str]:
                 print(f"FAIL {relative}")
             else:
                 print(f"OK   {relative}  {summary}")
-        for shim, canonical in STAGING_SHIMS.items():
-            try:
-                shim_text = kustomize_build(repo / shim)
-                canonical_text = kustomize_build(repo / canonical)
-            except RuntimeError as exc:
-                failures.append(f"{shim}: {exc}")
-                print(f"FAIL {shim}")
-                continue
-            if shim_text != canonical_text:
-                failures.append(f"{shim}: render is not byte-identical to {canonical}")
-                print(f"FAIL {shim} differs from {canonical}")
-            else:
-                print(f"OK   {shim} identical to {canonical}")
     finally:
         shutil.rmtree(cache, ignore_errors=True)
     if not failures:

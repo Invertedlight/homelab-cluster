@@ -21,9 +21,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  # Renamed with the clusters/staging tree. The in-cluster object keeps
-  # ./clusters/staging until it applies this file via the cutover shim.
-  # docs/restructure-cutover.md
+  # Production path since the 2026-11-10 cutover. docs/restructure-cutover.md
   path: ./clusters/skynet
   prune: true
   sourceRef:

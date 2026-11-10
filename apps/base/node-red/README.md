@@ -1,6 +1,6 @@
 # Node-RED flows and palette
 
-Flux applies this app from `apps/staging/node-red`, which includes this directory. The running editor keeps its data on the Longhorn volume `node-red-data-longhorn` mounted at `/data`. Git holds the flow export and the palette list so a new volume can be rebuilt and so changes James makes in the editor have a reviewable history.
+Flux applies this app from `apps/skynet/node-red`, which includes this directory. The running editor keeps its data on the Longhorn volume `node-red-data-longhorn` mounted at `/data`. Git holds the flow export and the palette list so a new volume can be rebuilt and so changes James makes in the editor have a reviewable history.
 
 | Path | What it is |
 | --- | --- |
@@ -18,7 +18,7 @@ Before Node-RED starts, init container `gitops-sync` (the same `nodered/node-red
 
 - When `/data/flows.json` is already there, it stays. Editor deploys, later tabs, and host changes on the volume survive the pod rolling.
 - When `/data/flows.json` is absent (a new or emptied volume), it is seeded from Git. A single export is copied byte for byte. `flows/flows.json`, once that file exists, is the only seed; every other `flows/*.json` is still checked for secrets and then left unused. Several exports with no `flows.json` are combined. Two files that contain the same node id with different bodies stop the pod so a fresh volume is not built from an ambiguous merge.
-- `flows_cred.json` is never read or written. The admin user, password hash, and credential secret stay in `apps/staging/node-red/node-red-admin-secret.yaml`.
+- `flows_cred.json` is never read or written. The admin user, password hash, and credential secret stay in `apps/skynet/node-red/node-red-admin-secret.yaml`.
 - Each dependency in `palette/package.json` is reconciled to that Git range. The matching entry in `/data/package.json` is updated when it differs. `npm install` runs in `/data` when a listed package is missing from `/data/node_modules`, or the installed version does not satisfy the range. A version that already satisfies the range stays as it is. Packages installed from Manage palette that are not listed in Git stay in the volume's `package.json` and `node_modules`.
 
 The ConfigMap name is hashed, so committing a flow export, `palette/package.json`, or the sync script rolls the pod. The roll uses the existing PersistentVolumeClaim. README-only edits do not roll it.
@@ -75,7 +75,7 @@ The three packages recorded today are the ones the weather flow imports:
 ## What stays out of Git
 
 - `flows_cred.json`, `.config.users.json`, `.config.runtime.json`, `node_modules`, and the volume's `package-lock.json`
-- The admin username, bcrypt hash, and credential secret. Update those from `apps/staging/node-red/node-red-admin-secret.example.yaml`, then encrypt with sops. The repo-root `.sops.yaml` supplies the age rule.
+- The admin username, bcrypt hash, and credential secret. Update those from `apps/skynet/node-red/node-red-admin-secret.example.yaml`, then encrypt with sops. The repo-root `.sops.yaml` supplies the age rule.
 
 ## Tests
 

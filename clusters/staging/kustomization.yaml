@@ -1,8 +1,0 @@
-# Cutover shim. Delete this directory only after the in-cluster
-# Kustomization flux-system spec.path is ./clusters/skynet and Ready.
-# Until then, production Flux still builds ./clusters/staging.
-# docs/restructure-cutover.md
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - ../skynet
