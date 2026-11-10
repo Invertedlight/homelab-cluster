@@ -1,0 +1,31 @@
+# Root sync for vm-staging. James applies this with
+# kubectl apply -k clusters/vm-staging/flux-system.
+# Production Flux does not read this directory.
+# The root Kustomization has no decryption block, matching skynet.
+# Child Kustomizations decrypt with sops-age when they are listed.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  ref:
+    branch: main
+  secretRef:
+    name: flux-system
+  url: ssh://git@github.com/Invertedlight/homelab-cluster
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./clusters/vm-staging
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

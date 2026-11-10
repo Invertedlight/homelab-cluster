@@ -76,7 +76,7 @@ If a child reconciles before that path update, it still builds `./apps/staging` 
 
 `apps/base`, `infrastructure/controllers/base`, and `monitoring/controllers/base` are not moved. Production secrets stay where they are, encrypted to the existing skynet age recipient. Root `.sops.yaml` and `clusters/skynet/.sops.yaml` are still the same file contents. `path_regex` is still `.*.yaml`.
 
-`vm-staging` is a second root. It has Flux Kustomization manifests and empty kustomizations. It has no `flux-system/` directory. Its `.sops.yaml` files use the vm-staging age recipient, not the skynet one.
+`vm-staging` is a second root. The scaffold started as empty kustomizations and Flux Kustomization manifests. `clusters/vm-staging/flux-system/` is the hand-applied Flux install described below. Its `.sops.yaml` files use the vm-staging age recipient, not the skynet one.
 
 ## Rendered manifests
 
@@ -253,21 +253,57 @@ Patching the path back to `./clusters/staging` while this PR is still on `main` 
 
 Not applied to skynet. Layout:
 
-- `clusters/vm-staging/` Flux Kustomizations for `apps`, `infrastructure-controller`, `database-operator`, `monitoring-controllers`, `monitoring-configs`. No `flux-system/` directory.
-- `apps/vm-staging`, `infrastructure/controllers/vm-staging`, `monitoring/controllers/vm-staging`, `monitoring/configs/vm-staging` each have an empty `kustomization.yaml`. They do not reference `base` or `skynet`.
-- `database-operator` points at `infrastructure/controllers/base/cloudnative-pg`. That base has no Secret and no node IP. Delete `clusters/vm-staging/database-operator.yaml` before bootstrap if this cluster should not install the operator. Also drop it from `dependsOn` in `clusters/vm-staging/apps.yaml`.
+- `clusters/vm-staging/flux-system/` is the Flux install James applies by hand. `clusters/vm-staging/kustomization.yaml` lists only `flux-system` for this first stage.
+- `infrastructure.yaml`, `monitoring.yaml`, `database-operator.yaml`, and `apps.yaml` are in that directory and are not listed yet. Later PRs add them in that order: infrastructure, then monitoring and database-operator, then a few apps. `apps` depends on the other two, so it stays last.
+- `apps/vm-staging`, `infrastructure/controllers/vm-staging`, `monitoring/controllers/vm-staging`, and `monitoring/configs/vm-staging` each have an empty `kustomization.yaml`. They do not reference `base` or `skynet`.
+- `database-operator` points at `infrastructure/controllers/base/cloudnative-pg`. That base has no Secret and no node IP, so that Kustomization has no decryption block. The infrastructure, monitoring, and apps Kustomizations set `decryption.provider: sops` and `secretRef: sops-age`. Delete `database-operator.yaml` before it is listed if this cluster should not install the operator, and drop it from `dependsOn` in `apps.yaml`.
 
 SOPS: each vm-staging directory has a `.sops.yaml` whose `age` recipient is `age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp`. That is not the skynet recipient. The nearest file wins, so a secret under those trees does not fall through to the production policy.
 
 The private key is on the Mac mini, cyberstar account, at `~/.config/sops/age/vm-staging.agekey` (mode 600). It is loaded into the staging cluster as Secret `flux-system/sops-age`, data key `age.agekey`. James keeps one offline backup copy. The VM cluster is rebuilt often, and that rebuild drops the in-cluster copy, so the Mac mini file and the offline backup are what recreate the Secret. The private key is not in this repo.
 
-`clusters/vm-staging/kustomization.yaml` exists so the directory builds. It does not list `flux-system`. When you bootstrap, add `flux-system` to `resources` in the same commit that adds `clusters/vm-staging/flux-system/`.
+### Bootstrap vm-staging
+
+Run this from the Mac mini, cyberstar account, zsh, on a clone of the merge commit. Every command uses `~/.kube/staging-vm-cluster.yaml`. Do not rely on the default kubeconfig.
+
+```zsh
+export KUBECONFIG="${HOME}/.kube/staging-vm-cluster.yaml"
+```
+
+Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging cluster. Do not recreate it. The root Flux Kustomization does not decrypt. The child Kustomizations use that secret once a later PR lists them.
+
+1. The Git secret needs the namespace. Create it if it is missing, then create the deploy key. The command prints the public key.
+
+   ```zsh
+   kubectl --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" create namespace flux-system --dry-run=client -o yaml \
+     | kubectl --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" apply -f -
+   flux --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" create secret git flux-system \
+     --url=ssh://git@github.com/Invertedlight/homelab-cluster \
+     -n flux-system
+   ```
+
+2. Add the printed public key on the GitHub repo as a deploy key titled `vm-staging-flux`. Read-only. Do not allow write access.
+
+3. From the clone, apply the install. If the first apply fails because the CRDs are not established yet, run it again.
+
+   ```zsh
+   kubectl --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" apply -k clusters/vm-staging/flux-system
+   ```
+
+4. Check the source and the root Kustomization. `flux-system` should become Ready at `./clusters/vm-staging`. The child Kustomizations are not in git's resource list yet, so they should not appear.
+
+   ```zsh
+   flux --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" get sources git
+   flux --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" get kustomizations
+   ```
+
+The GitRepository URL in git is `ssh://git@github.com/Invertedlight/homelab-cluster`. `gitrepository-github-fqdn.yaml` patches the host to `github.com.` (trailing dot). Pods use `ndots:5`. If the node search list includes `jameshomelab.org`, libc turns `github.com` into `github.com.jameshomelab.org`, CoreDNS follows that to Cloudflare, and source-controller times out on port 22. The trailing dot stops the search append. The same patch is on skynet. It is a valid absolute name if the VM's search list does not include that domain.
 
 ## CI
 
 `.github/workflows/validate.yml` runs `.github/scripts/validate-offline.py`. The check name is `validate` / `offline-validation`. It does not talk to the cluster.
 
-The script discovers Flux Kustomizations under `clusters/skynet` and `clusters/vm-staging`, builds those paths, and builds every per-app overlay under `apps/skynet` and `apps/vm-staging`. It does not build the removed staging shims.
+The script discovers Flux Kustomizations under `clusters/skynet` and `clusters/vm-staging`, builds those paths, builds `clusters/vm-staging/flux-system` (the `kubectl apply -k` target), and builds every per-app overlay under `apps/skynet` and `apps/vm-staging`. It does not build the removed staging shims.
 
 SOPS enforcement for `.sops.yaml` and `clusters/skynet/.sops.yaml` requires an age recipient, and every Secret must be ciphertext. vm-staging policies must set `age` to `age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp`. Secrets under those trees must include that recipient. A plaintext Secret still fails. Example templates are ignored by filename; the Node-RED one is `apps/skynet/node-red/node-red-admin-secret.example.yaml`.
 
