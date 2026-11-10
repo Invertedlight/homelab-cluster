@@ -235,9 +235,9 @@ def audit_secret(document: dict, rule: dict, location: str, policy_display: str)
 
     walk(document, [])
 
-    # Recipient match runs only when the creation rule sets age. An empty or
-    # absent age skips this check and nothing else. Adding age turns it on
-    # with no other change. vm-staging policies use that until a recipient exists.
+    # Recipient match runs when the creation rule sets age. vm-staging rules
+    # are required to set VM_STAGING_AGE_RECIPIENT; sops_guard rejects a file
+    # that omits it. Skynet rules are checked separately and are unchanged.
     expected = age_recipients(rule)
     if isinstance(sops_meta, dict) and expected:
         found: list[str] = []
@@ -260,6 +260,18 @@ def age_recipients(rule: dict) -> list[str]:
 
 def policy_is_vm_staging(policy: Path, repo: Path) -> bool:
     return "vm-staging" in policy.relative_to(repo).parts
+
+
+# Public recipient only. The private key is not in this repo.
+# docs/restructure-cutover.md
+VM_STAGING_AGE_RECIPIENT = "age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp"
+VM_STAGING_SOPS_POLICIES = (
+    "clusters/vm-staging/.sops.yaml",
+    "apps/vm-staging/.sops.yaml",
+    "infrastructure/controllers/vm-staging/.sops.yaml",
+    "monitoring/controllers/vm-staging/.sops.yaml",
+    "monitoring/configs/vm-staging/.sops.yaml",
+)
 
 
 def sops_guard(repo: Path) -> list[str]:
@@ -342,16 +354,15 @@ def sops_guard(repo: Path) -> list[str]:
         if not rules:
             failures.append(f"{relative}: vm-staging .sops.yaml has no creation_rules")
             continue
-        if any(not age_recipients(rule) for rule in rules):
-            # Ciphertext is still required. Only the recipient comparison is off,
-            # and only while age is unset. Setting age on the rule enables it.
-            print(
-                f"SOPS recipient check skipped for {relative} "
-                "(age is unset; plaintext Secrets still fail). "
-                "Set age on this creation rule to enable the recipient check."
+        if any(age_recipients(rule) != [VM_STAGING_AGE_RECIPIENT] for rule in rules):
+            failures.append(
+                f"{relative}: vm-staging creation rule must set age to {VM_STAGING_AGE_RECIPIENT}"
             )
-        else:
-            print(f"SOPS recipient check enabled for {relative}")
+            continue
+        print(f"SOPS recipient check enabled for {relative}")
+    for relative in VM_STAGING_SOPS_POLICIES:
+        if not (repo / relative).is_file():
+            failures.append(f"{relative} is missing; vm-staging SOPS policy is required")
     for path in iter_yaml_files(repo):
         relative = path.relative_to(repo).as_posix()
         if is_example_secret(path):
@@ -896,8 +907,9 @@ def self_test() -> None:
     assert audit_secret(secret, rule, "mem#0", ".sops.yaml") == []
     secret["stringData"]["token"] = "plaintext"
     assert audit_secret(secret, rule, "mem#0", ".sops.yaml")
-    # vm-staging: no age means skip the recipient check only. Ciphertext is still required.
-    # Setting age on the same rule turns the recipient check on.
+    # A rule with no age still skips only the recipient comparison.
+    # Repo vm-staging policies are not allowed to use that: sops_guard requires
+    # VM_STAGING_AGE_RECIPIENT on each of them.
     unset_age = {"path_regex": r".*\.yaml", "encrypted_regex": r"^(data|stringData)$"}
     encrypted = {
         "apiVersion": "v1",
@@ -921,6 +933,33 @@ def self_test() -> None:
         "mem#2",
         "clusters/skynet/.sops.yaml",
     )
+    staging_rule = {
+        "path_regex": r".*\.yaml",
+        "encrypted_regex": r"^(data|stringData)$",
+        "age": VM_STAGING_AGE_RECIPIENT,
+    }
+    assert audit_secret(
+        {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "stringData": {"token": "ENC[AES256_GCM,data:abc,type:str]"},
+            "sops": {"mac": "ENC[x]", "age": [{"recipient": "age1other"}]},
+        },
+        staging_rule,
+        "mem#3",
+        "apps/vm-staging/.sops.yaml",
+    )
+    assert audit_secret(
+        {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "stringData": {"token": "ENC[AES256_GCM,data:abc,type:str]"},
+            "sops": {"mac": "ENC[x]", "age": [{"recipient": VM_STAGING_AGE_RECIPIENT}]},
+        },
+        staging_rule,
+        "mem#4",
+        "apps/vm-staging/.sops.yaml",
+    ) == []
     assert is_example_secret(Path("apps/skynet/node-red/node-red-admin-secret.example.yaml"))
     assert is_example_secret(
         Path("infrastructure/controllers/base/cloudflared/tunnel-token.secret.yaml.example")

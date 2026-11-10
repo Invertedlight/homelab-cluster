@@ -1,11 +1,6 @@
-# TODO: vm-staging needs a new age recipient. Do not invent a key.
-# Do not copy the skynet production recipient from /.sops.yaml or
-# clusters/skynet/.sops.yaml. Generate a new age key, store the private key
-# only on the vm-staging cluster, and set `age:` on this rule to the public
-# recipient. Until `age` is set, do not encrypt secrets for this cluster.
-# This file is the nearest SOPS policy for infrastructure/controllers/vm-staging.
-# Offline validation skips the SOPS recipient check while `age` is absent.
-# docs/restructure-cutover.md
+# vm-staging age policy. Nearest file wins, so secrets here are not encrypted
+# to the skynet recipient. Private key location: docs/restructure-cutover.md
 creation_rules:
   - path_regex: .*.yaml
     encrypted_regex: ^(data|stringData)$
+    age: age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp

@@ -1,6 +1,5 @@
 # Local and CI build of the vm-staging Flux objects. There is no flux-system/
-# directory yet. Do not add one by bootstrapping until the age recipient in
-# .sops.yaml is set.
+# directory yet. Do not add one until Flux is bootstrapped on vm-staging.
 #
 # When Flux is bootstrapped later, add `flux-system` to resources in the
 # same commit that adds clusters/vm-staging/flux-system/. A root
