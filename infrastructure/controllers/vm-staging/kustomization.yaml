@@ -1,6 +1,34 @@
-# Scaffold only. Do not reference ../base or ../skynet. Those trees contain
-# production secrets and cluster IPs (cloudflared, garage, longhorn, kube-vip,
-# traefik TLS, renovate, kjobs).
+# Staging infrastructure. Do not reference a production directory that
+# contains a Secret, a production address, or a production hostname.
+#
+# Included, from base, because those directories have no Secret and no
+# address:
+# - cert-manager: controller only. No Issuer and no ACME solver. The
+#   ServiceMonitor is turned off below so Helm does not need the
+#   Prometheus Operator CRDs (monitoring is not installed yet).
+# - coredns-custom: kube-system ConfigMap. Rewrites search-domain hijacks
+#   inside this cluster. It does not create DNS records.
+# - kured: Sunday reboot window, one node at a time. No Secret.
+#
+# Left out:
+# - kube-vip: base address is 192.168.68.40 on eno1. Staging VIP is
+#   192.168.68.160. The VM NIC name is not in this repo, so it is not guessed.
+# - cloudflared: production tunnel token for tunnel skynet.
+# - traefik-tls: production wildcard certificate jameshomelab-wildcard-tls.
+#   k3s already ships Traefik.
+# - csi-smb: StorageClass source //192.168.68.70/PVC (Mac mini RaidShare)
+#   and the linkding smb-credentials Secret.
+# - garage: production SOPS keys, and a nightly rclone copy onto RaidShare.
+#   Also too heavy for 10/15 GiB disks.
+# - longhorn: backup target is production Garage, Ingress host is
+#   longhorn.jameshomelab.org, and replicas do not fit these disks.
+# - cnpg-barman-plugin: waits on the CNPG operator, which is not listed yet,
+#   and its backups need object storage this cluster does not have.
+# - renovate: production token, and it opens pull requests against this repo.
+# - kjobs: production email-triage webhook Secret.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources: []
+resources:
+  - cert-manager
+  - ../base/coredns-custom
+  - ../base/kured
