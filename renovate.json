@@ -1,8 +1,56 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "timezone": "America/Chicago",
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
   "kubernetes": {
-    "fileMatch": [
-      "\\.yaml$"
-    ]
-  }
+    "managerFilePatterns": ["/\\.yaml$/"]
+  },
+  "packageRules": [
+    {
+      "description": "Batch digest and patch updates into one Monday PR titled weekly minor-noise. Major and minor updates stay separate. The app images listed here stay separate and are not automerged. The Renovate image is handled by the next rule.",
+      "matchUpdateTypes": ["digest", "patch"],
+      "matchPackageNames": [
+        "!renovate/renovate",
+        "!docker.io/renovate/renovate",
+        "!/n8n/",
+        "!/mealie/",
+        "!/cloudflared/",
+        "!/audiobookshelf/",
+        "!/linkding/",
+        "!/nodered/",
+        "!/node-red/",
+        "!/grafana/",
+        "!kube-prometheus-stack",
+        "!/postgres/",
+        "!/cloudnative-pg/",
+        "!plugin-barman-cloud",
+        "!/cnpg/"
+      ],
+      "groupName": "weekly minor-noise",
+      "groupSlug": "weekly-minor-noise",
+      "schedule": ["before 6am on monday"],
+      "automerge": false,
+      "group": {
+        "commitMessagePrefix": "weekly minor-noise",
+        "commitMessageAction": "",
+        "commitMessageTopic": "",
+        "commitMessageExtra": "",
+        "commitMessageSuffix": ""
+      }
+    },
+    {
+      "description": "renovate/renovate image: open at most one PR per week, then merge it on a later hourly run after status checks are green. GitHub auto-merge is disabled on this repo, so Renovate merges the PR itself.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "renovate/renovate",
+        "docker.io/renovate/renovate"
+      ],
+      "schedule": ["before 6am on monday"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false,
+      "automergeSchedule": ["at any time"]
+    }
+  ]
 }
