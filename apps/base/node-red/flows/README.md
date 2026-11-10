@@ -1,9 +1,11 @@
 # Node-RED weather flow
 
-`weather-flow.json` is the June 3, 2023 export from the Mac mini's
+`weather-flow.json` started as the June 3, 2023 export from the Mac mini's
 `~/.node-red/flows_Mac-mini.local.json`. It contains 65 nodes on the `Flow 1`
 tab, including the Weather Data dashboard, MQTT input, UDP input, and PostgreSQL
-queries. The export contains no saved MQTT or PostgreSQL credentials.
+queries. The public inHg/hPa switch is now two editor injects (`Editor: hPa`
+and `Editor: inHg`), so the dashboard page has no input widget. The export
+contains no saved MQTT or PostgreSQL credentials.
 
 To restore it, use **Import** in the Node-RED editor and select this file, or
 replace `/data/flows.json` in the Node-RED data volume and restart the pod. Do

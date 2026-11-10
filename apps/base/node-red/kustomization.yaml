@@ -9,6 +9,7 @@ configMapGenerator:
   - name: node-red-settings
     files:
       - settings.js
+      - http-node-auth.js
   # Flow exports, palette/package.json, and the sync script. The hash suffix
   # rolls the pod when any of these change. The sync step leaves an existing
   # /data/flows.json and flows_cred.json in place.
