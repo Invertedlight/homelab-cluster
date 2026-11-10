@@ -5,16 +5,23 @@ metadata:
   namespace: kube-system
   labels:
     app.kubernetes.io/name: kube-vip-ds
-    app.kubernetes.io/version: v1.2.3
+    app.kubernetes.io/version: v1.3.1
 spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: kube-vip-ds
+  # One control-plane pod at a time. Restarting the leader moves 192.168.68.40
+  # until another instance acquires plndr-cp-lock.
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
   template:
     metadata:
       labels:
         app.kubernetes.io/name: kube-vip-ds
-        app.kubernetes.io/version: v1.2.3
+        app.kubernetes.io/version: v1.3.1
     spec:
       affinity:
         nodeAffinity:
@@ -26,12 +33,17 @@ spec:
               - matchExpressions:
                   - key: node-role.kubernetes.io/control-plane
                     operator: Exists
+      # The API client is the mounted kubeconfig. Do not also project the
+      # ServiceAccount token: if the file is missing, v1.3.1 falls back to
+      # in-cluster auth and would renew plndr-cp-lock through another apiserver.
+      automountServiceAccountToken: false
       containers:
         - name: kube-vip
           image: ghcr.io/kube-vip/kube-vip:v1.3.1
           imagePullPolicy: IfNotPresent
           args:
             - manager
+            - --k8sConfigPath=/etc/rancher/k3s/k3s.yaml
           env:
             - name: vip_arp
               value: "true"
@@ -67,6 +79,17 @@ spec:
               value: 192.168.68.40
             - name: prometheus_server
               value: :2112
+            # Env form of --k8sConfigPath. Keep both on this path.
+            # Do not switch the path to /etc/kubernetes/admin.conf: with
+            # cp_enable, v1.3.1 treats that default specially and rewrites the
+            # API host to kubernetes:<port>, which does not resolve here.
+            - name: k8s_config_file
+              value: /etc/rancher/k3s/k3s.yaml
+            # Pin the lease client to this node's apiserver. Applied only after
+            # the explicit kubeconfig loads. k3s writes the same URL into the
+            # file unless --bind-address overrides it.
+            - name: kubernetes_addr
+              value: https://127.0.0.1:6443
           resources: {}
           securityContext:
             capabilities:
@@ -75,6 +98,10 @@ spec:
                 - NET_RAW
               drop:
                 - ALL
+          volumeMounts:
+            - name: k3s-kubeconfig
+              mountPath: /etc/rancher/k3s/k3s.yaml
+              readOnly: true
       hostNetwork: true
       serviceAccountName: kube-vip
       tolerations:
@@ -82,3 +109,8 @@ spec:
           operator: Exists
         - effect: NoExecute
           operator: Exists
+      volumes:
+        - name: k3s-kubeconfig
+          hostPath:
+            path: /etc/rancher/k3s/k3s.yaml
+            type: File
