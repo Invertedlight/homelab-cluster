@@ -1,7 +1,8 @@
-# Not reconciled by production Flux.
+# Not reconciled by production Flux. Not listed in kustomization.yaml yet.
 # Same shared operator manifest production uses. That directory has no
-# Secret and no node IP. Remove this file before bootstrap if vm-staging
-# should not install CloudNativePG yet.
+# Secret and no node IP, so this object has no decryption block, matching
+# skynet. Remove this file before it is listed if vm-staging should not
+# install CloudNativePG.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:

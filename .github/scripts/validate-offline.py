@@ -841,6 +841,12 @@ def manifest_checks(repo: Path) -> list[str]:
         if cluster not in seen:
             targets.append((cluster, None))
             seen.add(cluster)
+    # kubectl apply -k uses this directory. The root Kustomization's path is
+    # the parent, so discovery does not build it on its own.
+    flux_system = "clusters/vm-staging/flux-system"
+    if flux_system not in seen:
+        targets.append((flux_system, None))
+        seen.add(flux_system)
 
     cache = Path(tempfile.mkdtemp(prefix="kubeconform-"))
     try:
