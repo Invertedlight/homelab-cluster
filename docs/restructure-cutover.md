@@ -69,16 +69,16 @@ If a child reconciles before that path update, it still builds `./apps/staging` 
 
 ## Rendered manifests
 
-Compared with kustomize v5.8.3 and `--load-restrictor=LoadRestrictionsNone`, against the pre-rename tree.
+Compared with kustomize v5.8.3 and `--load-restrictor=LoadRestrictionsNone`, against current `main` (including the n8n and Renovate image bumps that landed with the offline-validation workflow).
 
-These builds are byte-for-byte identical (sha256):
+These builds are byte-for-byte identical to `main` (sha256):
 
 | Root | sha256 |
 | --- | --- |
-| `apps/staging` then `apps/skynet` | `a85699dde036fb19228af200a730120143aec1a9381c76c8859ff8064e4cb9e4` |
-| `infrastructure/controllers/staging` then `infrastructure/controllers/skynet` | `6ea4ff142c8a1ff866fd97ddab08f8f339edde4eaaa4f3c38ce7e1df4396b088` |
-| `monitoring/controllers/staging` then `monitoring/controllers/skynet` | `2c92519e3e999d29b9e67975fb77fcba819ce9cbb93053903c8ea1f96d901cb3` |
-| `monitoring/configs/staging` then `monitoring/configs/skynet` | `277282786d303ec8d39017df8de33f74b3c066585de5706218f9fa9aa2c24759` |
+| `apps/staging` on main, `apps/skynet` here | `9dc1c036fca5a09af153505b049afdbe3d13296768e0983cea6789c83f55082a` |
+| `infrastructure/controllers/staging` on main, `infrastructure/controllers/skynet` here | `f0514cc7558a0be5885206e3594699fdbbfea83f48b39923dda43aaf45fa41da` |
+| `monitoring/controllers/staging` on main, `monitoring/controllers/skynet` here | `2c92519e3e999d29b9e67975fb77fcba819ce9cbb93053903c8ea1f96d901cb3` |
+| `monitoring/configs/staging` on main, `monitoring/configs/skynet` here | `277282786d303ec8d39017df8de33f74b3c066585de5706218f9fa9aa2c24759` |
 | `infrastructure/controllers/base/cloudnative-pg` (unmoved) | `f28e703f6665f0d0977a11a28f58d72006699c1e45278d97c10a435ba72c4c1c` |
 
 Each shim build matches its skynet directory byte-for-byte. The `clusters/staging` shim matches `clusters/skynet`.
@@ -252,14 +252,11 @@ SOPS: each vm-staging directory has a `.sops.yaml` with `creation_rules` and no 
 
 ## CI
 
-PR #151 (`.github/workflows/validate.yml` and `.github/scripts/validate-offline.py`) is not on `main`. This branch does not add it. When that script is updated, it needs these path changes:
+`.github/workflows/validate.yml` runs `.github/scripts/validate-offline.py`. The check name is `validate` / `offline-validation`. It does not talk to the cluster.
 
-- `sops_guard` currently requires `clusters/staging/.sops.yaml`. Point that at `clusters/skynet/.sops.yaml` and keep the byte-identity check with the repo-root `.sops.yaml`.
-- Discover Flux Kustomizations under `clusters/skynet` and `clusters/vm-staging`. `clusters/staging` is only the shim and does not contain the Flux CR files.
-- `discover_app_overlays` should walk `apps/skynet` and `apps/vm-staging`.
-- Skip the age-recipient comparison for a policy whose path contains `vm-staging` while `age` is unset. `audit_secret` already skips that comparison when `age` is absent. Do not allow a missing `age` on `.sops.yaml` or `clusters/skynet/.sops.yaml`.
-- The workflow comment and the "no Flux Kustomizations found under clusters/staging" error should name both roots.
-- `.yamllint.yaml` mentions `clusters/staging/flux-system/kustomization.yaml` only in a comment. The file moved to `clusters/skynet/flux-system/kustomization.yaml`.
+The script discovers Flux Kustomizations under `clusters/skynet` and `clusters/vm-staging`, builds those paths, and builds every per-app overlay under `apps/skynet` and `apps/vm-staging`. It also builds the five `staging` shims and fails if a shim render is not byte-identical to its skynet directory.
+
+SOPS enforcement for `.sops.yaml` and `clusters/skynet/.sops.yaml` requires an age recipient, and every Secret must be ciphertext. vm-staging policies have no `age` yet. For those files the script skips only the recipient comparison, and it prints that skip. A plaintext Secret under vm-staging still fails. Setting `age` on the vm-staging creation rule turns the recipient check on with no script change. Example templates are ignored by filename; the Node-RED one is `apps/skynet/node-red/node-red-admin-secret.example.yaml`.
 
 Renovate config is unchanged. `renovate.json` has no path filter.
 

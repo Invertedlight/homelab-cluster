@@ -31,7 +31,7 @@ rules:
 
   indentation:
     # Hand-written manifests indent sequences. The Flux install manifest
-    # and clusters/staging/flux-system/kustomization.yaml do not. Each file
+    # and clusters/skynet/flux-system/kustomization.yaml do not. Each file
     # is internally consistent.
     spaces: consistent
     indent-sequences: consistent

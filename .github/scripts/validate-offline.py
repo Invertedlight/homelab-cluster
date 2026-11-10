@@ -22,7 +22,7 @@ import yaml
 # k3s v1.36.3+k3s1. kubernetes-json-schema publishes this patch.
 KUBERNETES_VERSION = "1.36.3"
 # datreeio/CRDs-catalog commit that carries Flux CRDs v2.10.0, matching
-# clusters/staging/flux-system/gotk-components.yaml.
+# clusters/skynet/flux-system/gotk-components.yaml.
 CRDS_CATALOG_SHA = "49729e49e8f062933e3716a26540d41b0cd0856c"
 CRDS_CATALOG_URL = (
     "https://raw.githubusercontent.com/datreeio/CRDs-catalog/"
@@ -58,6 +58,13 @@ def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[
 
 
 def is_example_secret(path: Path) -> bool:
+    """Plaintext templates are ignored by filename, wherever they live.
+
+    The Node-RED template is apps/skynet/node-red/node-red-admin-secret.example.yaml.
+    The cloudflared template is
+    infrastructure/controllers/base/cloudflared/tunnel-token.secret.yaml.example.
+    A Kustomization that lists either file still fails.
+    """
     name = path.name
     return name.endswith(
         (".example.yaml", ".example.yml", ".yaml.example", ".yml.example")
@@ -228,8 +235,11 @@ def audit_secret(document: dict, rule: dict, location: str, policy_display: str)
 
     walk(document, [])
 
-    if isinstance(sops_meta, dict) and rule.get("age"):
-        expected = [part.strip() for part in str(rule["age"]).split(",") if part.strip()]
+    # Recipient match runs only when the creation rule sets age. An empty or
+    # absent age skips this check and nothing else. Adding age turns it on
+    # with no other change. vm-staging policies use that until a recipient exists.
+    expected = age_recipients(rule)
+    if isinstance(sops_meta, dict) and expected:
         found: list[str] = []
         for item in sops_meta.get("age") or []:
             if isinstance(item, dict) and item.get("recipient"):
@@ -241,28 +251,55 @@ def audit_secret(document: dict, rule: dict, location: str, policy_display: str)
     return problems
 
 
+def age_recipients(rule: dict) -> list[str]:
+    age = rule.get("age")
+    if not isinstance(age, str):
+        return []
+    return [part.strip() for part in age.split(",") if part.strip()]
+
+
+def policy_is_vm_staging(policy: Path, repo: Path) -> bool:
+    return "vm-staging" in policy.relative_to(repo).parts
+
+
 def sops_guard(repo: Path) -> list[str]:
     print("== SOPS guard ==")
-    staging_policy = repo / "clusters" / "staging" / ".sops.yaml"
+    skynet_policy = repo / "clusters" / "skynet" / ".sops.yaml"
     failures: list[str] = []
-    if not staging_policy.is_file():
-        failures.append("clusters/staging/.sops.yaml is missing")
+    if not skynet_policy.is_file():
+        failures.append("clusters/skynet/.sops.yaml is missing")
         return failures
     try:
-        staging_rules = load_creation_rules(staging_policy)
+        skynet_rules = load_creation_rules(skynet_policy)
     except (OSError, yaml.YAMLError, ValueError) as exc:
-        failures.append(f"could not read clusters/staging/.sops.yaml: {exc}")
+        failures.append(f"could not read clusters/skynet/.sops.yaml: {exc}")
         return failures
-    if not staging_rules:
-        failures.append("clusters/staging/.sops.yaml has no creation_rules")
+    if not skynet_rules:
+        failures.append("clusters/skynet/.sops.yaml has no creation_rules")
+    elif any(not age_recipients(rule) for rule in skynet_rules):
+        failures.append(
+            "clusters/skynet/.sops.yaml creation rule has no age recipient; "
+            "skynet SOPS enforcement requires one"
+        )
 
     root_policy = repo / ".sops.yaml"
-    if root_policy.is_file() and staging_policy.is_file():
-        same = root_policy.read_text(encoding="utf-8") == staging_policy.read_text(encoding="utf-8")
+    if root_policy.is_file() and skynet_policy.is_file():
+        same = root_policy.read_text(encoding="utf-8") == skynet_policy.read_text(encoding="utf-8")
         print(
-            "policy files: .sops.yaml and clusters/staging/.sops.yaml are "
+            "policy files: .sops.yaml and clusters/skynet/.sops.yaml are "
             + ("identical" if same else "different; each Secret uses the nearest file")
         )
+    if root_policy.is_file():
+        try:
+            root_rules = load_creation_rules(root_policy)
+        except (OSError, yaml.YAMLError, ValueError) as exc:
+            failures.append(f"could not read .sops.yaml: {exc}")
+            root_rules = []
+        if root_rules and any(not age_recipients(rule) for rule in root_rules):
+            failures.append(
+                ".sops.yaml creation rule has no age recipient; "
+                "skynet SOPS enforcement requires one"
+            )
 
     referenced_examples: list[str] = []
     for kust_path in iter_yaml_files(repo):
@@ -289,7 +326,32 @@ def sops_guard(repo: Path) -> list[str]:
 
     checked = 0
     skipped: list[str] = []
-    rules_cache: dict[Path, list[dict]] = {staging_policy: staging_rules}
+    rules_cache: dict[Path, list[dict]] = {skynet_policy: skynet_rules}
+    for path in iter_yaml_files(repo):
+        if path.name != ".sops.yaml":
+            continue
+        relative = path.relative_to(repo).as_posix()
+        try:
+            rules = load_creation_rules(path)
+        except (OSError, yaml.YAMLError, ValueError) as exc:
+            failures.append(f"{relative}: {exc}")
+            continue
+        rules_cache[path] = rules
+        if not policy_is_vm_staging(path, repo):
+            continue
+        if not rules:
+            failures.append(f"{relative}: vm-staging .sops.yaml has no creation_rules")
+            continue
+        if any(not age_recipients(rule) for rule in rules):
+            # Ciphertext is still required. Only the recipient comparison is off,
+            # and only while age is unset. Setting age on the rule enables it.
+            print(
+                f"SOPS recipient check skipped for {relative} "
+                "(age is unset; plaintext Secrets still fail). "
+                "Set age on this creation rule to enable the recipient check."
+            )
+        else:
+            print(f"SOPS recipient check enabled for {relative}")
     for path in iter_yaml_files(repo):
         relative = path.relative_to(repo).as_posix()
         if is_example_secret(path):
@@ -387,9 +449,36 @@ def collect_generated_resources(directory: Path) -> list[str]:
     return resources
 
 
+# Production and the second cluster. Paths inside them come from their
+# Flux Kustomization manifests. clusters/staging is not a root; it is a shim.
+CLUSTER_ROOTS = ("clusters/skynet", "clusters/vm-staging")
+APP_OVERLAY_ROOTS = ("apps/skynet", "apps/vm-staging")
+# Removed in a later PR, after the in-cluster paths have moved.
+# Each shim must render byte-for-byte the same as its canonical directory.
+STAGING_SHIMS = {
+    "clusters/staging": "clusters/skynet",
+    "apps/staging": "apps/skynet",
+    "infrastructure/controllers/staging": "infrastructure/controllers/skynet",
+    "monitoring/controllers/staging": "monitoring/controllers/skynet",
+    "monitoring/configs/staging": "monitoring/configs/skynet",
+}
+
+
 def discover_flux_kustomizations(repo: Path) -> list[dict]:
     found: list[dict] = []
-    base = repo / "clusters" / "staging"
+    for cluster in CLUSTER_ROOTS:
+        base = repo / cluster
+        if not base.is_dir():
+            raise RuntimeError(f"{cluster} is missing")
+        cluster_found = _flux_kustomizations_in(repo, base)
+        if not cluster_found:
+            raise RuntimeError(f"no Flux Kustomizations found under {cluster}")
+        found.extend(cluster_found)
+    return found
+
+
+def _flux_kustomizations_in(repo: Path, base: Path) -> list[dict]:
+    found: list[dict] = []
     for path in iter_yaml_files(base):
         try:
             documents = load_documents(path)
@@ -426,13 +515,16 @@ def discover_flux_kustomizations(repo: Path) -> list[dict]:
 
 
 def discover_app_overlays(repo: Path) -> list[str]:
-    apps = repo / "apps" / "staging"
     overlays: list[str] = []
-    for dirpath, dirnames, _filenames in os.walk(apps):
-        dirnames[:] = [name for name in dirnames if not name.startswith(".")]
-        current = Path(dirpath)
-        if current != apps and has_kustomization(current):
-            overlays.append(current.relative_to(repo).as_posix())
+    for rel in APP_OVERLAY_ROOTS:
+        apps = repo / rel
+        if not apps.is_dir():
+            raise RuntimeError(f"{rel} is missing")
+        for dirpath, dirnames, _filenames in os.walk(apps):
+            dirnames[:] = [name for name in dirnames if not name.startswith(".")]
+            current = Path(dirpath)
+            if current != apps and has_kustomization(current):
+                overlays.append(current.relative_to(repo).as_posix())
     return sorted(overlays)
 
 
@@ -696,7 +788,7 @@ def manifest_checks(repo: Path) -> list[str]:
     except RuntimeError as exc:
         return [str(exc)]
     if not flux_items:
-        return ["no Flux Kustomizations found under clusters/staging"]
+        return ["no Flux Kustomizations found under clusters/skynet or clusters/vm-staging"]
 
     print(
         "kubeconform -strict"
@@ -716,10 +808,16 @@ def manifest_checks(repo: Path) -> list[str]:
             f"  - {item['namespace']}/{item['name']} -> {item['path']} "
             f"({post_note}, from {item['source']})"
         )
-    overlays = discover_app_overlays(repo)
+    try:
+        overlays = discover_app_overlays(repo)
+    except RuntimeError as exc:
+        return [str(exc)]
     print("app overlays:")
     for overlay in overlays:
         print(f"  - {overlay}")
+    print("staging shims (must match skynet byte-for-byte):")
+    for shim, canonical in STAGING_SHIMS.items():
+        print(f"  - {shim} == {canonical}")
 
     targets: list[tuple[str, object]] = []
     seen: set[str] = set()
@@ -739,6 +837,17 @@ def manifest_checks(repo: Path) -> list[str]:
             continue
         owner = enclosing_flux(overlay, flux_items)
         targets.append((overlay, owner["postBuild"] if owner else None))
+        seen.add(overlay)
+    for cluster in CLUSTER_ROOTS:
+        if cluster not in seen:
+            targets.append((cluster, None))
+            seen.add(cluster)
+    post_by_path = {item["path"]: item["postBuild"] for item in flux_items}
+    for shim in STAGING_SHIMS:
+        if shim in seen:
+            continue
+        targets.append((shim, post_by_path.get(STAGING_SHIMS[shim])))
+        seen.add(shim)
 
     cache = Path(tempfile.mkdtemp(prefix="kubeconform-"))
     try:
@@ -749,6 +858,19 @@ def manifest_checks(repo: Path) -> list[str]:
                 print(f"FAIL {relative}")
             else:
                 print(f"OK   {relative}  {summary}")
+        for shim, canonical in STAGING_SHIMS.items():
+            try:
+                shim_text = kustomize_build(repo / shim)
+                canonical_text = kustomize_build(repo / canonical)
+            except RuntimeError as exc:
+                failures.append(f"{shim}: {exc}")
+                print(f"FAIL {shim}")
+                continue
+            if shim_text != canonical_text:
+                failures.append(f"{shim}: render is not byte-identical to {canonical}")
+                print(f"FAIL {shim} differs from {canonical}")
+            else:
+                print(f"OK   {shim} identical to {canonical}")
     finally:
         shutil.rmtree(cache, ignore_errors=True)
     if not failures:
@@ -805,6 +927,38 @@ def self_test() -> None:
     assert audit_secret(secret, rule, "mem#0", ".sops.yaml") == []
     secret["stringData"]["token"] = "plaintext"
     assert audit_secret(secret, rule, "mem#0", ".sops.yaml")
+    # vm-staging: no age means skip the recipient check only. Ciphertext is still required.
+    # Setting age on the same rule turns the recipient check on.
+    unset_age = {"path_regex": r".*\.yaml", "encrypted_regex": r"^(data|stringData)$"}
+    encrypted = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": "example"},
+        "stringData": {"token": "ENC[AES256_GCM,data:abc,type:str]"},
+        "sops": {"mac": "ENC[x]", "age": [{"recipient": "age1other"}]},
+    }
+    assert age_recipients(unset_age) == []
+    assert audit_secret(encrypted, unset_age, "mem#1", "apps/vm-staging/.sops.yaml") == []
+    encrypted["stringData"]["token"] = "plaintext"
+    assert audit_secret(encrypted, unset_age, "mem#1", "apps/vm-staging/.sops.yaml")
+    assert audit_secret(
+        {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "stringData": {"token": "ENC[AES256_GCM,data:abc,type:str]"},
+            "sops": {"mac": "ENC[x]", "age": [{"recipient": "age1other"}]},
+        },
+        rule,
+        "mem#2",
+        "clusters/skynet/.sops.yaml",
+    )
+    assert is_example_secret(Path("apps/skynet/node-red/node-red-admin-secret.example.yaml"))
+    assert is_example_secret(
+        Path("infrastructure/controllers/base/cloudflared/tunnel-token.secret.yaml.example")
+    )
+    assert not is_example_secret(Path("apps/skynet/node-red/node-red-admin-secret.yaml"))
+    assert policy_is_vm_staging(Path("apps/vm-staging/.sops.yaml"), Path("."))
+    assert not policy_is_vm_staging(Path("clusters/skynet/.sops.yaml"), Path("."))
 
     raw = "apiVersion: v1\nkind: Secret\nsops:\n  mac: ENC[x]\nstringData:\n  token: ENC[abc]\n"
     stripped = strip_top_level_sops(raw)
