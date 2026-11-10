@@ -1,8 +1,0 @@
-# Cutover shim. Delete this directory only after Kustomization
-# monitoring-controlers spec.path is ./monitoring/controllers/skynet.
-# The misspelled name is the live object. Do not correct it here.
-# docs/restructure-cutover.md
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - ../skynet

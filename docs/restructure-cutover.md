@@ -1,12 +1,23 @@
 # Skynet path cutover
 
-Production Flux reconciles this repo from `spec.path: ./clusters/staging`. That directory name is historical. The cluster is skynet. This change moves the production tree to `skynet` and adds an empty `vm-staging` scaffold.
+**Completed 2026-11-10.** Production Flux on `main` `1fa9e7e` reconciled all six Kustomizations from the skynet paths, with the same UIDs, all Ready, and nothing pruned. The staging shims were removed after that verification. Do not recreate them.
 
-Do not merge this until the pre-checks below match the live cluster. Do not delete the `staging` shims in this merge. A follow-up PR removes them after the in-cluster paths have flipped.
+Production paths:
 
-`clusters/vm-staging` is not on the production Flux path. Nothing in this merge bootstraps it.
+- `./clusters/skynet`
+- `./apps/skynet`
+- `./infrastructure/controllers/skynet`
+- `./monitoring/controllers/skynet`
+- `./monitoring/configs/skynet`
+- `./infrastructure/controllers/base/cloudnative-pg` (unchanged)
+
+The rest of this document is the record of how the cutover was done, including why a same-commit rename with nothing left at `./clusters/staging` would not have updated the live path.
+
+`clusters/vm-staging` is not on the production Flux path and was not bootstrapped.
 
 ## Why the old path has to keep building
+
+This section describes the cluster before 2026-11-10.
 
 The running `flux-system` Kustomization does not discover its path by looking for `gotk-sync.yaml`. It uses `spec.path` already stored on the object. On skynet that file is generated for Flux v2.10.0 and the controller image is `ghcr.io/fluxcd/kustomize-controller:v1.10.1`.
 
@@ -195,7 +206,7 @@ Suspending is enough. You do not need to turn `prune` off. This merge does not m
 - A short `ArtifactFailed` on a child, if the shim was removed early, also does not prune. With the shims in this merge, child builds should succeed even before the path flip.
 - `vm-staging` objects must not appear in `flux-system`. Production does not build `clusters/vm-staging`.
 
-Leave the shims in git until a later PR. Remove them only after a successful reconcile on the skynet paths and a UID match. Deleting them while `spec.path` is still a `staging` path makes the next reconcile `ArtifactFailed` and does not prune, but it also means Git never gets a chance to apply the new path.
+The shims stayed in git until this check passed. On 2026-11-10 the six live Kustomizations were Ready on `1fa9e7e` with the skynet paths and the same UIDs, and nothing was pruned. The shim directories were then deleted. Deleting them earlier, while `spec.path` was still a staging path, would have made the next reconcile `ArtifactFailed` without pruning, and the new path would never have been applied.
 
 ## Rollback
 
@@ -254,12 +265,12 @@ SOPS: each vm-staging directory has a `.sops.yaml` with `creation_rules` and no 
 
 `.github/workflows/validate.yml` runs `.github/scripts/validate-offline.py`. The check name is `validate` / `offline-validation`. It does not talk to the cluster.
 
-The script discovers Flux Kustomizations under `clusters/skynet` and `clusters/vm-staging`, builds those paths, and builds every per-app overlay under `apps/skynet` and `apps/vm-staging`. It also builds the five `staging` shims and fails if a shim render is not byte-identical to its skynet directory.
+The script discovers Flux Kustomizations under `clusters/skynet` and `clusters/vm-staging`, builds those paths, and builds every per-app overlay under `apps/skynet` and `apps/vm-staging`. It does not build the removed staging shims.
 
 SOPS enforcement for `.sops.yaml` and `clusters/skynet/.sops.yaml` requires an age recipient, and every Secret must be ciphertext. vm-staging policies have no `age` yet. For those files the script skips only the recipient comparison, and it prints that skip. A plaintext Secret under vm-staging still fails. Setting `age` on the vm-staging creation rule turns the recipient check on with no script change. Example templates are ignored by filename; the Node-RED one is `apps/skynet/node-red/node-red-admin-secret.example.yaml`.
 
 Renovate config is unchanged. `renovate.json` has no path filter.
 
-## Left untouched on purpose
+## Comments updated with the shim removal
 
-Comments under `apps/base`, `monitoring/controllers/base`, and `infrastructure/controllers/base/cloudflared/tunnel-token.secret.yaml.example` still say `staging`. Those trees were not edited. The cloudflared example's nearest SOPS policy is the repo-root `.sops.yaml`, not the cluster file.
+Path comments under `apps/base`, `monitoring/controllers/base`, `infrastructure/controllers/base/cloudflared/tunnel-token.secret.yaml.example`, and `setup` now say `skynet`. The cloudflared example's nearest SOPS policy is still the repo-root `.sops.yaml`, which matches `clusters/skynet/.sops.yaml`. `renovate.json` has no path filter and was not edited.

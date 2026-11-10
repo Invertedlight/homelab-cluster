@@ -100,7 +100,7 @@ spec:
           - target_matchers:
               - 'alertname = InfoInhibitor'
           # Source alerts are PrometheusRules in
-          # monitoring/configs/staging/kube-prometheus-stack/node-maintenance-alerts.yaml.
+          # monitoring/configs/skynet/kube-prometheus-stack/node-maintenance-alerts.yaml.
           # They are routed to null below; inhibition does not require a notification.
           # Same-node: any other alert that already carries this node name.
           - source_matchers:

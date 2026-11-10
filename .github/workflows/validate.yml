@@ -1,6 +1,5 @@
 # Offline validation for the skynet Flux repo.
 # Production Flux root: clusters/skynet. Second root: clusters/vm-staging.
-# clusters/staging is a cutover shim and must render the same as clusters/skynet.
 # This workflow never talks to the cluster and uses no credentials. It does
 # not block merge until branch protection requires the offline-validation check.
 name: validate

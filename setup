@@ -21,7 +21,7 @@ flux bootstrap github \
   --owner=$GITHUB_USER \
   --repository=homelab-cluster \
   --branch=main \
-  --path=./clusters/staging \
+  --path=./clusters/skynet \
   --personal
 
 . <(flux completion zsh)

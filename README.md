@@ -1,8 +1,8 @@
 # Homelab cluster
 
-Flux-managed workloads and infrastructure for the production `skynet` K3s cluster. `clusters/vm-staging` is a second cluster scaffold and is not reconciled by production Flux.
+Flux-managed workloads and infrastructure for the production `skynet` K3s cluster. Production Flux reads `./clusters/skynet`. `clusters/vm-staging` is a second cluster scaffold and is not reconciled by production Flux.
 
-Production Flux still has `spec.path: ./clusters/staging` until it applies the cutover shim. Read [the restructure cutover](docs/restructure-cutover.md) before merging path changes.
+The 2026-11-10 path cutover is recorded in [the restructure cutover](docs/restructure-cutover.md).
 
 Operator documentation:
 

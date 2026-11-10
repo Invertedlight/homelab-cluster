@@ -2,7 +2,7 @@
 
 Kubernetes namespace for [DevPod](https://devpod.sh) workspaces (Cursor on M5 → SSH into amd64 pods on skynet).
 
-Flux already reconciles this app via `clusters/staging/apps.yaml` → `apps/staging/devpod`.
+Flux already reconciles this app via `clusters/skynet/apps.yaml` → `apps/skynet/devpod`.
 
 - Workspace home disks: StorageClass `longhorn` (not SMB). Longhorn keeps 3 replicas and `volumeBindingMode: WaitForFirstConsumer`, so a pod can reschedule onto any worker and the volume reattaches.
 - Quotas/LimitRanges cap CPU, memory, and PVC count so a workspace cannot starve the cluster.
@@ -116,7 +116,7 @@ After a rotation, on each Mac run `ssh-keygen -R devpod-0` and `ssh-keygen -R de
 Every replica runs initContainer `bootstrap` (`bootstrap/bootstrap.sh`, shipped as ConfigMap `devpod-bootstrap-<hash>` by `configMapGenerator`). As root with `HOME=/home/vscode` it:
 
 1. Installs `curl git sudo zsh` if the image lacks them.
-2. Configures git for `https://github.com` with `/opt/devpod-bootstrap/git-credential-devpod`, which reads the token from Secret `github-credentials` (SOPS, `apps/staging/devpod/github-credentials.yaml`, namespace `devpod` only). No token is written to the home PVC.
+2. Configures git for `https://github.com` with `/opt/devpod-bootstrap/git-credential-devpod`, which reads the token from Secret `github-credentials` (SOPS, `apps/skynet/devpod/github-credentials.yaml`, namespace `devpod` only). No token is written to the home PVC.
 3. Clones `Invertedlight/dotfiles` into `~/.local/share/chezmoi` and runs its `setup` from `~/.cache/devpod-bootstrap` (so `./bin/chezmoi` lands there), then `chezmoi apply`.
 4. Installs mise from https://mise.run if missing, adds its PATH to `~/.zshenv`/`~/.profile` (`~/.bashrc`/`~/.zshrc` belong to chezmoi; the dotfiles activate mise), trusts and runs `mise install` (bat, chezmoi, starship, vim plus the dotfiles' global tools).
 5. Writes `~/.devpod-bootstrap.status` and `~/.devpod-bootstrap.log`; on success `~/.devpod-bootstrap-done` (`version=N`).
