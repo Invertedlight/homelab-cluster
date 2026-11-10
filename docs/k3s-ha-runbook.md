@@ -55,7 +55,7 @@ The DaemonSet manifest no longer uses that client. After Flux reconciles it, sto
 
 ## kube-vip and the local apiserver
 
-Manifest: `infrastructure/controllers/base/kube-vip/daemonset.yaml`, applied by Flux Kustomization `infrastructure-controller` (`clusters/staging/infrastructure.yaml` → `infrastructure/controllers/staging`).
+Manifest: `infrastructure/controllers/base/kube-vip/daemonset.yaml`, applied by Flux Kustomization `infrastructure-controller` (`clusters/skynet/infrastructure.yaml` → `infrastructure/controllers/skynet`).
 
 k3s `v1.36.3+k3s1` writes `/etc/rancher/k3s/k3s.yaml` as mode `0600`, owned by root, with `server: https://127.0.0.1:6443` unless the server was started with `--bind-address`. The client material in that file is the cluster admin certificate. kube-vip `v1.3.1` uses an explicit kubeconfig only when `k8s_config_file` / `--k8sConfigPath` points somewhere other than `/etc/kubernetes/admin.conf` or `$HOME/.kube/config`, and only when that file exists. `kubernetes_addr=https://127.0.0.1:6443` then overwrites the API host. That overwrite matters when the file's server field is `192.168.68.40`: every instance would need the VIP to renew or acquire the lease, the holder that just lost its apiserver would still own `.40`, and the others could not reach a live apiserver to take it. The image is `FROM scratch` and runs as root, so the process uid matches the file owner and can read mode `0600` without `CAP_DAC_OVERRIDE`. The capability set is unchanged (`drop: ALL`, add `NET_ADMIN` and `NET_RAW`). `automountServiceAccountToken: false` removes the fallback: a missing file makes the process exit instead of renewing the lease through another apiserver.
 

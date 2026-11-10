@@ -1,3 +1,4 @@
+# Not reconciled by production Flux. Production builds clusters/skynet only.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -13,9 +14,5 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./apps/staging
+  path: ./apps/vm-staging
   prune: true
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age

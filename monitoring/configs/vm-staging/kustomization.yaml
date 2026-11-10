@@ -1,0 +1,5 @@
+# Scaffold only. monitoring/configs/skynet holds production SOPS secrets
+# and alert routes. Do not copy them here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []
