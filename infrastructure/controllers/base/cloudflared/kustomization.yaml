@@ -1,6 +1,8 @@
+# Namespace and Deployment only. Cluster overlays add the tunnel token:
+# skynet at infrastructure/controllers/skynet/cloudflared, vm-staging at
+# infrastructure/controllers/vm-staging/cloudflared.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
   - deployment.yaml
-  - tunnel-token.secret.yaml

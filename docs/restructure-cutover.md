@@ -255,7 +255,7 @@ Not applied to skynet. Layout:
 
 - `clusters/vm-staging/flux-system/` is the Flux install James applied by hand. `clusters/vm-staging/kustomization.yaml` lists `flux-system` and `infrastructure.yaml`.
 - `monitoring.yaml`, `database-operator.yaml`, and `apps.yaml` are in that directory and are not listed yet. Later PRs add monitoring and database-operator, then a few apps. `apps` depends on the other two, so it stays last.
-- `infrastructure-controller` builds `infrastructure/controllers/vm-staging`: cert-manager (controller only, ServiceMonitor off), the CoreDNS search-domain rewrite, and kured. It does not include kube-vip, cloudflared, the production wildcard certificate, SMB, Garage, Longhorn, the barman plugin, Renovate, or kjobs.
+- `infrastructure-controller` builds `infrastructure/controllers/vm-staging`: cert-manager (controller only, ServiceMonitor off), cloudflared (base namespace and Deployment, plus the vm-staging tunnel token), the CoreDNS search-domain rewrite, and kured. It does not include kube-vip, the production wildcard certificate, SMB, Garage, Longhorn, the barman plugin, Renovate, or kjobs.
 - `apps/vm-staging`, `monitoring/controllers/vm-staging`, and `monitoring/configs/vm-staging` still have an empty `kustomization.yaml`.
 - `database-operator` points at `infrastructure/controllers/base/cloudnative-pg`. That base has no Secret and no node IP, so that Kustomization has no decryption block. The infrastructure, monitoring, and apps Kustomizations set `decryption.provider: sops` and `secretRef: sops-age`. Delete `database-operator.yaml` before it is listed if this cluster should not install the operator, and drop it from `dependsOn` in `apps.yaml`.
 
@@ -271,7 +271,7 @@ Run this from the Mac mini, cyberstar account, zsh, on a clone of the merge comm
 export KUBECONFIG="${HOME}/.kube/staging-vm-cluster.yaml"
 ```
 
-Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging cluster. Do not recreate it. The root Flux Kustomization does not decrypt. `infrastructure-controller` sets `decryption.provider: sops` and `secretRef: sops-age`. The manifests it applies have no Secret yet. Monitoring and apps use the same secret when they are listed.
+Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging cluster. Do not recreate it. The root Flux Kustomization does not decrypt. `infrastructure-controller` sets `decryption.provider: sops` and `secretRef: sops-age`, which decrypts the cloudflared tunnel token. Monitoring and apps use the same secret when they are listed.
 
 1. The Git secret needs the namespace. Create it if it is missing, then create the deploy key. The command prints the public key.
 

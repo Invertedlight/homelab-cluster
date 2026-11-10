@@ -10,10 +10,14 @@
 #   inside this cluster. It does not create DNS records.
 # - kured: Sunday reboot window, one node at a time. No Secret.
 #
+# Included, local overlay:
+# - cloudflared: namespace and Deployment from base (that directory has no
+#   Secret). The token is tunnel vm-staging, encrypted for the vm-staging
+#   age recipient, not the skynet token.
+#
 # Left out:
 # - kube-vip: base address is 192.168.68.40 on eno1. Staging VIP is
 #   192.168.68.160. The VM NIC name is not in this repo, so it is not guessed.
-# - cloudflared: production tunnel token for tunnel skynet.
 # - traefik-tls: production wildcard certificate jameshomelab-wildcard-tls.
 #   k3s already ships Traefik.
 # - csi-smb: StorageClass source //192.168.68.70/PVC (Mac mini RaidShare)
@@ -32,3 +36,4 @@ resources:
   - cert-manager
   - ../base/coredns-custom
   - ../base/kured
+  - cloudflared
