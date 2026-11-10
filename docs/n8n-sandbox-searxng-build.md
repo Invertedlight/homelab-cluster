@@ -9,7 +9,7 @@ In n8n Assistant / OpenAI-compatible credential:
 - Model: `grok-4.7` (cheaper option: `grok-4.3`)
 
 ## 2. Code sandbox — PR #72 (merge `badf7f7`)
-Files: `apps/base/n8n-sandbox/` (`namespace.yaml`, `git-repository.yaml`, `helm-release.yaml`, `issuer.yaml`, `networkpolicy.yaml`, `kustomization.yaml`) and `apps/staging/n8n/james/networkpolicy-sandbox.yaml`.
+Files: `apps/base/n8n-sandbox/` (`namespace.yaml`, `git-repository.yaml`, `helm-release.yaml`, `issuer.yaml`, `networkpolicy.yaml`, `kustomization.yaml`) and `apps/skynet/n8n/james/networkpolicy-sandbox.yaml`.
 - Namespace: `n8n-sandbox`
 - Service URL (for n8n): `http://sandbox-api.n8n-sandbox.svc.cluster.local:8080`
 - API key (run on the mini, do not paste in chat):
@@ -32,7 +32,7 @@ File: `apps/base/n8n-sandbox/searxng.yaml`
 - Dashboard: https://api-dashboard.search.brave.com (account `invertedphoton@gmail.com`)
 - Key name: `n8n-skynet`
 - Stored as SOPS/age-encrypted Secret `brave-search-api` (key `api-key`) in `n8n-james`:
-  `apps/staging/n8n/james/brave-search-api-secret.yaml` (listed in that kustomization). Added in the PR "n8n: Brave Search API secret + build doc".
+  `apps/skynet/n8n/james/brave-search-api-secret.yaml` (listed in that kustomization). Added in the PR "n8n: Brave Search API secret + build doc".
 - Use in n8n:
   - **Brave Search node**: create a Brave Search credential and paste the key, or
   - **HTTP Request node**: GET `https://api.search.brave.com/res/v1/web/search?q=<query>` with headers `X-Subscription-Token: <key>` and `Accept: application/json`.

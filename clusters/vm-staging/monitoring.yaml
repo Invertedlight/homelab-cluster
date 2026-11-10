@@ -1,7 +1,10 @@
+# Not reconciled by production Flux. Production builds clusters/skynet only.
+# Name is monitoring-controllers. Production keeps the live typo
+# monitoring-controlers; that object must not be renamed.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: monitoring-controlers
+  name: monitoring-controllers
   namespace: flux-system
 spec:
   interval: 1m0s
@@ -10,13 +13,8 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./monitoring/controllers/staging
+  path: ./monitoring/controllers/vm-staging
   prune: true
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age
-
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -30,9 +28,5 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./monitoring/configs/staging
+  path: ./monitoring/configs/vm-staging
   prune: true
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age

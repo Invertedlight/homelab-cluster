@@ -51,7 +51,7 @@ To mark a node that already has the label, add `--overwrite`.
 
 `KubeDaemonSetNotScheduled` is included with the two DaemonSet alerts from the wrk-04 outage because it is the same scheduling failure (desired pods versus pods actually scheduled) and it also has no node label.
 
-Maintenance of a control-plane node or `skynet-wrk-01` does not mute the garage rows. Those nodes are not in the Garage node affinity. The affinity list is duplicated in `GarageNodeInMaintenance`; if Garage moves, update `monitoring/configs/staging/kube-prometheus-stack/node-maintenance-alerts.yaml` to match `infrastructure/controllers/base/garage/statefulset.yaml`.
+Maintenance of a control-plane node or `skynet-wrk-01` does not mute the garage rows. Those nodes are not in the Garage node affinity. The affinity list is duplicated in `GarageNodeInMaintenance`; if Garage moves, update `monitoring/configs/skynet/kube-prometheus-stack/node-maintenance-alerts.yaml` to match `infrastructure/controllers/base/garage/statefulset.yaml`.
 
 These keep notifying during maintenance:
 

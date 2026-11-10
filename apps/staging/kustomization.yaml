@@ -1,14 +1,6 @@
+# Cutover shim. Delete this directory only after Kustomization apps
+# spec.path is ./apps/skynet. docs/restructure-cutover.md
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - audiobookshelf
-  - cluster-dashboard
-  - database
-  - devpod
-  - linkding
-  - mealie
-  - mosquitto
-  - n8n
-  - n8n-sandbox
-  - netwatch
-  - node-red
+  - ../skynet

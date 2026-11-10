@@ -1,4 +1,7 @@
+# Cutover shim. Delete this directory only after Kustomization
+# monitoring-configs spec.path is ./monitoring/configs/skynet.
+# docs/restructure-cutover.md
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - kube-prometheus-stack
+  - ../skynet

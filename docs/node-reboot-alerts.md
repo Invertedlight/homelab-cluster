@@ -15,7 +15,7 @@ The repeating critical offline path in this repo is one Prometheus alert:
 
 | Piece | Where |
 | --- | --- |
-| Alert `NodeDown`, severity `critical` | `monitoring/configs/staging/kube-prometheus-stack/node-down-alerts.yaml` |
+| Alert `NodeDown`, severity `critical` | `monitoring/configs/skynet/kube-prometheus-stack/node-down-alerts.yaml` |
 | Route `alertname = NodeDown` to receiver `sms-critical` | `monitoring/controllers/base/kube-prometheus-stack/release.yaml` |
 | `group_by: [node]`, `group_wait: 0s`, `repeat_interval: 30m` | same route |
 | Webhook | same URL and bearer as the normal `sms` receiver, from Secret `alertmanager-sms-webhook` |
@@ -152,7 +152,7 @@ reboot has started. Uncordon and pod readiness are not part of the grace.
 `promtool` 2.55.1 (`check rules` and `test rules`) reported success: 10 rules.
 
 ```bash
-python3 monitoring/configs/staging/kube-prometheus-stack/tests/test-node-down-rules.py
+python3 monitoring/configs/skynet/kube-prometheus-stack/tests/test-node-down-rules.py
 ```
 
 The runner copies the PrometheusRule `spec` into a temp rules file, so the
@@ -181,7 +181,7 @@ Not done here. After an explicit OK to merge:
 1. Flux `monitoring-controlers` applies the kube-prometheus-stack HelmRelease
    (`metricAnnotationsAllowList`). Flux `monitoring-configs` applies the
    PrometheusRule. Both are already pointed at this repo from
-   `clusters/staging/monitoring.yaml`.
+   `clusters/skynet/monitoring.yaml`.
 2. No Alertmanager route edit beyond the comment. `sms-critical` already
    matches `NodeDown`.
 3. Once a node has the annotation, this should return a series:

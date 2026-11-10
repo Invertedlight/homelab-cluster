@@ -1,0 +1,6 @@
+# Scaffold only. Do not reference ../base or ../skynet. Those trees contain
+# production secrets and cluster IPs (cloudflared, garage, longhorn, kube-vip,
+# traefik TLS, renovate, kjobs).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []

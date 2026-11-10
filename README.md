@@ -1,9 +1,12 @@
 # Homelab cluster
 
-Flux-managed workloads and infrastructure for the `skynet` K3s cluster.
+Flux-managed workloads and infrastructure for the production `skynet` K3s cluster. `clusters/vm-staging` is a second cluster scaffold and is not reconciled by production Flux.
+
+Production Flux still has `spec.path: ./clusters/staging` until it applies the cutover shim. Read [the restructure cutover](docs/restructure-cutover.md) before merging path changes.
 
 Operator documentation:
 
+- [Skynet path cutover](docs/restructure-cutover.md)
 - [K3s HA topology and recovery runbook](docs/k3s-ha-runbook.md)
 
 - [Shared PostgreSQL operations](docs/homelab-postgres.md)

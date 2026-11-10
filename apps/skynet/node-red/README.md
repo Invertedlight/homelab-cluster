@@ -1,6 +1,6 @@
-# Node-RED on staging
+# Node-RED on skynet
 
-Flux Kustomization `apps` (`clusters/staging/apps.yaml`) builds this directory. It sets namespace `node-red` and includes:
+Flux Kustomization `apps` (`clusters/skynet/apps.yaml`) builds this directory. It sets namespace `node-red` and includes:
 
 - `apps/base/node-red` — Deployment, Service, Longhorn PVC, settings, the weather flow export, and `palette/package.json`
 - `ingress.yaml` — `nodered.jameshomelab.org`

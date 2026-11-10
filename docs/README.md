@@ -26,6 +26,7 @@ Operational guides and migration records for the homelab cluster. Migration reco
 - [Tab Shade Safari extension build](Tab_Shade_Safari_Extension_Build.docx)
 - [Tab Shade notarization addendum](Tab_Shade_Notarization_Addendum.docx)
 - [homelab-postgres](homelab-postgres.md)
+- [Skynet path cutover](restructure-cutover.md)
 - [k3s-ha-runbook](k3s-ha-runbook.md)
 - [Node maintenance and SMS alerts](node-maintenance.md)
 - [Kured reboot grace for NodeDown](node-reboot-alerts.md)

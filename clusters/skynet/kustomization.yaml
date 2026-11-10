@@ -1,0 +1,12 @@
+# Explicit resource list. Before this file existed, Flux generated the same
+# list (kustomize create --autodetect --recursive), including flux-system.
+# flux-system has to stay here. With prune: true, dropping it deletes Flux.
+# docs/restructure-cutover.md
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - apps.yaml
+  - database-operator.yaml
+  - flux-system
+  - infrastructure.yaml
+  - monitoring.yaml
