@@ -253,9 +253,10 @@ Patching the path back to `./clusters/staging` while this PR is still on `main` 
 
 Not applied to skynet. Layout:
 
-- `clusters/vm-staging/flux-system/` is the Flux install James applies by hand. `clusters/vm-staging/kustomization.yaml` lists only `flux-system` for this first stage.
-- `infrastructure.yaml`, `monitoring.yaml`, `database-operator.yaml`, and `apps.yaml` are in that directory and are not listed yet. Later PRs add them in that order: infrastructure, then monitoring and database-operator, then a few apps. `apps` depends on the other two, so it stays last.
-- `apps/vm-staging`, `infrastructure/controllers/vm-staging`, `monitoring/controllers/vm-staging`, and `monitoring/configs/vm-staging` each have an empty `kustomization.yaml`. They do not reference `base` or `skynet`.
+- `clusters/vm-staging/flux-system/` is the Flux install James applied by hand. `clusters/vm-staging/kustomization.yaml` lists `flux-system` and `infrastructure.yaml`.
+- `monitoring.yaml`, `database-operator.yaml`, and `apps.yaml` are in that directory and are not listed yet. Later PRs add monitoring and database-operator, then a few apps. `apps` depends on the other two, so it stays last.
+- `infrastructure-controller` builds `infrastructure/controllers/vm-staging`: cert-manager (controller only, ServiceMonitor off), the CoreDNS search-domain rewrite, and kured. It does not include kube-vip, cloudflared, the production wildcard certificate, SMB, Garage, Longhorn, the barman plugin, Renovate, or kjobs.
+- `apps/vm-staging`, `monitoring/controllers/vm-staging`, and `monitoring/configs/vm-staging` still have an empty `kustomization.yaml`.
 - `database-operator` points at `infrastructure/controllers/base/cloudnative-pg`. That base has no Secret and no node IP, so that Kustomization has no decryption block. The infrastructure, monitoring, and apps Kustomizations set `decryption.provider: sops` and `secretRef: sops-age`. Delete `database-operator.yaml` before it is listed if this cluster should not install the operator, and drop it from `dependsOn` in `apps.yaml`.
 
 SOPS: each vm-staging directory has a `.sops.yaml` whose `age` recipient is `age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp`. That is not the skynet recipient. The nearest file wins, so a secret under those trees does not fall through to the production policy.
@@ -270,7 +271,7 @@ Run this from the Mac mini, cyberstar account, zsh, on a clone of the merge comm
 export KUBECONFIG="${HOME}/.kube/staging-vm-cluster.yaml"
 ```
 
-Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging cluster. Do not recreate it. The root Flux Kustomization does not decrypt. The child Kustomizations use that secret once a later PR lists them.
+Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging cluster. Do not recreate it. The root Flux Kustomization does not decrypt. `infrastructure-controller` sets `decryption.provider: sops` and `secretRef: sops-age`. The manifests it applies have no Secret yet. Monitoring and apps use the same secret when they are listed.
 
 1. The Git secret needs the namespace. Create it if it is missing, then create the deploy key. The command prints the public key.
 
@@ -282,7 +283,25 @@ Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging 
      -n flux-system
    ```
 
-2. Add the printed public key on the GitHub repo as a deploy key titled `vm-staging-flux`. Read-only. Do not allow write access.
+   `flux create secret git` writes `known_hosts` for `github.com` only. The FQDN patch dials `github.com.` (trailing dot). source-controller then fails with `knownhosts: key is unknown`. Skynet's secret has both host lines and the same ed25519 key. After the secret exists, and again after any rebuild that recreates it, add the dotted host. Refuse to patch if the scanned key is not GitHub's ed25519 fingerprint `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`.
+
+   ```zsh
+   kubeconfig="${HOME}/.kube/staging-vm-cluster.yaml"
+   scan="$(ssh-keyscan -t ed25519 github.com 2>/dev/null | sed -n '/^github.com ssh-ed25519 /p')"
+   fp="$(printf '%s\n' "${scan}" | ssh-keygen -lf -)"
+   print -r -- "${fp}"
+   [[ "${fp}" == *"SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"* ]] \
+     || { print -u2 -- "refusing to patch: ${fp}"; return 1 }
+   dotted="$(printf '%s\n' "${scan}" | sed 's/^github.com /github.com. /')"
+   current="$(kubectl --kubeconfig "${kubeconfig}" -n flux-system get secret flux-system -o jsonpath='{.data.known_hosts}' | base64 --decode)"
+   hosts="$(printf '%s\n%s\n' "${current%$'\n'}" "${dotted}")"
+   patch="$(printf '%s' "${hosts}" | python3 -c 'import json,sys; print(json.dumps({"stringData":{"known_hosts":sys.stdin.read()}}))')"
+   kubectl --kubeconfig "${kubeconfig}" -n flux-system patch secret flux-system --type merge -p "${patch}"
+   ```
+
+   `gh` is logged in on the mini (cyberstar). The deploy key below can be added from that shell.
+
+2. Add the printed public key on the GitHub repo as a deploy key titled `vm-staging-flux`. Read-only. Do not allow write access. This key is already on the repo.
 
 3. From the clone, apply the install. If the first apply fails because the CRDs are not established yet, run it again.
 
@@ -290,7 +309,7 @@ Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging 
    kubectl --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" apply -k clusters/vm-staging/flux-system
    ```
 
-4. Check the source and the root Kustomization. `flux-system` should become Ready at `./clusters/vm-staging`. The child Kustomizations are not in git's resource list yet, so they should not appear.
+4. Check the source and the Kustomizations. `flux-system` should be Ready at `./clusters/vm-staging`. After the infrastructure PR, `infrastructure-controller` should be Ready too. `monitoring-controllers`, `monitoring-configs`, `database-operator`, and `apps` stay unlisted, so they should not appear.
 
    ```zsh
    flux --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" get sources git
