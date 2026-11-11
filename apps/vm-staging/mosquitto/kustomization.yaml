@@ -1,0 +1,13 @@
+# ClusterIP only. The base Service is a LoadBalancer; this overlay removes
+# that exposure. No Ingress and no NodePort. mosquitto-passwd is the hash
+# file the broker mounts. mosquitto-login is the same password, encrypted,
+# and is not mounted. Decrypt it with the vm-staging age key to connect.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: mosquitto
+resources:
+  - ../../base/mosquitto/
+  - mosquitto-passwd.yaml
+  - mosquitto-login.yaml
+patches:
+  - path: service-clusterip.yaml

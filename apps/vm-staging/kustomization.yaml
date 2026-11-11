@@ -1,6 +1,8 @@
-# Master list is the database only. clusters/vm-staging/apps.yaml applies
+# Database, then the stateless apps. clusters/vm-staging/apps.yaml applies
 # this directory after infrastructure-controller and database-operator.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - database
+  - mosquitto
+  - cluster-dashboard
