@@ -227,7 +227,7 @@ Proposed hosts are single-level. Production short names (`lds`, `abs`, `home`, `
 - The base network policy already allows DNS, Postgres, Traefik, and public 80/443, and it blocks private ranges.
 - Storage: `local-path` 5Gi at `/home/node/.n8n`.
 - Ingress: `n8n-staging.jameshomelab.org`, service port name `http`.
-- Cloudflare: route, CNAME, and James-only Access on tunnel `vm-staging`. Verify before merge. Whether Access bypasses the webhook paths is still open.
+- Cloudflare, decided: tunnel route and proxied CNAME for `n8n-staging.jameshomelab.org` on tunnel `vm-staging`. The James-only Access application covers the editor and every other path. A separate Access policy on that same hostname bypasses only `/webhook/*` and `/webhook-test/*`. This is Cloudflare configuration, not an Ingress annotation. `james-n8n.jameshomelab.org` is unchanged. Verify both behaviors before the n8n wave is called done.
 - External: Postgres and the sandbox in this cluster. No production encryption key and no import of production workflows.
 
 ### audiobookshelf
@@ -312,7 +312,7 @@ Per wave, after Ready:
 - DevPod: both pods Running. Each has a 20Gi home and a 10Gi scratch, both Bound on `local-path`. No `smb-uid1000` claim, no NodePort, no devpod hostname on either tunnel. `kubectl` inside the pod lists vm-staging nodes only.
 - HTTP: `curl -sI https://<app>-staging.jameshomelab.org` shows Cloudflare Access, then the empty staging app after login.
 - Linkding and Mealie: a write on staging does not appear at `lds.jameshomelab.org` or `mealie.jameshomelab.org`.
-- n8n: settings show the staging webhook URL. Workflow list is empty. Gloria's host is unchanged.
+- n8n: settings show the staging webhook URL. Workflow list is empty. Gloria's host is unchanged. `curl -sI https://n8n-staging.jameshomelab.org/webhook/` and `curl -sI https://n8n-staging.jameshomelab.org/webhook-test/` are not sent to the Access login. `curl -sI https://n8n-staging.jameshomelab.org/` is.
 - Mosquitto: no Service of type LoadBalancer in `mosquitto`.
 
 Disk check while the later waves land. The claims are a fraction of 64G and 128G. DevPod (40Gi of homes plus 20Gi of scratch) and the sandbox (20Gi) are the ones to watch:
@@ -345,20 +345,20 @@ If a wave is bad and the earlier waves are fine, revert only that commit so the 
 
 ## 6. Open questions
 
-The include list is decided. So are DevPod SSH, DevPod scratch, and the Brave Search key. These are the questions that are still open.
+The include list is decided. So are DevPod SSH, DevPod scratch, the Brave Search key, and the n8n Access webhook bypass. These are the questions that are still open.
 
-1. Which `<name>.jameshomelab.org` records already have a vm-staging tunnel rule, a proxied CNAME, and a James-only Access app? Use those names in the Ingress when they differ from the proposed `<app>-staging` names. This includes `audiobookshelf-staging` and `searxng-staging`. DevPod is not on that list: it has no tunnel route.
+1. Which `<name>.jameshomelab.org` records already have a vm-staging tunnel rule, a proxied CNAME, and a James-only Access app? Use those names in the Ingress when they differ from the proposed `<app>-staging` names. This includes `audiobookshelf-staging` and `searxng-staging`. DevPod is not on that list: it has no tunnel route. `n8n-staging.jameshomelab.org` also needs the webhook bypass policy below.
 2. netwatch: the plan stores the report and does not POST. If a copy should be sent, the URL has to be a staging webhook, and the `[Skynet]` prefix in `report.awk` has to be patched first. The production SMS webhook stays unused.
 3. Is any staging backup wanted? The recommendation is none. A later backup would be a `local-path` claim on this cluster, not Garage bucket `cnpg` and not `//192.168.68.70/PVC`.
 4. Install the slim monitoring stack, or leave `monitoring.yaml` unlisted? If it is installed, Grafana is the whole feature unless James names a staging-only receiver. It does not use the production SMS or Telegram secrets.
 5. Mosquitto stays ClusterIP. Is a LAN LoadBalancer wanted later, on a port that is not the production broker?
-6. For staging n8n, should Cloudflare Access bypass the webhook paths? James is still deciding. The Brave Search key is not part of this question.
-7. Mealie: confirm the first-account step (temporary `ALLOW_SIGNUP=true`) matches how this Mealie image behaves at `v3.30.0`.
-8. Dashboard: `PUBLIC_HOST` will be the staging host. The image is not in this repo. If it also synthesizes links from `BASE_DOMAIN`, those links need a look after the first login.
-9. The manifest PR can patch `apps/base/database` in place, or move the barman and SMB objects into `apps/skynet/database`. The second keeps the next overlay smaller and is the one this plan prefers. Production's rendered cluster should stay the same.
+6. Mealie: confirm the first-account step (temporary `ALLOW_SIGNUP=true`) matches how this Mealie image behaves at `v3.30.0`.
+7. Dashboard: `PUBLIC_HOST` will be the staging host. The image is not in this repo. If it also synthesizes links from `BASE_DOMAIN`, those links need a look after the first login.
+8. The manifest PR can patch `apps/base/database` in place, or move the barman and SMB objects into `apps/skynet/database`. The second keeps the next overlay smaller and is the one this plan prefers. Production's rendered cluster should stay the same.
 
 ### Decided
 
 - DevPod SSH: no vm-staging tunnel route. Staging DevPod has no external SSH. The nodeport controller is left out of the staging build. Pod-to-pod SSH on the headless Service remains.
 - DevPod scratch: a 10Gi `local-path` claim per replica, on a worker, in place of the shared 500Gi NAS claim. Namespace storage quota is 80Gi.
 - Brave Search: staging n8n uses the same API key as production, re-encrypted to the vm-staging age key in `apps/vm-staging/n8n/james/`. The value is never printed, and the production ciphertext is not copied.
+- n8n Access: on `n8n-staging.jameshomelab.org`, Cloudflare Access bypasses only `/webhook/*` and `/webhook-test/*`. The editor and every other path stay on the James-only Access application. Production n8n is unchanged.
