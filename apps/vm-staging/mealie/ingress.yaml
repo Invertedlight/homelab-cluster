@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mealie
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Mealie"
+    dashboard.jameshomelab.org/description: "Recipes and meal planning"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mealie-staging.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mealie
+                port:
+                  number: 9000

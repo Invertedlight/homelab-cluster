@@ -1,0 +1,63 @@
+# One local-path claim. The base also creates an unused local-path PVC
+# (with a production volumeName), an SMB PVC, and a Longhorn PVC. Those
+# three are deleted here. linkding-database is not in this directory yet:
+# its password has to be the one already in
+# apps/vm-staging/database/homelab-postgres-linkding-secret.yaml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: linkding
+resources:
+  - ../../base/linkding/
+  - linkding-data.yaml
+  - ingress.yaml
+  - linkding-container-env-secret.yaml
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: linkding
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+      - op: replace
+        path: /spec/template/spec/containers/0/env/6/value
+        value: https://linkding-staging.jameshomelab.org
+      - op: replace
+        path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+        value: linkding-data
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: linkding-data-longhorn
+        namespace: linkding
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: linkding-data-pvc
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: linkding-data-smb
