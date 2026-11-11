@@ -3,6 +3,9 @@ kind: Kustomization
 namespace: database
 resources:
   - ../../base/database
+  - backup-smb-pvc.yaml
+  - backup-cronjob.yaml
+  - scheduled-backup.yaml
   - homelab-postgres-linkding-secret.yaml
   - homelab-postgres-mealie-secret.yaml
   - homelab-postgres-dashboard-secret.yaml
@@ -15,3 +18,10 @@ resources:
   - dashboard-database.yaml
   - n8n-james-database.yaml
   - n8n-gloria-database.yaml
+patches:
+  - path: barman-plugin.yaml
+    target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: Cluster
+      name: homelab-postgres

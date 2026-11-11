@@ -1,8 +1,8 @@
-# Not reconciled by production Flux. Not listed in kustomization.yaml yet.
-# Same shared operator manifest production uses. That directory has no
-# Secret and no node IP, so this object has no decryption block, matching
-# skynet. Remove this file before it is listed if vm-staging should not
-# install CloudNativePG.
+# Not reconciled by production Flux. Production builds clusters/skynet only.
+# Wrapper turns PodMonitors off. The path has no Secret, so there is no
+# decryption block. wait is true so apps, once listed, do not start until
+# the Helm release is Ready. Production sets wait: false because that
+# operator was already running.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -12,8 +12,9 @@ spec:
   interval: 1m
   retryInterval: 1m
   timeout: 10m
+  wait: true
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./infrastructure/controllers/base/cloudnative-pg
+  path: ./infrastructure/controllers/vm-staging/cloudnative-pg
   prune: true

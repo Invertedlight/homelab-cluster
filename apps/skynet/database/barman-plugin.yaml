@@ -1,0 +1,14 @@
+# Garage WAL archiving for homelab-postgres. The ObjectStore is
+# objectstore-garage.yaml in this directory. Not part of apps/base/database,
+# so vm-staging does not inherit a production backup target.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: homelab-postgres
+spec:
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: garage
+        serverName: homelab-postgres

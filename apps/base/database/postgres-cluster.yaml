@@ -10,13 +10,8 @@ spec:
   primaryUpdateStrategy: unsupervised
   primaryUpdateMethod: switchover
 
-  # WAL archiving + base backups to Garage (ObjectStore database/garage).
-  plugins:
-    - name: barman-cloud.cloudnative-pg.io
-      isWALArchiver: true
-      parameters:
-        barmanObjectName: garage
-        serverName: homelab-postgres
+  # Barman WAL archiving is not in this base. apps/skynet/database adds the
+  # Garage plugin. vm-staging must not point at production Garage.
 
   bootstrap:
     initdb:

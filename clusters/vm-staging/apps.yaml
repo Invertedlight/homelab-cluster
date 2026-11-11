@@ -9,6 +9,9 @@ spec:
   dependsOn:
     - name: infrastructure-controller
     - name: database-operator
+  # Not listed in clusters/vm-staging/kustomization.yaml yet. When it is,
+  # stay unready until the database pods are up.
+  wait: true
   retryInterval: 1m
   timeout: 5m
   sourceRef:

@@ -1,10 +1,8 @@
-# Flux, then infrastructure. monitoring.yaml, database-operator.yaml, and
-# apps.yaml stay in this directory and are not applied yet.
-# Add monitoring and database-operator next, then a few apps.
-# apps.yaml depends on infrastructure-controller and database-operator, so
-# it has to be last.
+# Flux, infrastructure, then the CNPG operator. monitoring.yaml and apps.yaml
+# stay in this directory and are not applied yet. apps.yaml depends on
+# infrastructure-controller and database-operator, so it has to be last.
 # infrastructure, monitoring, and apps set decryption to sops / sops-age.
-# database-operator does not, matching skynet: that path has no Secret.
+# database-operator does not: that path has no Secret.
 # flux-system stays in this list. Dropping it after it is in
 # status.inventory would prune Flux.
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -12,3 +10,4 @@ kind: Kustomization
 resources:
   - flux-system
   - infrastructure.yaml
+  - database-operator.yaml
