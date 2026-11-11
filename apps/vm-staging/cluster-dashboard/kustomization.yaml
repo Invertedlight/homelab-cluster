@@ -1,9 +1,6 @@
 # PUBLIC_HOST is the staging name. No TLS secret: Cloudflare terminates
-# HTTPS. cluster-dashboard-database is not in this directory yet. Its
-# password has to be the one already in
+# HTTPS. cluster-dashboard-database reuses the password already in
 # apps/vm-staging/database/homelab-postgres-dashboard-secret.yaml.
-# Create that file on the Mac mini with the vm-staging age key before
-# this app can connect. Do not generate a second database password.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: cluster-dashboard
@@ -11,6 +8,7 @@ resources:
   - ../../base/cluster-dashboard/
   - ingress.yaml
   - cluster-dashboard-auth-secret.yaml
+  - cluster-dashboard-database-secret.yaml
 patches:
   - target:
       group: apps
