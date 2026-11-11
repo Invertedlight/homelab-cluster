@@ -1,5 +1,6 @@
-# Database, stateless apps, then linkding and mealie. clusters/vm-staging/apps.yaml
-# applies this directory after infrastructure-controller and database-operator.
+# Database, stateless apps, linkding and mealie, then the local-volume apps.
+# clusters/vm-staging/apps.yaml applies this directory after
+# infrastructure-controller and database-operator.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -8,3 +9,6 @@ resources:
   - cluster-dashboard
   - linkding
   - mealie
+  - netwatch
+  - node-red
+  - audiobookshelf
