@@ -1,5 +1,5 @@
-# Wave 1 master list is the database only. clusters/vm-staging/kustomization.yaml
-# does not list apps.yaml yet, so Flux does not apply this directory.
+# Master list is the database only. clusters/vm-staging/apps.yaml applies
+# this directory after infrastructure-controller and database-operator.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
