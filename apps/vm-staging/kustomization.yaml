@@ -12,3 +12,5 @@ resources:
   - netwatch
   - node-red
   - audiobookshelf
+  - n8n
+  - n8n-sandbox

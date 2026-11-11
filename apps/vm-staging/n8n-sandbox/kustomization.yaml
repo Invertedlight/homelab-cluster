@@ -1,0 +1,62 @@
+# Staging sandbox. local-path volumes, no skynet worker pin, SearXNG on
+# searxng-staging.jameshomelab.org. Auth and SEARXNG_SECRET are new.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/n8n-sandbox/
+  - n8n-sandbox-auth-secret.yaml
+  - searxng-secret.yaml
+patches:
+  - target:
+      group: helm.toolkit.fluxcd.io
+      version: v2
+      kind: HelmRelease
+      name: n8n-sandbox
+    patch: |-
+      - op: replace
+        path: /spec/values/api/persistence/storageClass
+        value: local-path
+      - op: replace
+        path: /spec/values/runner/dockerDataRoot/persistence/storageClass
+        value: local-path
+      - op: replace
+        path: /spec/values/runner/privileged/scheduling/affinity
+        value:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: searxng
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: searxng-staging.jameshomelab.org
+      - op: remove
+        path: /spec/tls
+  - target:
+      version: v1
+      kind: ConfigMap
+      name: searxng-settings
+    patch: |-
+      - op: replace
+        path: /data/settings.yml
+        value: |
+          use_default_settings: true
+          general:
+            instance_name: vm-staging-searxng
+          server:
+            # secret_key comes from env SEARXNG_SECRET
+            limiter: false
+            image_proxy: false
+            public_instance: false
+          search:
+            formats:
+              - html
+              - json

@@ -1,0 +1,63 @@
+# Staging James n8n. No Gloria overlay, no BlueBubbles egress, no SMB backup.
+# n8n-credentials and brave-search-api are not here yet. Create them on the
+# Mac mini before merge and add them to resources. The database password
+# comes from apps/vm-staging/database/homelab-postgres-n8n-james-secret.yaml.
+# The Brave key is the production key, re-encrypted to the vm-staging age
+# recipient. N8N_ENCRYPTION_KEY is new.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: n8n-james
+labels:
+  - pairs:
+      n8n.jameshomelab.org/customer: james
+    includeSelectors: false
+resources:
+  - ../../../base/n8n/
+  - ingress.yaml
+  - networkpolicy-sandbox.yaml
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: n8n
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: n8n-staging.jameshomelab.org
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: https://n8n-staging.jameshomelab.org/
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: n8n_james
+  - target:
+      version: v1
+      kind: PersistentVolumeClaim
+      name: n8n-data-longhorn
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: local-path
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: n8n-backup-smb
+  - patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: n8n-db-backup

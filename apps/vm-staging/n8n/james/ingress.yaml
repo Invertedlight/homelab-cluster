@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "James n8n"
+    dashboard.jameshomelab.org/description: "Staging n8n"
+  name: n8n
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: n8n-staging.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: n8n
+                port:
+                  name: http

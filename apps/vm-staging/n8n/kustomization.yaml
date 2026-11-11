@@ -1,0 +1,5 @@
+# James only. Gloria's n8n stays on skynet.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - james
