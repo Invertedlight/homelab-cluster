@@ -1,9 +1,8 @@
 # Staging James n8n. No Gloria overlay, no BlueBubbles egress, no SMB backup.
-# n8n-credentials and brave-search-api are not here yet. Create them on the
-# Mac mini before merge and add them to resources. The database password
-# comes from apps/vm-staging/database/homelab-postgres-n8n-james-secret.yaml.
+# n8n-credentials reuses the password already in
+# apps/vm-staging/database/homelab-postgres-n8n-james-secret.yaml.
 # The Brave key is the production key, re-encrypted to the vm-staging age
-# recipient. N8N_ENCRYPTION_KEY is new.
+# recipient. N8N_ENCRYPTION_KEY is new, not copied from production.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: n8n-james
@@ -15,6 +14,8 @@ resources:
   - ../../../base/n8n/
   - ingress.yaml
   - networkpolicy-sandbox.yaml
+  - n8n-credentials-secret.yaml
+  - brave-search-api-secret.yaml
 patches:
   - target:
       group: apps
