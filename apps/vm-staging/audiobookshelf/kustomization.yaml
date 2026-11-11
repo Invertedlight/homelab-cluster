@@ -1,0 +1,77 @@
+# Empty library. The production SMB share, the backup CronJob, the Longhorn
+# metadata claim, and the two classless PVCs are not applied. No TLS secret.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: audiobookshelf
+resources:
+  - ../../base/audiobookshelf/
+  - audiobookshelf-metadata.yaml
+  - audiobookshelf-library.yaml
+  - audiobookshelf-configmap.yaml
+  - ingress.yaml
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: audiobookshelf
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+      - op: replace
+        path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+        value: audiobookshelf-metadata
+      - op: replace
+        path: /spec/template/spec/volumes/1/persistentVolumeClaim/claimName
+        value: audiobookshelf-library-empty
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: audiobookshelf-data
+        namespace: audiobookshelf
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: audiobookshelf-library
+        namespace: audiobookshelf
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: audiobookshelf-library-smb
+        namespace: audiobookshelf
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: audiobookshelf-data-longhorn
+        namespace: audiobookshelf
+  - patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: audiobookshelf-backup
+        namespace: audiobookshelf

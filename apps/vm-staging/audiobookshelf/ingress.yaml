@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: audiobookshelf
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Audiobookshelf"
+    dashboard.jameshomelab.org/description: "Audiobooks and podcasts"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: audiobookshelf-staging.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: audiobookshelf
+                port:
+                  number: 3005

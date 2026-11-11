@@ -1,0 +1,42 @@
+# Local log only. report.sh skips the POST when url or token is empty or
+# starts with PLACEHOLDER (apps/base/netwatch/report.sh). These values are
+# not the production webhook. The monthly job still writes the report file.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: netwatch
+resources:
+  - ../../base/netwatch
+  - netwatch-sms-webhook-secret.yaml
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: netwatch
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+  - target:
+      group: batch
+      version: v1
+      kind: CronJob
+      name: netwatch-monthly-report
+    patch: |-
+      - op: remove
+        path: /spec/jobTemplate/spec/template/spec/affinity/nodeAffinity
+  - target:
+      version: v1
+      kind: PersistentVolumeClaim
+      name: netwatch-data
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: local-path
