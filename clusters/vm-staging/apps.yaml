@@ -9,8 +9,7 @@ spec:
   dependsOn:
     - name: infrastructure-controller
     - name: database-operator
-  # Not listed in clusters/vm-staging/kustomization.yaml yet. When it is,
-  # stay unready until the database pods are up.
+  # Stay unready until homelab-postgres and its claims are ready.
   wait: true
   retryInterval: 1m
   timeout: 5m
