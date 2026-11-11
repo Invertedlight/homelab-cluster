@@ -64,7 +64,7 @@ Claim sizes match production. The class changes from `longhorn` or `smb` to `loc
 | Audiobookshelf metadata | `longhorn` 5Gi | `local-path` 5Gi |
 | Audiobookshelf library | `smb` 10Gi on `//192.168.68.70/PVC` | empty `local-path` 5Gi. The NAS library stays on skynet |
 | DevPod home | `longhorn` 20Gi per replica, 2 replicas | `local-path` 20Gi per replica, 2 replicas |
-| DevPod scratch | `smb-uid1000` 500Gi | not created. See the DevPod open question |
+| DevPod scratch | one shared `smb-uid1000` 500Gi claim | `local-path` 10Gi per replica, on a worker |
 | netwatch log | `longhorn` 1Gi | `local-path` 1Gi |
 | n8n-sandbox | `longhorn` 1Gi and 20Gi | `local-path` 1Gi and 20Gi |
 | Mosquitto | no PVC (`persistence false`) | no PVC |
@@ -96,7 +96,7 @@ These bases apply on skynet today. A staging kustomization can patch them. Movin
 | `apps/base/cluster-dashboard` | `PUBLIC_HOST` is `home.jameshomelab.org`. The image `ghcr.io/invertedlight/cluster-dashboard:0.4.0` is not in this repo. | Patch `PUBLIC_HOST`. Keep `BASE_DOMAIN=jameshomelab.org`. |
 | `apps/base/mosquitto` | Service type is `LoadBalancer`. vm-staging has no kube-vip. This repo does not record whether k3s ServiceLB was disabled. A LoadBalancer can publish TCP 1883 on the node addresses in the same LAN as production. | Patch the Service to `ClusterIP`. |
 | `apps/base/audiobookshelf` | The Deployment mounts `audiobookshelf-library-smb`. The backup CronJob writes to that claim. | Delete the SMB claim, the backup CronJob, and the two classless PVCs. Add an empty `local-path` library. Metadata is a separate `local-path` 5Gi claim. |
-| `apps/base/devpod` | Home is `longhorn` 20Gi. Scratch is `smb-uid1000` 500Gi (`devpod-scratch-raidshare`). Quota allows 3Ti of claims. GitHub token is the production secret. | `local-path` homes. Delete the scratch claim and its mount. Lower `requests.storage` in the quota to 80Gi so a workspace cannot ask for more than a worker disk. New GitHub token. |
+| `apps/base/devpod` | Home is `longhorn` 20Gi. Scratch is one shared `smb-uid1000` 500Gi claim (`devpod-scratch-raidshare`). Quota allows 3Ti of claims. GitHub token is the production secret. The nodeport controller publishes SSH on the nodes. | `local-path` homes, 20Gi. Replace the shared scratch claim with a 10Gi `local-path` volumeClaimTemplate per replica. Drop `nodeport-controller.yaml`. Lower `requests.storage` from 3Ti to 80Gi (planned claims are 60Gi). New GitHub token. |
 | `apps/base/netwatch` | Log is `longhorn`. The monthly job POSTs `netwatch-sms-webhook`, and the report text is prefixed `[Skynet]` (`apps/base/netwatch/report.awk`). | `local-path` 1Gi log. New webhook secret whose `url` stays the placeholder, so `report.sh` writes the file and skips the POST. |
 | `apps/base/n8n-sandbox` | API and Docker data root use `longhorn`. The runner requires `skynet-wrk-01` through `skynet-wrk-04`. The SearXNG Ingress host is `searxng.jameshomelab.org`. | `local-path` at the same 1Gi and 20Gi. Drop the skynet hostnames and prefer workers. Host becomes `searxng-staging.jameshomelab.org`. New auth and SearXNG secrets. |
 
@@ -118,7 +118,7 @@ Decided. The staging master list matches `apps/skynet/kustomization.yaml`.
 | audiobookshelf | In. Empty library on `local-path`. |
 | netwatch | In. Local log. SMS send stays off. |
 | n8n-sandbox | In. Staging n8n only. |
-| devpod | In. `local-path` homes, no NAS scratch. |
+| devpod | In. `local-path` homes and a 10Gi `local-path` scratch per replica. No external SSH. |
 | n8n Gloria | Out. No overlay, no role, no secret, no host. Her instance stays on skynet. |
 
 ## 3. Order and Flux dependsOn
@@ -140,7 +140,7 @@ Waves are separate commits. Each one adds names to `apps/vm-staging/kustomizatio
 3. Stateless apps, then the small Postgres apps. Add `mosquitto`, then `cluster-dashboard`, `linkding`, and `mealie`.
 4. Local volumes that do not need Postgres. Add `netwatch`, `node-red`, and `audiobookshelf`.
 5. James's n8n, then `n8n-sandbox`. The sandbox network policy allows `n8n-james` in this cluster. Apply n8n first so that namespace exists.
-6. `devpod` last. It is cluster-admin on vm-staging, with two 20Gi home volumes.
+6. `devpod` last. It is cluster-admin on vm-staging, with two 20Gi home volumes and two 10Gi scratch volumes. SSH stays inside the cluster.
 
 ### Monitoring, separate decision
 
@@ -221,12 +221,13 @@ Proposed hosts are single-level. Production short names (`lds`, `abs`, `home`, `
 ### n8n (James)
 
 - Overlay: `apps/vm-staging/n8n/james`, same pattern as `apps/skynet/n8n/james`, base `apps/base/n8n`. Namespace `n8n-james`. Remove worker affinity. `local-path` 5Gi for `n8n-data-longhorn`. Delete CronJob `n8n-db-backup`. Patch `N8N_HOST`, `WEBHOOK_URL`, and `DB_POSTGRESDB_DATABASE` to `n8n-staging.jameshomelab.org`, `https://n8n-staging.jameshomelab.org/`, and `n8n_james`.
-- Secret `n8n-credentials`: new `DB_POSTGRESDB_USER`, `DB_POSTGRESDB_PASSWORD` (match the CNPG role), and a new `N8N_ENCRYPTION_KEY`. The production key stays in `apps/skynet/n8n/james`. Do not copy `brave-search-api`. Add a staging Brave key only if a workflow needs one.
+- Secret `n8n-credentials`: new `DB_POSTGRESDB_USER`, `DB_POSTGRESDB_PASSWORD` (match the CNPG role), and a new `N8N_ENCRYPTION_KEY`. The production encryption key stays in `apps/skynet/n8n/james`.
+- Brave Search is decided. Staging reuses the same API key as production. Ship `apps/vm-staging/n8n/james/brave-search-api-secret.yaml` with the same Secret name `brave-search-api` and key `api-key` as `apps/skynet/n8n/james/brave-search-api-secret.yaml`. Re-encrypt that value to the vm-staging age recipient. Do not copy the skynet ciphertext (its recipient is the production age key). Do not print the key. On the Mac mini, decrypt with the skynet age key into a mode-600 temp file, encrypt that file with `SOPS_AGE_KEY_FILE` set to `~/.config/sops/age/vm-staging.agekey` from a directory under `apps/vm-staging` so `apps/vm-staging/.sops.yaml` applies, then delete the temp file. The n8n Deployment does not reference this Secret; it sits in the namespace the same way it does on skynet.
 - Include `networkpolicy-sandbox.yaml` so this n8n can reach the staging sandbox. Do not copy `networkpolicy-bluebubbles.yaml` (egress to `192.168.68.70:1234`, BlueBubbles on the Mac mini).
 - The base network policy already allows DNS, Postgres, Traefik, and public 80/443, and it blocks private ranges.
 - Storage: `local-path` 5Gi at `/home/node/.n8n`.
 - Ingress: `n8n-staging.jameshomelab.org`, service port name `http`.
-- Cloudflare: route, CNAME, James-only Access on tunnel `vm-staging`. Verify before merge.
+- Cloudflare: route, CNAME, and James-only Access on tunnel `vm-staging`. Verify before merge. Whether Access bypasses the webhook paths is still open.
 - External: Postgres and the sandbox in this cluster. No production encryption key and no import of production workflows.
 
 ### audiobookshelf
@@ -259,12 +260,13 @@ Proposed hosts are single-level. Production short names (`lds`, `abs`, `home`, `
 ### devpod
 
 - Overlay: `apps/vm-staging/devpod`, base `apps/base/devpod`. Replace the skynet worker affinity so both replicas prefer the 128G workers.
-- Isolation: `volumeClaimTemplates` `home` changes from `longhorn` 20Gi to `local-path` 20Gi. Delete PVC `devpod-scratch-raidshare` and the scratch mount. That claim is StorageClass `smb-uid1000` on `//192.168.68.70/PVC` (`apps/base/devpod/README.md`). Staging does not install `smb-uid1000`. Lower the ResourceQuota `requests.storage` from 3Ti to 80Gi so a workspace cannot request a claim the worker disk cannot hold.
+- Isolation: `volumeClaimTemplates` `home` changes from `longhorn` 20Gi to `local-path` 20Gi. Delete PVC `devpod-scratch-raidshare`. That claim is one shared `smb-uid1000` volume on `//192.168.68.70/PVC` (`apps/base/devpod/README.md`). Staging does not install `smb-uid1000`. Replace it with a second volumeClaimTemplate, `scratch`, 10Gi, `local-path`, `ReadWriteOnce`, mounted at the same `/scratch` path. Each replica gets its own claim (`scratch-devpod-<ordinal>`) on a worker. `local-path` is not RWX, so the replicas do not share one scratch disk.
+- Quota: `requests.storage` drops from 3Ti to 80Gi. Two homes and two scratch claims are 60Gi, so 80Gi covers them and leaves 20Gi. That cap stays under a 128G worker disk. `persistentvolumeclaims: "8"` can stay.
 - Secrets: `github-credentials` (`username`, `token`) is a new token, encrypted to the vm-staging age key. Do not copy `apps/skynet/devpod/github-credentials.yaml`. `devpod/sops-age` is created from this cluster's `flux-system/sops-age` with the staging kubeconfig, the same way the README copies it, and it is the vm-staging private key. Do not copy the skynet age key into the pod. SSH host keys and the pod-to-pod key are generated on this cluster and are not the production secrets. `bootstrap/authorized_keys` is a public-key list in git; it is not a credential.
-- The Service is headless on port 2222 (`apps/base/devpod/service.yaml`). The nodeport controller publishes SSH on the staging nodes. Do not add those ports, or any devpod hostname, to the skynet tunnel.
+- SSH is decided. Staging DevPod has no external SSH. Do not add a tunnel route, a public hostname, or an Access app for it on tunnel `vm-staging`, and do not add one on the skynet tunnel. Drop `nodeport-controller.yaml` from the staging build so it does not create NodePort Services. The headless Service on port 2222 (`apps/base/devpod/service.yaml`) stays for pod-to-pod SSH inside the cluster.
 - Cluster-admin stays, matching `apps/base/devpod/clusterrolebinding-devpod-admin.yaml`. It is admin of vm-staging. The pod must not mount a kubeconfig for `192.168.68.40`.
-- Storage: 20Gi `local-path` per replica. No scratch claim until the open question is answered.
-- Cloudflare: no Ingress in this repo. A public SSH route, if James wants one, is tunnel `vm-staging` plus James-only Access, on a staging hostname.
+- Storage: 20Gi `local-path` home and 10Gi `local-path` scratch per replica, both on a worker.
+- Cloudflare: no Ingress in this repo, and no tunnel route for SSH.
 
 ### Gloria's n8n
 
@@ -307,13 +309,13 @@ Per wave, after Ready:
 - Audiobookshelf: the library mount is empty. `abs.jameshomelab.org` still serves the production library.
 - netwatch: the monthly job log says the SMS was skipped. No text arrives from the production webhook.
 - n8n-sandbox: the runner is not on a `skynet-wrk-*` node. SearXNG answers on `searxng-staging.jameshomelab.org` after Access, and `searxng.jameshomelab.org` is unchanged.
-- DevPod: both pods Running, homes Bound on `local-path`, no scratch PVC. `kubectl` inside the pod lists vm-staging nodes only.
+- DevPod: both pods Running. Each has a 20Gi home and a 10Gi scratch, both Bound on `local-path`. No `smb-uid1000` claim, no NodePort, no devpod hostname on either tunnel. `kubectl` inside the pod lists vm-staging nodes only.
 - HTTP: `curl -sI https://<app>-staging.jameshomelab.org` shows Cloudflare Access, then the empty staging app after login.
 - Linkding and Mealie: a write on staging does not appear at `lds.jameshomelab.org` or `mealie.jameshomelab.org`.
 - n8n: settings show the staging webhook URL. Workflow list is empty. Gloria's host is unchanged.
 - Mosquitto: no Service of type LoadBalancer in `mosquitto`.
 
-Disk check while the later waves land. The claims are a fraction of 64G and 128G. DevPod (40Gi of homes) and the sandbox (20Gi) are the ones to watch:
+Disk check while the later waves land. The claims are a fraction of 64G and 128G. DevPod (40Gi of homes plus 20Gi of scratch) and the sandbox (20Gi) are the ones to watch:
 
 ```zsh
 kubectl --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" describe nodes | sed -n '/Name:/p;/Allocated resources/,+8p'
@@ -343,16 +345,20 @@ If a wave is bad and the earlier waves are fine, revert only that commit so the 
 
 ## 6. Open questions
 
-The include list is decided. These are the questions that are still open.
+The include list is decided. So are DevPod SSH, DevPod scratch, and the Brave Search key. These are the questions that are still open.
 
-1. Which `<name>.jameshomelab.org` records already have a vm-staging tunnel rule, a proxied CNAME, and a James-only Access app? Use those names in the Ingress when they differ from the proposed `<app>-staging` names. This includes `audiobookshelf-staging` and `searxng-staging`.
-2. DevPod SSH is not an Ingress in this repo. Should tunnel `vm-staging` publish it, and under which single-level hostname? The skynet tunnel does not get a new route.
-3. DevPod scratch: the plan omits the shared NAS volume. If a scratch disk is wanted, it is a per-replica `local-path` claim on a worker. What size?
-4. netwatch: the plan stores the report and does not POST. If a copy should be sent, the URL has to be a staging webhook, and the `[Skynet]` prefix in `report.awk` has to be patched first. The production SMS webhook stays unused.
-5. Is any staging backup wanted? The recommendation is none. A later backup would be a `local-path` claim on this cluster, not Garage bucket `cnpg` and not `//192.168.68.70/PVC`.
-6. Install the slim monitoring stack, or leave `monitoring.yaml` unlisted? If it is installed, Grafana is the whole feature unless James names a staging-only receiver. It does not use the production SMS or Telegram secrets.
-7. Mosquitto stays ClusterIP. Is a LAN LoadBalancer wanted later, on a port that is not the production broker?
-8. For staging n8n, should Access bypass the webhook paths? Should a new Brave Search key be created, or left absent?
-9. Mealie: confirm the first-account step (temporary `ALLOW_SIGNUP=true`) matches how this Mealie image behaves at `v3.30.0`.
-10. Dashboard: `PUBLIC_HOST` will be the staging host. The image is not in this repo. If it also synthesizes links from `BASE_DOMAIN`, those links need a look after the first login.
-11. The manifest PR can patch `apps/base/database` in place, or move the barman and SMB objects into `apps/skynet/database`. The second keeps the next overlay smaller and is the one this plan prefers. Production's rendered cluster should stay the same.
+1. Which `<name>.jameshomelab.org` records already have a vm-staging tunnel rule, a proxied CNAME, and a James-only Access app? Use those names in the Ingress when they differ from the proposed `<app>-staging` names. This includes `audiobookshelf-staging` and `searxng-staging`. DevPod is not on that list: it has no tunnel route.
+2. netwatch: the plan stores the report and does not POST. If a copy should be sent, the URL has to be a staging webhook, and the `[Skynet]` prefix in `report.awk` has to be patched first. The production SMS webhook stays unused.
+3. Is any staging backup wanted? The recommendation is none. A later backup would be a `local-path` claim on this cluster, not Garage bucket `cnpg` and not `//192.168.68.70/PVC`.
+4. Install the slim monitoring stack, or leave `monitoring.yaml` unlisted? If it is installed, Grafana is the whole feature unless James names a staging-only receiver. It does not use the production SMS or Telegram secrets.
+5. Mosquitto stays ClusterIP. Is a LAN LoadBalancer wanted later, on a port that is not the production broker?
+6. For staging n8n, should Cloudflare Access bypass the webhook paths? James is still deciding. The Brave Search key is not part of this question.
+7. Mealie: confirm the first-account step (temporary `ALLOW_SIGNUP=true`) matches how this Mealie image behaves at `v3.30.0`.
+8. Dashboard: `PUBLIC_HOST` will be the staging host. The image is not in this repo. If it also synthesizes links from `BASE_DOMAIN`, those links need a look after the first login.
+9. The manifest PR can patch `apps/base/database` in place, or move the barman and SMB objects into `apps/skynet/database`. The second keeps the next overlay smaller and is the one this plan prefers. Production's rendered cluster should stay the same.
+
+### Decided
+
+- DevPod SSH: no vm-staging tunnel route. Staging DevPod has no external SSH. The nodeport controller is left out of the staging build. Pod-to-pod SSH on the headless Service remains.
+- DevPod scratch: a 10Gi `local-path` claim per replica, on a worker, in place of the shared 500Gi NAS claim. Namespace storage quota is 80Gi.
+- Brave Search: staging n8n uses the same API key as production, re-encrypted to the vm-staging age key in `apps/vm-staging/n8n/james/`. The value is never printed, and the production ciphertext is not copied.
