@@ -253,11 +253,11 @@ Patching the path back to `./clusters/staging` while this PR is still on `main` 
 
 Not applied to skynet. Layout:
 
-- `clusters/vm-staging/flux-system/` is the Flux install James applied by hand. `clusters/vm-staging/kustomization.yaml` lists `flux-system` and `infrastructure.yaml`.
-- `monitoring.yaml`, `database-operator.yaml`, and `apps.yaml` are in that directory and are not listed yet. Later PRs add monitoring and database-operator, then a few apps. `apps` depends on the other two, so it stays last. The sequence, the app list, and the overlay work are in [the vm-staging app plan](plans/vm-staging-apps.md).
+- `clusters/vm-staging/flux-system/` is the Flux install James applied by hand. `clusters/vm-staging/kustomization.yaml` lists `flux-system`, `infrastructure.yaml`, and `database-operator.yaml`.
+- `monitoring.yaml` and `apps.yaml` are in that directory and are not listed yet. `apps` depends on infrastructure and the database operator, so it stays last. The sequence, the app list, and the overlay work are in [the vm-staging app plan](plans/vm-staging-apps.md).
 - `infrastructure-controller` builds `infrastructure/controllers/vm-staging`: cert-manager (controller only, ServiceMonitor off), cloudflared (base namespace and Deployment, plus the vm-staging tunnel token), the CoreDNS search-domain rewrite, and kured. It does not include kube-vip, the production wildcard certificate, SMB, Garage, Longhorn, the barman plugin, Renovate, or kjobs.
-- `apps/vm-staging`, `monitoring/controllers/vm-staging`, and `monitoring/configs/vm-staging` still have an empty `kustomization.yaml`.
-- `database-operator` points at `infrastructure/controllers/base/cloudnative-pg`. That base has no Secret and no node IP, so that Kustomization has no decryption block. The infrastructure, monitoring, and apps Kustomizations set `decryption.provider: sops` and `secretRef: sops-age`. Delete `database-operator.yaml` before it is listed if this cluster should not install the operator, and drop it from `dependsOn` in `apps.yaml`.
+- `apps/vm-staging/kustomization.yaml` lists `database` only. Flux does not apply it until `apps.yaml` is listed on the vm-staging root. `monitoring/controllers/vm-staging` and `monitoring/configs/vm-staging` still have an empty `kustomization.yaml`.
+- `database-operator` points at `infrastructure/controllers/vm-staging/cloudnative-pg`, which is the shared CloudNativePG chart with PodMonitors off. That path has no Secret, so the Kustomization has no decryption block. `spec.wait` is true. The infrastructure, monitoring, and apps Kustomizations set `decryption.provider: sops` and `secretRef: sops-age`.
 
 SOPS: each vm-staging directory has a `.sops.yaml` whose `age` recipient is `age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp`. That is not the skynet recipient. The nearest file wins, so a secret under those trees does not fall through to the production policy.
 
@@ -309,7 +309,7 @@ Secret `flux-system/sops-age` (data key `age.agekey`) is already on the staging 
    kubectl --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" apply -k clusters/vm-staging/flux-system
    ```
 
-4. Check the source and the Kustomizations. `flux-system` should be Ready at `./clusters/vm-staging`. After the infrastructure PR, `infrastructure-controller` should be Ready too. `monitoring-controllers`, `monitoring-configs`, `database-operator`, and `apps` stay unlisted, so they should not appear.
+4. Check the source and the Kustomizations. `flux-system` should be Ready at `./clusters/vm-staging`. After the infrastructure PR, `infrastructure-controller` should be Ready too. `database-operator` is listed and should become Ready at `./infrastructure/controllers/vm-staging/cloudnative-pg`. `monitoring-controllers`, `monitoring-configs`, and `apps` stay unlisted, so they should not appear.
 
    ```zsh
    flux --kubeconfig "${HOME}/.kube/staging-vm-cluster.yaml" get sources git

@@ -1,0 +1,32 @@
+# Staging homelab-postgres. apps/base/database has no barman plugin and no
+# SMB backup. This overlay drops the Gloria role and the backup role, and
+# turns the PodMonitor off. Role secrets are encrypted to the vm-staging age
+# recipient. There is no homelab-postgres-n8n-gloria secret and no
+# homelab-postgres-backup secret.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: database
+resources:
+  - ../../base/database
+  - homelab-postgres-linkding-secret.yaml
+  - homelab-postgres-mealie-secret.yaml
+  - homelab-postgres-dashboard-secret.yaml
+  - homelab-postgres-n8n-james-secret.yaml
+  - mealie-database.yaml
+  - dashboard-database.yaml
+  - n8n-james-database.yaml
+patches:
+  - target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: Cluster
+      name: homelab-postgres
+    patch: |-
+      - op: replace
+        path: /spec/monitoring/enablePodMonitor
+        value: false
+      # Remove backup (index 5) before n8n_gloria (index 4).
+      - op: remove
+        path: /spec/managed/roles/5
+      - op: remove
+        path: /spec/managed/roles/4
