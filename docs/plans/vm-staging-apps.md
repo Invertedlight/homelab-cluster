@@ -345,7 +345,7 @@ If a wave is bad and the earlier waves are fine, revert only that commit so the 
 
 ## 6. Open questions
 
-The include list is decided. So are DevPod SSH, DevPod scratch, the Brave Search key, and the n8n Access webhook bypass. These are the questions that are still open.
+The include list is decided. So are DevPod SSH, DevPod scratch, the Brave Search key, and the n8n Access webhook bypass. Still open:
 
 1. Which `<name>.jameshomelab.org` records already have a vm-staging tunnel rule, a proxied CNAME, and a James-only Access app? Use those names in the Ingress when they differ from the proposed `<app>-staging` names. This includes `audiobookshelf-staging` and `searxng-staging`. DevPod is not on that list: it has no tunnel route. `n8n-staging.jameshomelab.org` also needs the webhook bypass policy below.
 2. netwatch: the plan stores the report and does not POST. If a copy should be sent, the URL has to be a staging webhook, and the `[Skynet]` prefix in `report.awk` has to be patched first. The production SMS webhook stays unused.
