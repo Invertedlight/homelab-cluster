@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: mosquitto-login
+    namespace: mosquitto
+type: Opaque
+stringData:
+    username: ENC[AES256_GCM,data:NgrHkYk=,iv:MQophH77IPNRuAxEEoAnfIV80H4wleQX6D+wzmVGWnY=,tag:tkoxD1hASAzIearVb7D87A==,type:str]
+    password: ENC[AES256_GCM,data:Kg54vWia9RsLpecXWn4+Tt/hRSfSfVmzdC7gLEf3LSD0sxGE,iv:947JVUiBVERksEU90AzbxZEowWd0UfqHkDeTYO2wtOM=,tag:NqrrWQI152y6zDxq4vlqJQ==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB3SmwwcDUwQXBYOTNvUk5a
+            U0hFOU9PbjNxcTBPZkVPWml3Y0FKVC8xOUVjCkhwN3pmVkphL1VPVXRuUzV4K2p3
+            aGp3eGpZekQwYUFJL2sxbGhwVHh5WmcKLS0tIGJOaXhUNExFTTBWd3lJYnhIbDAr
+            MUsxbUl3UEx3bUhlVTlWalU4UU10NmcKNEBK8QOiZFqX7Z7Eifvr+wXvUg7630lZ
+            y8OjFYSc5bZHQdBDjrzlJR1OaKALyLg3PyHtEmdCKlcvPWBo+H3Uuw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-11-11T22:29:44Z"
+    mac: ENC[AES256_GCM,data:LDLiiG6S3b0KQo3uEc2L9E6o0lDsQ5zsMMr9PwYe+BqT/Y5CapRgHgbW0dD2U22ecsELQ/Fd/8HvCAJF5be02HD7bOChZr93t8fOGuubzzSMpDx32LJFjll7sJGWh/Tli9f9XNIqEy/iMvxGiGGwtjc1RZvLL44mQ88RHUyB0n0=,iv:70FFyH5nxZ0t83FGdDJiofSxb3ePcfT+bdznDH8I3+U=,tag:W4Ry2gSOblOqIahX0CkEqA==,type:str]
+    version: 3.13.3
