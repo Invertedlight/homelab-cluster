@@ -2,13 +2,12 @@
 # no tunnel, and no Homebrew install. Home stays local-path 20Gi. Scratch
 # stays a 10Gi local-path claim. The shared 500Gi NAS claim is not applied.
 # Quota requests.storage is 40Gi (one home and one scratch claim are 30Gi).
-# github-credentials is not in this directory yet. Create it on the Mac mini
-# with a new fine-grained token and add the file to resources before merge.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: devpod
 resources:
   - ../../base/devpod/
+  - github-credentials.yaml
 patches:
   - target:
       group: apps
