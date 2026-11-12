@@ -1,5 +1,5 @@
-# Scaffold only. The skynet overlay pulls monitoring/controllers/base, which
-# is sized for production. Add a vm-staging release when this cluster exists.
+# Slim kube-prometheus-stack. No PrometheusRules and no Alertmanager.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources: []
+resources:
+  - kube-prometheus-stack

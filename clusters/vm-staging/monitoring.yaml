@@ -1,6 +1,8 @@
 # Not reconciled by production Flux. Production builds clusters/skynet only.
 # Name is monitoring-controllers. Production keeps the live typo
 # monitoring-controlers; that object must not be renamed.
+# Apps do not wait on this. The Helm release creates the monitoring namespace,
+# so the first install does not depend on another Kustomization.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -9,7 +11,8 @@ metadata:
 spec:
   interval: 1m0s
   retryInterval: 1m
-  timeout: 5m
+  timeout: 10m
+  wait: true
   sourceRef:
     kind: GitRepository
     name: flux-system
@@ -20,15 +23,20 @@ spec:
     secretRef:
       name: sops-age
 ---
+# Empty on purpose: no PrometheusRules and no alert routes. dependsOn keeps
+# a later config from applying before the namespace and CRDs exist.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: monitoring-configs
   namespace: flux-system
 spec:
+  dependsOn:
+    - name: monitoring-controllers
   interval: 1m0s
   retryInterval: 1m
   timeout: 5m
+  wait: true
   sourceRef:
     kind: GitRepository
     name: flux-system

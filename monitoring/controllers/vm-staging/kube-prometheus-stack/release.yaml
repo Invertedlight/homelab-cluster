@@ -1,0 +1,165 @@
+# Slim kube-prometheus-stack for the 6-node vm-staging cluster.
+# Same chart as monitoring/controllers/base/kube-prometheus-stack/release.yaml.
+# This file does not include that release: the base release pages via SMS and
+# Telegram. Grafana is the only Ingress. Alertmanager is off, and the chart
+# creates no PrometheusRules, so nothing is routed to SMS, n8n, email, or a webhook.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: "66.2.2"
+      sourceRef:
+        kind: HelmRepository
+        name: kube-prometheus-stack
+        namespace: monitoring
+      interval: 12h
+  install:
+    crds: Create
+  upgrade:
+    crds: CreateReplace
+  driftDetection:
+    mode: enabled
+    ignore:
+      # The operator adds this annotation after install. Flux did not write it.
+      - paths: ["/metadata/annotations/prometheus-operator-validated"]
+        target:
+          kind: PrometheusRule
+  values:
+    alertmanager:
+      enabled: false
+    defaultRules:
+      create: false
+    additionalPrometheusRulesMap: {}
+    # k3s runs these inside the k3s process, on localhost. The ServiceMonitors
+    # would have no targets. Same set the skynet release disables.
+    kubeScheduler:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    kubeEtcd:
+      enabled: false
+    kube-state-metrics:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+    nodeExporter:
+      enabled: true
+      operatingSystems:
+        linux:
+          enabled: true
+        aix:
+          enabled: false
+        darwin:
+          enabled: false
+    prometheus-node-exporter:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 64Mi
+    prometheusOperator:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+      prometheusConfigReloader:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 20Mi
+          limits:
+            memory: 32Mi
+    prometheus:
+      prometheusSpec:
+        retention: 7d
+        # Stay under the 10Gi claim. WAL and the head block need the rest.
+        retentionSize: 8GB
+        scrapeInterval: 60s
+        evaluationInterval: 60s
+        replicas: 1
+        externalLabels:
+          cluster: vm-staging
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            memory: 1536Mi
+        # 10Gi is small next to a 128G worker and tight on a 64G control-plane disk.
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: local-path
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 10Gi
+    grafana:
+      enabled: true
+      admin:
+        existingSecret: grafana-admin-credentials
+        userKey: admin-user
+        passwordKey: admin-password
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 384Mi
+      grafana.ini:
+        analytics:
+          reporting_enabled: false
+          check_for_updates: false
+        users:
+          allow_sign_up: false
+        # Chart Grafana can alert on its own. Keep that off; Alertmanager is off too.
+        alerting:
+          enabled: false
+        unified_alerting:
+          enabled: false
+      sidecar:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+        dashboards:
+          searchNamespace: monitoring
+        datasources:
+          alertmanager:
+            enabled: false
+        alerts:
+          enabled: false
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        annotations:
+          dashboard.jameshomelab.org/enable: "true"
+          dashboard.jameshomelab.org/name: "Grafana"
+          dashboard.jameshomelab.org/description: "Staging metrics and dashboards"
+        hosts:
+          - grafana-staging.jameshomelab.org
+        tls: []

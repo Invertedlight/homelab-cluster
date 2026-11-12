@@ -1,6 +1,6 @@
-# Flux, infrastructure, the CNPG operator, then apps. monitoring.yaml stays
-# in this directory and is not applied yet. apps.yaml depends on
-# infrastructure-controller and database-operator, so it stays last.
+# Flux, infrastructure, the CNPG operator, apps, then monitoring.
+# apps.yaml depends on infrastructure-controller and database-operator.
+# It does not depend on monitoring. monitoring.yaml is last.
 # infrastructure, monitoring, and apps set decryption to sops / sops-age.
 # database-operator does not: that path has no Secret.
 # flux-system stays in this list. Dropping it after it is in
@@ -12,3 +12,4 @@ resources:
   - infrastructure.yaml
   - database-operator.yaml
   - apps.yaml
+  - monitoring.yaml

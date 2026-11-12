@@ -131,7 +131,7 @@ Do not install `infrastructure/controllers/base/cnpg-barman-plugin`. Its HelmRel
 
 `clusters/vm-staging/apps.yaml` already `dependsOn` `infrastructure-controller` and `database-operator`. It does not set `wait`. Set `wait: true` for these waves so a Pending Pod keeps the Kustomization unready. An SMB claim left in the build stays Pending forever and then blocks this; section 1 deletes those claims.
 
-Monitoring is a separate decision. Leave `monitoring.yaml` unlisted until James accepts the slim stack at the end of this section. App waves do not wait on it. PodMonitors stay off until that stack exists.
+Monitoring is installed. `clusters/vm-staging/kustomization.yaml` lists `monitoring.yaml`. App waves do not wait on it. cert-manager's ServiceMonitor and the CNPG PodMonitors stay off until `monitoring-controllers` is Ready; that follow-up is not part of the install.
 
 Waves are separate commits. Each one adds names to `apps/vm-staging/kustomization.yaml` and is checked on the staging kubeconfig before the next.
 
@@ -146,16 +146,17 @@ Waves are separate commits. Each one adds names to `apps/vm-staging/kustomizatio
 
 `monitoring/controllers/base/kube-prometheus-stack/release.yaml` is the production release: Grafana host `grs.jameshomelab.org`, Alertmanager receiver `sms` using the production webhook, `externalLabels.cluster: Skynet`, Grafana Telegram. `monitoring/configs/skynet` holds those secrets and the Garage, Longhorn, and n8n rules. `apps/base/netwatch/README.md` describes production Prometheus as 10 days with no disk. The release file sets no `storageSpec`.
 
-Slim option, only if James wants metrics on this cluster:
+Decided and installed, lighter than the first sketch (that sketch was retention `2d` and no disk):
 
-- A new HelmRelease under `monitoring/controllers/vm-staging`, reusing the base namespace and HelmRepository only.
-- Prometheus retention `2d`, an explicit memory limit, no PVC. 128G workers can hold a small Prometheus disk later; this option still uses none.
-- Alertmanager disabled, or a `null` receiver. No SMS webhook and no Telegram secret. netwatch must not gain a path to that channel either.
+- A new HelmRelease under `monitoring/controllers/vm-staging`, reusing the base namespace and HelmRepository only. Chart version matches the skynet release so Renovate can bump them together.
+- Prometheus retention `7d`, `retentionSize` `8GB`, and a `local-path` 10Gi claim. Requests are sized for 6 small VMs. The claim prefers a worker.
+- Alertmanager disabled. `defaultRules.create` is false, and `monitoring/configs/vm-staging` stays empty. No SMS webhook, no Telegram secret, no email, no webhook. netwatch does not gain a path to that channel either.
 - `externalLabels.cluster: vm-staging`.
-- Grafana Ingress `grafana-staging.jameshomelab.org`, `ingressClassName: traefik`, James-only Access, a new admin password encrypted to the vm-staging age key.
+- node-exporter and kube-state-metrics stay on. kube-scheduler, kube-controller-manager, kube-proxy, and kube-etcd stay off, same as skynet, because k3s does not expose them.
+- Grafana Ingress `grafana-staging.jameshomelab.org`, `ingressClassName: traefik`, no TLS block. James adds the James-only Access application. The admin password is a new value in `grafana-admin-credentials`, encrypted to the vm-staging age key, applied with the HelmRelease.
 - No copy of `monitoring/configs/skynet`.
 
-After that release is Ready, a follow-up may turn cert-manager's ServiceMonitor back on and set the CNPG PodMonitors on. That follow-up is part of the monitoring decision, not the app waves.
+`monitoring-configs` depends on `monitoring-controllers`. Apps do not. After `monitoring-controllers` is Ready, a follow-up may turn cert-manager's ServiceMonitor back on and set the CNPG PodMonitors on. That follow-up is not in the install.
 
 ## 4. Per app
 
@@ -345,16 +346,15 @@ If a wave is bad and the earlier waves are fine, revert only that commit so the 
 
 ## 6. Open questions
 
-The include list is decided. So are DevPod SSH, DevPod scratch, the Brave Search key, and the n8n Access webhook bypass. Still open:
+The include list is decided. So are DevPod SSH, DevPod scratch, the Brave Search key, the n8n Access webhook bypass, and the slim monitoring stack. Still open:
 
 1. Which `<name>.jameshomelab.org` records already have a vm-staging tunnel rule, a proxied CNAME, and a James-only Access app? Use those names in the Ingress when they differ from the proposed `<app>-staging` names. This includes `audiobookshelf-staging` and `searxng-staging`. DevPod is not on that list: it has no tunnel route. `n8n-staging.jameshomelab.org` also needs the webhook bypass policy below.
 2. netwatch: the plan stores the report and does not POST. If a copy should be sent, the URL has to be a staging webhook, and the `[Skynet]` prefix in `report.awk` has to be patched first. The production SMS webhook stays unused.
 3. Is any staging backup wanted? The recommendation is none. A later backup would be a `local-path` claim on this cluster, not Garage bucket `cnpg` and not `//192.168.68.70/PVC`.
-4. Install the slim monitoring stack, or leave `monitoring.yaml` unlisted? If it is installed, Grafana is the whole feature unless James names a staging-only receiver. It does not use the production SMS or Telegram secrets.
-5. Mosquitto stays ClusterIP. Is a LAN LoadBalancer wanted later, on a port that is not the production broker?
-6. Mealie: confirm the first-account step (temporary `ALLOW_SIGNUP=true`) matches how this Mealie image behaves at `v3.30.0`.
-7. Dashboard: `PUBLIC_HOST` will be the staging host. The image is not in this repo. If it also synthesizes links from `BASE_DOMAIN`, those links need a look after the first login.
-8. The manifest PR can patch `apps/base/database` in place, or move the barman and SMB objects into `apps/skynet/database`. The second keeps the next overlay smaller and is the one this plan prefers. Production's rendered cluster should stay the same.
+4. Mosquitto stays ClusterIP. Is a LAN LoadBalancer wanted later, on a port that is not the production broker?
+5. Mealie: confirm the first-account step (temporary `ALLOW_SIGNUP=true`) matches how this Mealie image behaves at `v3.30.0`.
+6. Dashboard: `PUBLIC_HOST` will be the staging host. The image is not in this repo. If it also synthesizes links from `BASE_DOMAIN`, those links need a look after the first login.
+7. The manifest PR can patch `apps/base/database` in place, or move the barman and SMB objects into `apps/skynet/database`. The second keeps the next overlay smaller and is the one this plan prefers. Production's rendered cluster should stay the same.
 
 ### Decided
 
@@ -362,3 +362,4 @@ The include list is decided. So are DevPod SSH, DevPod scratch, the Brave Search
 - DevPod scratch: a 10Gi `local-path` claim per replica, on a worker, in place of the shared 500Gi NAS claim. Namespace storage quota is 80Gi.
 - Brave Search: staging n8n uses the same API key as production, re-encrypted to the vm-staging age key in `apps/vm-staging/n8n/james/`. The value is never printed, and the production ciphertext is not copied.
 - n8n Access: on `n8n-staging.jameshomelab.org`, Cloudflare Access bypasses only `/webhook/*` and `/webhook-test/*`. The editor and every other path stay on the James-only Access application. Production n8n is unchanged.
+- Monitoring: slim kube-prometheus-stack, retention 7d on a 10Gi `local-path` claim, Grafana at `grafana-staging.jameshomelab.org`, Alertmanager off, no PrometheusRules and no alert route. James adds James-only Access for that host.
