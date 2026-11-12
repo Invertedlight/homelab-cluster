@@ -326,8 +326,8 @@ The script discovers Flux Kustomizations under `clusters/skynet` and `clusters/v
 
 SOPS enforcement for `.sops.yaml` and `clusters/skynet/.sops.yaml` requires an age recipient, and every Secret must be ciphertext. vm-staging policies must set `age` to `age1pks7eeuqakm64nyy35m8fmwx4qh6lve4nt0xfevnue3xeu5er9eqa5skfp`. Secrets under those trees must include that recipient. A plaintext Secret still fails. Example templates are ignored by filename; the Node-RED one is `apps/skynet/node-red/node-red-admin-secret.example.yaml`.
 
-Renovate config is unchanged. `renovate.json` has no path filter.
+`renovate.json` covers `apps/vm-staging`, `clusters/vm-staging`, `infrastructure/controllers/vm-staging`, and the vm-staging monitoring controllers and configs, along with the shared bases and the skynet copies. `minimumReleaseAge` is 3 days for every update. The Renovate image opens at most one PR a week and automerges after checks pass. Other digest and patch updates are one Monday group. App updates and major updates stay separate. The flux manager reads HelmRelease chart versions in those trees, and no rule sets a path-specific branch prefix, so a skynet chart or image and its vm-staging copy share one PR.
 
 ## Comments updated with the shim removal
 
-Path comments under `apps/base`, `monitoring/controllers/base`, `infrastructure/controllers/base/cloudflared/tunnel-token.secret.yaml.example`, and `setup` now say `skynet`. The cloudflared example's nearest SOPS policy is still the repo-root `.sops.yaml`, which matches `clusters/skynet/.sops.yaml`. `renovate.json` has no path filter and was not edited.
+Path comments under `apps/base`, `monitoring/controllers/base`, `infrastructure/controllers/base/cloudflared/tunnel-token.secret.yaml.example`, and `setup` now say `skynet`. The cloudflared example's nearest SOPS policy is still the repo-root `.sops.yaml`, which matches `clusters/skynet/.sops.yaml`. The shim removal did not edit `renovate.json`. Coverage for vm-staging is described above.
