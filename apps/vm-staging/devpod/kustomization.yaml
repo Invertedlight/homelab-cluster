@@ -1,0 +1,91 @@
+# In-cluster DevPod only. No nodeport controller, no NodePort, no tunnel.
+# Home is local-path 20Gi. Scratch is a 10Gi local-path claim per replica.
+# The shared 500Gi NAS claim is not applied. Quota requests.storage is 80Gi
+# (two homes and two scratch claims are 60Gi).
+# github-credentials is not in this directory yet. Create it on the Mac mini
+# with a new fine-grained token and add the file to resources before merge.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: devpod
+resources:
+  - ../../base/devpod/
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: devpod
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: local-path
+      - op: remove
+        path: /spec/template/spec/volumes/0
+      - op: add
+        path: /spec/volumeClaimTemplates/-
+        value:
+          metadata:
+            name: scratch
+            labels:
+              app.kubernetes.io/name: devpod
+              app.kubernetes.io/part-of: homelab-dev
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: local-path
+            resources:
+              requests:
+                storage: 10Gi
+  - target:
+      version: v1
+      kind: ResourceQuota
+      name: devpod-quota
+    patch: |-
+      - op: replace
+        path: /spec/hard/requests.storage
+        value: 80Gi
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: devpod-scratch-raidshare
+        namespace: devpod
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: devpod-nodeport
+        namespace: devpod
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: devpod-nodeport
+        namespace: devpod
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: devpod-nodeport
+        namespace: devpod
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: devpod-nodeport
+        namespace: devpod

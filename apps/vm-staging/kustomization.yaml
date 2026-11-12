@@ -14,3 +14,4 @@ resources:
   - audiobookshelf
   - n8n
   - n8n-sandbox
+  - devpod
