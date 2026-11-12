@@ -20,12 +20,23 @@ patches:
         path: /spec/template/spec/affinity
         value:
           nodeAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                preference:
-                  matchExpressions:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
                     - key: node-role.kubernetes.io/control-plane
                       operator: DoesNotExist
+      - op: add
+        path: /spec/template/metadata/labels/homelab.jameshomelab.org~1schedule
+        value: vm-staging
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                homelab.jameshomelab.org/schedule: vm-staging
       - op: replace
         path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
         value: audiobookshelf-metadata
@@ -36,10 +47,10 @@ patches:
         path: /spec/template/spec/containers/0/resources
         value:
           requests:
-            cpu: 50m
-            memory: 128Mi
+            cpu: 20m
+            memory: 80Mi
           limits:
-            memory: 512Mi
+            memory: 160Mi
   - patch: |-
       $patch: delete
       apiVersion: v1

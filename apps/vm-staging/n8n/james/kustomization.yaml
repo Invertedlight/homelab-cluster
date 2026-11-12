@@ -27,12 +27,40 @@ patches:
         path: /spec/template/spec/affinity
         value:
           nodeAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                preference:
-                  matchExpressions:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
                     - key: node-role.kubernetes.io/control-plane
                       operator: DoesNotExist
+      - op: add
+        path: /spec/template/metadata/labels/homelab.jameshomelab.org~1schedule
+        value: vm-staging
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                homelab.jameshomelab.org/schedule: vm-staging
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 160Mi
+          limits:
+            memory: 288Mi
+      # Index 8 is N8N_RUNNERS_ENABLED. The sandbox chart is the code runner.
+      - op: replace
+        path: /spec/template/spec/containers/0/env/8/value
+        value: "false"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: N8N_LOG_LEVEL
+          value: warn
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
         value: n8n-staging.jameshomelab.org
