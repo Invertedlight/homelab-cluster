@@ -1,8 +1,8 @@
-# Staging homelab-postgres. apps/base/database has no barman plugin and no
-# SMB backup. This overlay drops the Gloria role and the backup role, and
-# turns the PodMonitor off. Role secrets are encrypted to the vm-staging age
-# recipient. There is no homelab-postgres-n8n-gloria secret and no
-# homelab-postgres-backup secret.
+# Staging homelab-postgres. One instance, on a worker, with commit fsync
+# deferred. apps/base/database has no barman plugin and no SMB backup. This
+# overlay drops the Gloria role and the backup role, and turns the PodMonitor
+# off. Role secrets are encrypted to the vm-staging age recipient. There is
+# no homelab-postgres-n8n-gloria secret and no homelab-postgres-backup secret.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: database
@@ -25,6 +25,67 @@ patches:
       - op: replace
         path: /spec/monitoring/enablePodMonitor
         value: false
+      - op: replace
+        path: /spec/instances
+        value: 1
+      # A single instance cannot wait on a synchronous standby.
+      - op: remove
+        path: /spec/postgresql/synchronous
+      # Fewer, slower flushes so etcd fdatasync is not stuck behind WAL.
+      - op: add
+        path: /spec/postgresql/parameters
+        value:
+          synchronous_commit: "off"
+          shared_buffers: "64MB"
+          work_mem: "4MB"
+          maintenance_work_mem: "32MB"
+          effective_cache_size: "128MB"
+          max_connections: "40"
+          checkpoint_timeout: "15min"
+          checkpoint_completion_target: "0.9"
+          max_wal_size: "256MB"
+          min_wal_size: "32MB"
+          wal_writer_delay: "1s"
+          log_min_messages: "warning"
+          log_min_duration_statement: "-1"
+          log_statement: "none"
+          log_checkpoints: "off"
+          autovacuum_naptime: "10min"
+      - op: replace
+        path: /spec/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 160Mi
+          limits:
+            memory: 288Mi
+      - op: replace
+        path: /spec/affinity/enablePodAntiAffinity
+        value: false
+      - op: remove
+        path: /spec/affinity/nodeSelector
+      - op: add
+        path: /spec/affinity/nodeAffinity
+        value:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      - op: add
+        path: /spec/inheritedMetadata
+        value:
+          labels:
+            homelab.jameshomelab.org/schedule: vm-staging
+      - op: add
+        path: /spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                homelab.jameshomelab.org/schedule: vm-staging
       # Remove backup (index 5) before n8n_gloria (index 4).
       - op: remove
         path: /spec/managed/roles/5
