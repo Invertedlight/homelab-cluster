@@ -12,3 +12,91 @@ patches:
       - op: replace
         path: /spec/values/prometheus/servicemonitor/enabled
         value: false
+      - op: add
+        path: /spec/values/global
+        value:
+          logLevel: 1
+      - op: add
+        path: /spec/values/startupapicheck
+        value:
+          enabled: false
+      - op: replace
+        path: /spec/values/resources
+        value:
+          requests:
+            cpu: 10m
+            memory: 48Mi
+          limits:
+            memory: 96Mi
+      - op: add
+        path: /spec/values/affinity
+        value:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+      - op: add
+        path: /spec/values/podLabels
+        value:
+          homelab.jameshomelab.org/schedule: vm-staging
+      - op: add
+        path: /spec/values/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                homelab.jameshomelab.org/schedule: vm-staging
+      - op: add
+        path: /spec/values/webhook
+        value:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+          podLabels:
+            homelab.jameshomelab.org/schedule: vm-staging
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  homelab.jameshomelab.org/schedule: vm-staging
+      - op: add
+        path: /spec/values/cainjector
+        value:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+          podLabels:
+            homelab.jameshomelab.org/schedule: vm-staging
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  homelab.jameshomelab.org/schedule: vm-staging
