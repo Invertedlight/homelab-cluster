@@ -6,6 +6,10 @@
 # audiobookshelf is omitted so Flux prunes it, including its staging PVCs.
 # The overlay stays at ./audiobookshelf and can be added back to this list.
 # apps/base/audiobookshelf and apps/skynet/audiobookshelf are unchanged.
+# n8n-sandbox is omitted so Flux prunes it until n8n returns. Re-add it
+# to this list then, and recreate the sandbox-api PVC (local-path-workers).
+# The overlay stays at ./n8n-sandbox. apps/base/n8n-sandbox and
+# apps/skynet/n8n-sandbox are unchanged.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -17,7 +21,6 @@ resources:
   - netwatch
   - node-red
   - n8n
-  - n8n-sandbox
 # held at 0 until staging RAM (Nov 20) and SATA SSD (Nov 30) upgrades
 replicas:
   - name: n8n
@@ -31,8 +34,6 @@ replicas:
   - name: netwatch
     count: 0
   - name: cluster-dashboard
-    count: 0
-  - name: searxng
     count: 0
   - name: mealie
     count: 0
