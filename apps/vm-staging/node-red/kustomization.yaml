@@ -19,12 +19,39 @@ patches:
         path: /spec/template/spec/affinity
         value:
           nodeAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                preference:
-                  matchExpressions:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
                     - key: node-role.kubernetes.io/control-plane
                       operator: DoesNotExist
+      - op: add
+        path: /spec/template/metadata/labels/homelab.jameshomelab.org~1schedule
+        value: vm-staging
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                homelab.jameshomelab.org/schedule: vm-staging
+      - op: replace
+        path: /spec/template/spec/initContainers/0/resources
+        value:
+          requests:
+            cpu: 40m
+            memory: 80Mi
+          limits:
+            memory: 192Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 40m
+            memory: 80Mi
+          limits:
+            memory: 160Mi
   - target:
       version: v1
       kind: PersistentVolumeClaim

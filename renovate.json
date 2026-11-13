@@ -2,13 +2,49 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "timezone": "America/Chicago",
   "minimumReleaseAge": "3 days",
+  "separateMajorMinor": true,
   "internalChecksFilter": "strict",
   "kubernetes": {
-    "managerFilePatterns": ["/\\.yaml$/"]
+    "managerFilePatterns": [
+      "/\\.yaml$/",
+      "/apps/vm-staging/.+\\.yaml$/",
+      "/clusters/vm-staging/.+\\.yaml$/",
+      "/infrastructure/controllers/vm-staging/.+\\.yaml$/",
+      "/monitoring/(controllers|configs)/vm-staging/.+\\.yaml$/"
+    ]
+  },
+  "flux": {
+    "managerFilePatterns": [
+      "/(^|/)gotk-components\\.ya?ml$/",
+      "/clusters/(skynet|vm-staging)/flux-system/.+\\.ya?ml$/",
+      "/apps/(base|skynet|vm-staging)/.+\\.ya?ml$/",
+      "/infrastructure/controllers/(base|skynet|vm-staging)/.+\\.ya?ml$/",
+      "/monitoring/controllers/(base|skynet|vm-staging)/.+\\.ya?ml$/",
+      "/monitoring/configs/(skynet|vm-staging)/.+\\.ya?ml$/"
+    ]
   },
   "packageRules": [
     {
-      "description": "Batch digest and patch updates into one Monday PR titled weekly minor-noise. Major and minor updates stay separate. The app images listed here stay separate and are not automerged. The Renovate image is handled by the next rule.",
+      "description": "vm-staging is in scope with skynet: apps/vm-staging, clusters/vm-staging, infrastructure/controllers/vm-staging, and monitoring controllers and configs for vm-staging, plus the shared bases. The same chart or image in both trees stays on one branch. No path-specific branch prefix.",
+      "matchFileNames": [
+        "apps/base/**",
+        "apps/skynet/**",
+        "apps/vm-staging/**",
+        "clusters/skynet/**",
+        "clusters/vm-staging/**",
+        "infrastructure/controllers/base/**",
+        "infrastructure/controllers/skynet/**",
+        "infrastructure/controllers/vm-staging/**",
+        "monitoring/controllers/base/**",
+        "monitoring/controllers/skynet/**",
+        "monitoring/controllers/vm-staging/**",
+        "monitoring/configs/skynet/**",
+        "monitoring/configs/vm-staging/**"
+      ],
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Batch digest and patch updates from skynet and vm-staging into one Monday PR titled weekly minor-noise. Major updates stay separate. Minor updates stay separate because they are not in this group. The app images listed here stay separate and are not automerged, including a vm-staging copy of the same image. The Renovate image is handled by the next rule.",
       "matchUpdateTypes": ["digest", "patch"],
       "matchPackageNames": [
         "!renovate/renovate",

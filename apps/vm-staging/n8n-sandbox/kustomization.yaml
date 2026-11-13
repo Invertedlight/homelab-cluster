@@ -20,15 +20,80 @@ patches:
         path: /spec/values/runner/dockerDataRoot/persistence/storageClass
         value: local-path
       - op: replace
+        path: /spec/values/api/replicaCount
+        value: 1
+      - op: replace
+        path: /spec/values/api/resources
+        value:
+          requests:
+            cpu: 20m
+            memory: 48Mi
+          limits:
+            memory: 96Mi
+      - op: add
+        path: /spec/values/api/config
+        value:
+          defaultMaxSandboxes: "1"
+          maxInflightPerTenant: "4"
+          idleSweepInterval: 10m
+      - op: add
+        path: /spec/values/api/affinity
+        value:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchLabels:
+                      homelab.jameshomelab.org/schedule: vm-staging
+      - op: replace
+        path: /spec/values/runner/replicaCount
+        value: 1
+      - op: replace
+        path: /spec/values/runner/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 192Mi
+          limits:
+            cpu: 500m
+            memory: 352Mi
+      - op: replace
+        path: /spec/values/runner/config/capacityTotal
+        value: "1"
+      - op: add
+        path: /spec/values/runner/config/defaultMemoryMb
+        value: "128"
+      - op: add
+        path: /spec/values/runner/config/defaultCpuPercent
+        value: "25"
+      - op: add
+        path: /spec/values/runner/config/maxInflightPerSandbox
+        value: "4"
+      - op: replace
         path: /spec/values/runner/privileged/scheduling/affinity
         value:
           nodeAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                preference:
-                  matchExpressions:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
                     - key: node-role.kubernetes.io/control-plane
                       operator: DoesNotExist
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchLabels:
+                      homelab.jameshomelab.org/schedule: vm-staging
   - target:
       group: networking.k8s.io
       version: v1
@@ -41,6 +106,41 @@ patches:
       - op: remove
         path: /spec/tls
   - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: searxng
+    patch: |-
+      - op: add
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+      - op: add
+        path: /spec/template/metadata/labels/homelab.jameshomelab.org~1schedule
+        value: vm-staging
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                homelab.jameshomelab.org/schedule: vm-staging
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
+  - target:
       version: v1
       kind: ConfigMap
       name: searxng-settings
@@ -51,6 +151,7 @@ patches:
           use_default_settings: true
           general:
             instance_name: vm-staging-searxng
+            debug: false
           server:
             # secret_key comes from env SEARXNG_SECRET
             limiter: false

@@ -37,3 +37,22 @@ resources:
   - ../base/coredns-custom
   - ../base/kured
   - cloudflared
+patches:
+  # kured stays a DaemonSet, including on the control plane, so Sunday
+  # reboots still reach the servers. A 32Mi limit (PR 177) made each server
+  # re-read kured's own pages from the shared NVMe, 90-490 MB/s, until etcd
+  # lost quorum. 128Mi is the limit that stopped that. The request is 64Mi.
+  - target:
+      group: helm.toolkit.fluxcd.io
+      version: v2
+      kind: HelmRelease
+      name: kured
+    patch: |-
+      - op: add
+        path: /spec/values/resources
+        value:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
