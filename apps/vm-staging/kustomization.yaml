@@ -1,6 +1,8 @@
 # Database, stateless apps, linkding and mealie, then the local-volume apps.
 # clusters/vm-staging/apps.yaml applies this directory after
 # infrastructure-controller and database-operator.
+# devpod is omitted so Flux prunes it. The overlay stays at ./devpod,
+# including its SOPS secret, and can be added back to this list.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -14,4 +16,3 @@ resources:
   - audiobookshelf
   - n8n
   - n8n-sandbox
-  - devpod
