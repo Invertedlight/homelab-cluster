@@ -1,4 +1,4 @@
-# local-path data volume. Anonymous /ui viewing comes from the base
+# local-path-workers data volume. Anonymous /ui viewing comes from the base
 # settings (http-node-auth.js). The editor still requires the admin user.
 # Cloudflare Access on the staging host is James-only.
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -59,4 +59,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/storageClassName
-        value: local-path
+        value: local-path-workers

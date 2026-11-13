@@ -1,4 +1,4 @@
-# Data claim stays 5Gi and moves to local-path. No SMB and no backup.
+# Data claim stays 5Gi and moves to local-path-workers. No SMB and no backup.
 # mealie-database reuses the password already in
 # apps/vm-staging/database/homelab-postgres-mealie-secret.yaml.
 # ALLOW_SIGNUP stays at the base value, false. The first staging account
@@ -61,4 +61,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/storageClassName
-        value: local-path
+        value: local-path-workers

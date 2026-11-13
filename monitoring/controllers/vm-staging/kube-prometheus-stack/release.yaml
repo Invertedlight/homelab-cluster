@@ -53,6 +53,13 @@ spec:
           memory: 128Mi
         limits:
           memory: 256Mi
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
     nodeExporter:
       enabled: true
       operatingSystems:
@@ -62,6 +69,12 @@ spec:
           enabled: false
         darwin:
           enabled: false
+    # Host metrics for staging-cp-01..03 are dropped. The exporter is not
+    # required for etcd, and those VMs are the ones losing quorum. kured
+    # stays on them so Sunday reboots still reach the servers.
+    # The chart default toleration is "NoSchedule, operator Exists", which
+    # would admit a control-plane taint. Replace it. Affinity excludes the
+    # control-plane label even before that taint exists.
     prometheus-node-exporter:
       resources:
         requests:
@@ -69,6 +82,26 @@ spec:
           memory: 32Mi
         limits:
           memory: 64Mi
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      tolerations:
+        - key: node.kubernetes.io/disk-pressure
+          operator: Exists
+          effect: NoSchedule
+        - key: node.kubernetes.io/memory-pressure
+          operator: Exists
+          effect: NoSchedule
+        - key: node.kubernetes.io/pid-pressure
+          operator: Exists
+          effect: NoSchedule
+        - key: node.kubernetes.io/unschedulable
+          operator: Exists
+          effect: NoSchedule
     prometheusOperator:
       resources:
         requests:
@@ -76,6 +109,22 @@ spec:
           memory: 64Mi
         limits:
           memory: 256Mi
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      admissionWebhooks:
+        patch:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
       prometheusConfigReloader:
         resources:
           requests:
@@ -99,25 +148,32 @@ spec:
             memory: 512Mi
           limits:
             memory: 1536Mi
-        # 10Gi is small next to a 128G worker and tight on a 64G control-plane disk.
+        # Required, not preferred. The 10Gi claim uses local-path-workers so
+        # it cannot bind on a 64G control-plane disk.
         affinity:
           nodeAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                preference:
-                  matchExpressions:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
                     - key: node-role.kubernetes.io/control-plane
                       operator: DoesNotExist
         storageSpec:
           volumeClaimTemplate:
             spec:
-              storageClassName: local-path
+              storageClassName: local-path-workers
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:
                   storage: 10Gi
     grafana:
       enabled: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
       admin:
         existingSecret: grafana-admin-credentials
         userKey: admin-user

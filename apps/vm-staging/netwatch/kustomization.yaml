@@ -76,4 +76,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/storageClassName
-        value: local-path
+        value: local-path-workers

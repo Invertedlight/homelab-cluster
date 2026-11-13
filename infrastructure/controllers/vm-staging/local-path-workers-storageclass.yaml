@@ -1,0 +1,20 @@
+# k3s ships the local-path provisioner and the default StorageClass. Neither
+# is in this repo, and the default class has no topology limit, so a claim
+# can bind on staging-cp-01..03. This class uses that same provisioner
+# (rancher.io/local-path). volumeBindingMode WaitForFirstConsumer makes the
+# scheduler apply allowedTopologies before the provisioner creates the
+# volume, so new claims bind only on staging-wrk-01..03.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path-workers
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: kubernetes.io/hostname
+        values:
+          - staging-wrk-01
+          - staging-wrk-02
+          - staging-wrk-03

@@ -72,6 +72,11 @@ patches:
               - matchExpressions:
                   - key: node-role.kubernetes.io/control-plane
                     operator: DoesNotExist
+      # The base class is the unrestricted k3s local-path class. An existing
+      # PVC keeps that class until it is deleted; storageClass is immutable.
+      - op: replace
+        path: /spec/storage/storageClass
+        value: local-path-workers
       - op: add
         path: /spec/inheritedMetadata
         value:
