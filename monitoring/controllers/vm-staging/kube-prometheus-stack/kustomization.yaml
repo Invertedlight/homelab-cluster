@@ -1,0 +1,10 @@
+# Namespace and HelmRepository come from the shared base. The HelmRelease
+# does not: the base release is the skynet paging config.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - ../../base/kube-prometheus-stack/namespace.yaml
+  - ../../base/kube-prometheus-stack/repository.yaml
+  - release.yaml
+  - grafana-admin-secret.yaml

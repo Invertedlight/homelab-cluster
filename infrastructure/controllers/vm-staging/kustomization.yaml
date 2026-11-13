@@ -4,8 +4,8 @@
 # Included, from base, because those directories have no Secret and no
 # address:
 # - cert-manager: controller only. No Issuer and no ACME solver. The
-#   ServiceMonitor is turned off below so Helm does not need the
-#   Prometheus Operator CRDs (monitoring is not installed yet).
+#   ServiceMonitor stays off. Turn it on only after monitoring-controllers
+#   is Ready and the Prometheus Operator CRDs exist.
 # - coredns-custom: kube-system ConfigMap. Rewrites search-domain hijacks
 #   inside this cluster. It does not create DNS records.
 # - kured: Sunday reboot window, one node at a time. No Secret.

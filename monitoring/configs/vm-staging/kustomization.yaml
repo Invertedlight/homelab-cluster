@@ -1,5 +1,6 @@
-# Scaffold only. monitoring/configs/skynet holds production SOPS secrets
-# and alert routes. Do not copy them here.
+# No alert config. Skynet's rules, SMS webhook, and Telegram secret stay in
+# monitoring/configs/skynet. Grafana's admin secret is applied with the
+# HelmRelease so the pod can start in the same reconcile.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources: []

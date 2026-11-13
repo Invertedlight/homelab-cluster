@@ -1,5 +1,6 @@
 # Same operator chart as infrastructure/controllers/base/cloudnative-pg.
-# PodMonitors stay off until the Prometheus Operator CRDs exist.
+# PodMonitors stay off until monitoring-controllers is Ready. The CRDs
+# come from that release; this overlay does not wait on it.
 # This directory has no Secret, so the Flux Kustomization has no decryption block.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
