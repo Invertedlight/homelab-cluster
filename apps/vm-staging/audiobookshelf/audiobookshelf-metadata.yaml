@@ -4,7 +4,7 @@ metadata:
   name: audiobookshelf-metadata
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: local-path
+  storageClassName: local-path-workers
   resources:
     requests:
       storage: 5Gi

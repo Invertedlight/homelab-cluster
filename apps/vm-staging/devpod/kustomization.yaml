@@ -1,6 +1,7 @@
 # In-cluster DevPod only. One replica. No nodeport controller, no NodePort,
-# no tunnel, and no Homebrew install. Home stays local-path 20Gi. Scratch
-# stays a 10Gi local-path claim. The shared 500Gi NAS claim is not applied.
+# no tunnel, and no Homebrew install. Home stays local-path-workers 20Gi.
+# Scratch stays a 10Gi local-path-workers claim. The shared 500Gi NAS claim
+# is not applied. Flux does not apply this overlay (apps/vm-staging omits it).
 # Quota requests.storage is 40Gi (one home and one scratch claim are 30Gi).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -99,7 +100,7 @@ patches:
           exec sleep infinity
       - op: replace
         path: /spec/volumeClaimTemplates/0/spec/storageClassName
-        value: local-path
+        value: local-path-workers
       - op: remove
         path: /spec/template/spec/volumes/0
       - op: add
@@ -113,7 +114,7 @@ patches:
           spec:
             accessModes:
               - ReadWriteOnce
-            storageClassName: local-path
+            storageClassName: local-path-workers
             resources:
               requests:
                 storage: 10Gi

@@ -1,4 +1,4 @@
-# Staging sandbox. local-path volumes, no skynet worker pin, SearXNG on
+# Staging sandbox. local-path-workers volumes, no skynet worker pin, SearXNG on
 # searxng-staging.jameshomelab.org. Auth and SEARXNG_SECRET are new.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -15,10 +15,10 @@ patches:
     patch: |-
       - op: replace
         path: /spec/values/api/persistence/storageClass
-        value: local-path
+        value: local-path-workers
       - op: replace
         path: /spec/values/runner/dockerDataRoot/persistence/storageClass
-        value: local-path
+        value: local-path-workers
       - op: replace
         path: /spec/values/api/replicaCount
         value: 1

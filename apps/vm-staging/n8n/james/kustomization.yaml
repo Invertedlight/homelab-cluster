@@ -77,7 +77,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/storageClassName
-        value: local-path
+        value: local-path-workers
   - patch: |-
       $patch: delete
       apiVersion: v1
