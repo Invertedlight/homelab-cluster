@@ -39,7 +39,9 @@ resources:
   - cloudflared
 patches:
   # kured stays a DaemonSet, including on the control plane, so Sunday
-  # reboots still reach the servers. The memory cap is only the per-node cost.
+  # reboots still reach the servers. A 32Mi limit (PR 177) made each server
+  # re-read kured's own pages from the shared NVMe, 90-490 MB/s, until etcd
+  # lost quorum. 128Mi is the limit that stopped that. The request is 64Mi.
   - target:
       group: helm.toolkit.fluxcd.io
       version: v2
@@ -51,6 +53,6 @@ patches:
         value:
           requests:
             cpu: 10m
-            memory: 16Mi
+            memory: 64Mi
           limits:
-            memory: 32Mi
+            memory: 128Mi
