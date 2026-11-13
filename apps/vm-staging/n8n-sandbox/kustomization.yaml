@@ -19,9 +19,11 @@ patches:
       - op: replace
         path: /spec/values/runner/dockerDataRoot/persistence/storageClass
         value: local-path-workers
+      # held at 0 until staging RAM (Nov 20) and SATA SSD (Nov 30) upgrades
+      # Chart Deployment sandbox-api. The object is not a manifest in this repo.
       - op: replace
         path: /spec/values/api/replicaCount
-        value: 1
+        value: 0
       - op: replace
         path: /spec/values/api/resources
         value:
@@ -53,9 +55,12 @@ patches:
                   labelSelector:
                     matchLabels:
                       homelab.jameshomelab.org/schedule: vm-staging
+      # held at 0 until staging RAM (Nov 20) and SATA SSD (Nov 30) upgrades
+      # Chart StatefulSet sandbox-privileged-runner (fullnameOverride sandbox).
+      # The StatefulSet is not a manifest in this repo.
       - op: replace
         path: /spec/values/runner/replicaCount
-        value: 1
+        value: 0
       - op: replace
         path: /spec/values/runner/resources
         value:

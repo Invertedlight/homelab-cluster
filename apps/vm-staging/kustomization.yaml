@@ -18,3 +18,21 @@ resources:
   - node-red
   - n8n
   - n8n-sandbox
+# held at 0 until staging RAM (Nov 20) and SATA SSD (Nov 30) upgrades
+replicas:
+  - name: n8n
+    count: 0
+  - name: node-red
+    count: 0
+  - name: mosquitto
+    count: 0
+  - name: linkding
+    count: 0
+  - name: netwatch
+    count: 0
+  - name: cluster-dashboard
+    count: 0
+  - name: searxng
+    count: 0
+  - name: mealie
+    count: 0
