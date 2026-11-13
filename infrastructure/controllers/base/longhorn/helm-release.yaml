@@ -5,6 +5,7 @@ metadata:
   namespace: longhorn-system
 spec:
   interval: 30m
+  timeout: 20m
   chart:
     spec:
       chart: longhorn
@@ -18,8 +19,13 @@ spec:
     remediation:
       retries: 3
   upgrade:
+    # Longhorn cannot be downgraded, so a failed upgrade retries in place.
+    timeout: 20m
     remediation:
       retries: 3
+      remediateLastFailure: false
+    strategy:
+      name: RetryOnFailure
   values:
     persistence:
       createStorageClass: true
