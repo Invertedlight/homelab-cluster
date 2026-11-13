@@ -3,6 +3,9 @@
 # infrastructure-controller and database-operator.
 # devpod is omitted so Flux prunes it. The overlay stays at ./devpod,
 # including its SOPS secret, and can be added back to this list.
+# audiobookshelf is omitted so Flux prunes it, including its staging PVCs.
+# The overlay stays at ./audiobookshelf and can be added back to this list.
+# apps/base/audiobookshelf and apps/skynet/audiobookshelf are unchanged.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -13,6 +16,5 @@ resources:
   - mealie
   - netwatch
   - node-red
-  - audiobookshelf
   - n8n
   - n8n-sandbox
