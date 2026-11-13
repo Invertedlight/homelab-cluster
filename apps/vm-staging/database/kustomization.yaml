@@ -27,7 +27,7 @@ patches:
         value: false
       - op: replace
         path: /spec/instances
-        value: 1
+        value: 3
       # A single instance cannot wait on a synchronous standby.
       - op: remove
         path: /spec/postgresql/synchronous
@@ -82,6 +82,11 @@ patches:
         value:
           labels:
             homelab.jameshomelab.org/schedule: vm-staging
+      # Count only CNPG instance pods. The previous selector used
+      # homelab.jameshomelab.org/schedule=vm-staging, which also matches
+      # cert-manager, cloudflared, and the operator already piled on wrk-02.
+      # With maxSkew 1 and DoNotSchedule, instances -2 and -3 would stay
+      # Pending and never reach the other workers.
       - op: add
         path: /spec/topologySpreadConstraints
         value:
@@ -90,7 +95,7 @@ patches:
             whenUnsatisfiable: DoNotSchedule
             labelSelector:
               matchLabels:
-                homelab.jameshomelab.org/schedule: vm-staging
+                cnpg.io/cluster: homelab-postgres
       # Remove backup (index 5) before n8n_gloria (index 4).
       - op: remove
         path: /spec/managed/roles/5
