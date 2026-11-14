@@ -40,6 +40,30 @@ spec:
           kind: PrometheusRule
   values:
     grafana:
+      affinity:
+        # Soft placement only (preferred, never required): if the preferred nodes
+        # are down or full, the scheduler still uses any node, wrk-04 included.
+        # skynet-wrk-04 is the laptop on a smart-plug battery cycle (docs/os-updates.md).
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values: [skynet-wrk-04]
+        podAntiAffinity:
+          # Prefer a different node from the other core monitoring pods, so one
+          # node loss does not take Prometheus, Alertmanager and Grafana together.
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values: [prometheus, alertmanager]
       # Keep grafana.db on a Longhorn volume so a rollout no longer rebuilds the
       # database from scratch (~600 SQLite migrations, about 4.5 minutes for
       # Grafana 13 on Nov 14). Default Longhorn backup group applies (nightly
@@ -109,6 +133,33 @@ spec:
           - grs.jameshomelab.org
     alertmanager:
       alertmanagerSpec:
+        # The chart's own "soft" preset only repels other replicas of the same
+        # component (we run one) and would replace podAntiAffinity below.
+        podAntiAffinity: ""
+        affinity:
+          # Soft placement only (preferred, never required): if the preferred nodes
+          # are down or full, the scheduler still uses any node, wrk-04 included.
+          # skynet-wrk-04 is the laptop on a smart-plug battery cycle (docs/os-updates.md).
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: kubernetes.io/hostname
+                      operator: NotIn
+                      values: [skynet-wrk-04]
+          podAntiAffinity:
+            # Prefer a different node from the other core monitoring pods, so one
+            # node loss does not take Prometheus, Alertmanager and Grafana together.
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 50
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/name
+                        operator: In
+                        values: [prometheus, grafana]
         # Pin past 0.27.0: it panics when a url_file webhook gets an error reply
         # (prometheus/alertmanager#3798, fixed in 0.28.0 by #3800).
         image:
@@ -224,6 +275,40 @@ spec:
                     credentials_file: /etc/alertmanager/secrets/alertmanager-sms-webhook/token
     prometheus:
       prometheusSpec:
+        # The chart's own "soft" preset only repels other replicas of the same
+        # component (we run one) and would replace podAntiAffinity below.
+        podAntiAffinity: ""
+        affinity:
+          # Soft placement only (preferred, never required): if the preferred nodes
+          # are down or full, the scheduler still uses any node, wrk-04 included.
+          # skynet-wrk-04 is the laptop on a smart-plug battery cycle (docs/os-updates.md).
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: kubernetes.io/hostname
+                      operator: NotIn
+                      values: [skynet-wrk-04]
+              # Lighter preference for workers: keep the TSDB's disk and Longhorn
+              # traffic off the etcd control-plane nodes when a worker has room.
+              - weight: 30
+                preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: DoesNotExist
+          podAntiAffinity:
+            # Prefer a different node from the other core monitoring pods, so one
+            # node loss does not take Prometheus, Alertmanager and Grafana together.
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 50
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/name
+                        operator: In
+                        values: [alertmanager, grafana]
         # TSDB on Longhorn instead of an emptyDir, so a pod restart or upgrade
         # keeps history. Measured Nov 14 on Prometheus 3.16: ~11.8k samples/s
         # and ~344k head series, about 10.2e9 samples per 10 days, or ~15-20 GB
@@ -254,6 +339,19 @@ spec:
     # the k3s process, not as pods, and their metrics listen on localhost.
     # The chart's ServiceMonitors therefore have no targets, and the Down
     # alerts stay firing. Disable the scrapes and the matching default rules.
+    prometheusOperator:
+      affinity:
+        # Soft placement only (preferred, never required): if the preferred nodes
+        # are down or full, the scheduler still uses any node, wrk-04 included.
+        # skynet-wrk-04 is the laptop on a smart-plug battery cycle (docs/os-updates.md).
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values: [skynet-wrk-04]
     kubeScheduler:
       enabled: false
     kubeControllerManager:
@@ -272,6 +370,18 @@ spec:
     # A stored artifact does not keep Ready=True: the metric copies
     # status.conditions[type=Ready], which is False while fetch is failing.
     kube-state-metrics:
+      affinity:
+        # Soft placement only (preferred, never required): if the preferred nodes
+        # are down or full, the scheduler still uses any node, wrk-04 included.
+        # skynet-wrk-04 is the laptop on a smart-plug battery cycle (docs/os-updates.md).
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values: [skynet-wrk-04]
       # kube_node_labels only includes Kubernetes labels named here.
       # `maintenance=true` is the node maintenance marker (docs/node-maintenance.md).
       metricLabelsAllowlist:
