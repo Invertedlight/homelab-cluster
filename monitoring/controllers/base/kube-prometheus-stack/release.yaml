@@ -39,10 +39,35 @@ spec:
           kind: PrometheusRule
   values:
     grafana:
-      # Chart default is 60s. A fresh emptyDir database runs ~600 migrations;
-      # on Nov 14 the liveness probe killed the first start mid-migration.
-      livenessProbe:
-        initialDelaySeconds: 180
+      # Keep grafana.db on a Longhorn volume so a rollout no longer rebuilds the
+      # database from scratch (~600 SQLite migrations, about 4.5 minutes for
+      # Grafana 13 on Nov 14). Default Longhorn backup group applies (nightly
+      # to Garage). The chart's initChownData and fsGroup 472 set ownership.
+      persistence:
+        enabled: true
+        type: pvc
+        storageClassName: longhorn
+        accessModes: [ReadWriteOnce]
+        size: 2Gi
+      # ReadWriteOnce: the default rolling update starts the new pod while the
+      # old pod still holds the volume. maxSurge 0 stops the old pod first,
+      # which for one replica is the same as Recreate. type: Recreate itself is
+      # rejected on upgrade: helm-controller uses server-side apply and the
+      # API server keeps the defaulted rollingUpdate block, which Recreate forbids.
+      deploymentStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+      # Liveness and readiness wait until this passes. It allows up to 10
+      # minutes for a major-version migration before the container is restarted.
+      startupProbe:
+        httpGet:
+          path: /api/health
+          port: grafana
+        periodSeconds: 10
+        failureThreshold: 60
+        timeoutSeconds: 5
       admin:
         existingSecret: grafana-admin-credentials
         userKey: admin-user
@@ -192,6 +217,29 @@ spec:
                     credentials_file: /etc/alertmanager/secrets/alertmanager-sms-webhook/token
     prometheus:
       prometheusSpec:
+        # TSDB on Longhorn instead of an emptyDir, so a pod restart or upgrade
+        # keeps history. Measured Nov 14 on Prometheus 3.16: ~11.8k samples/s
+        # and ~344k head series, about 10.2e9 samples per 10 days, or ~15-20 GB
+        # at 1.5-2 bytes per sample. retentionSize deletes the oldest blocks
+        # before the volume fills; it sits under the PVC size to leave room for
+        # the WAL and compaction. Grow later with Longhorn volume expansion.
+        retention: 10d
+        retentionSize: 25GB
+        storageSpec:
+          volumeClaimTemplate:
+            metadata:
+              labels:
+                # Opt out of the default Longhorn group (nightly backup to
+                # Garage). Metrics are not worth backing up; keep only the
+                # weekly snapshot cleanup.
+                recurring-job.longhorn.io/source: enabled
+                recurring-job.longhorn.io/weekly-snapshot-cleanup: enabled
+            spec:
+              storageClassName: longhorn
+              accessModes: [ReadWriteOnce]
+              resources:
+                requests:
+                  storage: 30Gi
         # Webhook routine prefixes SMS texts with this label, e.g. [Skynet].
         externalLabels:
           cluster: Skynet
