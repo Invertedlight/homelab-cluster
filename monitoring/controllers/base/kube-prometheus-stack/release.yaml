@@ -5,9 +5,10 @@ metadata:
   namespace: monitoring
 spec:
   interval: 30m
-  # Grafana keeps its database in an emptyDir and replays every migration on
-  # each rollout; on Nov 14 that outlasted the 5m default (Helm rev 18 failed).
-  timeout: 15m
+  # Grafana's first start on a new major replays its database migrations
+  # (about 4.5 minutes for Grafana 13 on Nov 14, plus a ~2 minute image pull).
+  # 25m covers the 20 minute Grafana startupProbe with room to spare.
+  timeout: 25m
   chart:
     spec:
       chart: kube-prometheus-stack
@@ -21,7 +22,7 @@ spec:
     crds: Create
   upgrade:
     crds: CreateReplace
-    timeout: 15m
+    timeout: 25m
     # Retry a failed upgrade in place every 5m; never roll back automatically.
     # A stuck release stays visible (FluxReconciliationFailed) instead.
     remediation:
@@ -50,24 +51,30 @@ spec:
         accessModes: [ReadWriteOnce]
         size: 2Gi
       # ReadWriteOnce: the default rolling update starts the new pod while the
-      # old pod still holds the volume. maxSurge 0 stops the old pod first,
-      # which for one replica is the same as Recreate. type: Recreate itself is
-      # rejected on upgrade: helm-controller uses server-side apply and the
-      # API server keeps the defaulted rollingUpdate block, which Recreate forbids.
+      # old pod still holds the volume. maxSurge 0 / maxUnavailable 1 runs one
+      # pod at a time: the old pod stops and releases the volume before the new
+      # one starts, so there is no multi-attach and no second SQLite writer.
+      # For one replica that is the same as Recreate. type: Recreate is rejected
+      # on upgrade: helm-controller uses server-side apply, the API server's
+      # defaulted rollingUpdate block has no field owner so it stays, and
+      # Recreate forbids it (rollingUpdate: null and {} fail the same way).
       deploymentStrategy:
         type: RollingUpdate
         rollingUpdate:
           maxSurge: 0
           maxUnavailable: 1
-      # Liveness and readiness wait until this passes. It allows up to 10
+      # Liveness and readiness wait until this passes. It allows up to 20
       # minutes for a major-version migration before the container is restarted.
       startupProbe:
         httpGet:
           path: /api/health
           port: grafana
         periodSeconds: 10
-        failureThreshold: 60
         timeoutSeconds: 5
+        failureThreshold: 120
+      # Deployment default is 600s; Helm treated the Nov 14 rollout as failed
+      # when it passed. Must exceed the startupProbe window plus image pull.
+      progressDeadlineSeconds: 1500
       admin:
         existingSecret: grafana-admin-credentials
         userKey: admin-user
