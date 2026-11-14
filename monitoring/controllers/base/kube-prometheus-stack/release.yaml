@@ -5,6 +5,9 @@ metadata:
   namespace: monitoring
 spec:
   interval: 30m
+  # Grafana keeps its database in an emptyDir and replays every migration on
+  # each rollout; on Nov 14 that outlasted the 5m default (Helm rev 18 failed).
+  timeout: 15m
   chart:
     spec:
       chart: kube-prometheus-stack
@@ -18,6 +21,15 @@ spec:
     crds: Create
   upgrade:
     crds: CreateReplace
+    timeout: 15m
+    # Retry a failed upgrade in place every 5m; never roll back automatically.
+    # A stuck release stays visible (FluxReconciliationFailed) instead.
+    remediation:
+      retries: 3
+      remediateLastFailure: false
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
   driftDetection:
     mode: enabled
     ignore:
@@ -27,6 +39,10 @@ spec:
           kind: PrometheusRule
   values:
     grafana:
+      # Chart default is 60s. A fresh emptyDir database runs ~600 migrations;
+      # on Nov 14 the liveness probe killed the first start mid-migration.
+      livenessProbe:
+        initialDelaySeconds: 180
       admin:
         existingSecret: grafana-admin-credentials
         userKey: admin-user
