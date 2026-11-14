@@ -12,3 +12,6 @@ resources:
   - n8n-sandbox
   - netwatch
   - node-red
+# Soft node spreading for all app Deployments and StatefulSets (skynet only).
+components:
+  - components/soft-spread

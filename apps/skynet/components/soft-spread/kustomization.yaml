@@ -1,0 +1,27 @@
+# Soft spreading for every skynet app Deployment and StatefulSet.
+# Every rule here is a preference. If the preferred nodes are down or full,
+# the scheduler still places the pod (wrk-04 included), so apps drift on a
+# node failure. Existing required rules in the apps (the worker-only
+# nodeAffinity) are unchanged; the patches only add to them.
+#
+# - Label skynet.jameshomelab.org/spread=app on every app pod.
+# - Preferred podAntiAffinity against that label in ALL namespaces
+#   (namespaceSelector: {}), so a node that already runs more app pods scores
+#   lower. topologySpreadConstraints alone only count pods in the same
+#   namespace, and each app has its own namespace.
+# - topologySpreadConstraints (ScheduleAnyway, maxSkew 1) for apps with
+#   several pods in one namespace, e.g. devpod-0 and devpod-1.
+# - Preferred nodeAffinity away from skynet-wrk-04, the laptop on a
+#   smart-plug battery cycle (docs/os-updates.md).
+#
+# The scheduler applies these only when a pod is (re)scheduled. It does not
+# move running pods.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  - target:
+      kind: Deployment
+    path: spread.yaml
+  - target:
+      kind: StatefulSet
+    path: spread-statefulset.yaml
