@@ -1,0 +1,36 @@
+# One replica, Recreate strategy (set by the chart). Shared node with the
+# CNPG operator on Nov 16.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: plugin-barman-cloud
+  namespace: cnpg-system
+spec:
+  values:
+    podLabels:
+      skynet.jameshomelab.org/spread: infra
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: NotIn
+                  values: [skynet-wrk-04]
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              namespaceSelector: {}
+              labelSelector:
+                matchLabels:
+                  skynet.jameshomelab.org/spread: infra
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            skynet.jameshomelab.org/spread: infra

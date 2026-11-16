@@ -1,0 +1,53 @@
+# csi-smb-controller only (one replica, Recreate). The chart drops
+# controller.affinity unless it contains required nodeSelectorTerms, and its
+# podLabels value would also relabel (and restart) the csi-smb-node
+# DaemonSet, so this patches the rendered controller Deployment instead. The
+# chart's tolerations and nodeSelector are untouched.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: csi-driver-smb
+  namespace: kube-system
+spec:
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: csi-smb-controller
+            patch: |-
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: csi-smb-controller
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      skynet.jameshomelab.org/spread: infra
+                  spec:
+                    affinity:
+                      nodeAffinity:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          - weight: 50
+                            preference:
+                              matchExpressions:
+                                - key: kubernetes.io/hostname
+                                  operator: NotIn
+                                  values: [skynet-wrk-04]
+                      podAntiAffinity:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          - weight: 50
+                            podAffinityTerm:
+                              topologyKey: kubernetes.io/hostname
+                              namespaceSelector: {}
+                              labelSelector:
+                                matchLabels:
+                                  skynet.jameshomelab.org/spread: infra
+                    topologySpreadConstraints:
+                      - maxSkew: 1
+                        topologyKey: kubernetes.io/hostname
+                        whenUnsatisfiable: ScheduleAnyway
+                        labelSelector:
+                          matchLabels:
+                            skynet.jameshomelab.org/spread: infra
