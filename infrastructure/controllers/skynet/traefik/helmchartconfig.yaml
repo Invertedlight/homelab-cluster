@@ -1,0 +1,71 @@
+# Second Traefik replica for ingress redundancy (skynet only).
+#
+# k3s helm-controller merges this valuesContent over the k3s HelmChart
+# valuesContent (image, priorityClassName, tolerations, podAnnotations,
+# publishedService, dual-stack Service), so those stay as k3s sets them.
+# Nothing here overrides a key that k3s sets.
+#
+# - 2 replicas with a PodDisruptionBudget (minAvailable 1), so a node drain
+#   cannot take both copies down. Traefik is stateless here (emptyDir only,
+#   no ACME storage), and both copies serve traffic; no leader or quorum.
+# - Rolling update maxUnavailable 0 / maxSurge 1 (chart default, pinned here)
+#   so ingress never drops to zero pods during an upgrade.
+# - Same soft spread as the other infra pods (#197): label
+#   skynet.jameshomelab.org/spread=infra, prefer the two copies on different
+#   nodes (weight 100), then away from other infra pods and from
+#   skynet-wrk-04 (weight 50). All preferences; nothing is required.
+#
+# The Service stays type LoadBalancer via k3s servicelb with
+# externalTrafficPolicy Cluster, so every svclb pod forwards to either copy.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    deployment:
+      replicas: 2
+      podLabels:
+        skynet.jameshomelab.org/spread: infra
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: NotIn
+                  values: [skynet-wrk-04]
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: traefik
+                  app.kubernetes.io/instance: traefik-kube-system
+          - weight: 50
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              namespaceSelector: {}
+              labelSelector:
+                matchLabels:
+                  skynet.jameshomelab.org/spread: infra
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: traefik
+            app.kubernetes.io/instance: traefik-kube-system

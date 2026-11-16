@@ -1,0 +1,7 @@
+# k3s-bundled Traefik overrides (skynet only). k3s owns the traefik HelmChart
+# in kube-system; a HelmChartConfig with the same name/namespace is the
+# supported way to layer values on top of it. k3s server config is untouched.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - helmchartconfig.yaml
