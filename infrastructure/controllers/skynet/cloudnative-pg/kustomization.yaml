@@ -1,0 +1,46 @@
+# skynet overlay for the CNPG operator, so skynet-only values stay out of
+# base (vm-staging builds base/cloudnative-pg through its own overlay).
+# Soft spreading only, same rules as components/soft-spread: label
+# skynet.jameshomelab.org/spread=infra, prefer nodes without other infra
+# pods, prefer nodes other than skynet-wrk-04. Nothing is required.
+# The Postgres instance pods are managed by CNPG and are not touched.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/cloudnative-pg
+patches:
+  - patch: |-
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: cloudnative-pg
+        namespace: cnpg-system
+      spec:
+        values:
+          podLabels:
+            skynet.jameshomelab.org/spread: infra
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 50
+                  preference:
+                    matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: NotIn
+                        values: [skynet-wrk-04]
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 50
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    namespaceSelector: {}
+                    labelSelector:
+                      matchLabels:
+                        skynet.jameshomelab.org/spread: infra
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  skynet.jameshomelab.org/spread: infra

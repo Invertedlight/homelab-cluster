@@ -13,3 +13,6 @@ resources:
   - ../base/traefik-tls
   - renovate
   - kjobs
+# Soft node spreading for infrastructure Deployments (skynet only).
+components:
+  - components/soft-spread

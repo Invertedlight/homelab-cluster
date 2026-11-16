@@ -1,0 +1,39 @@
+# Soft spreading for skynet infrastructure Deployments (skynet only; the
+# vm-staging overlay does not use this component). Same rules as the apps
+# component (apps/skynet/components/soft-spread), with label value "infra":
+#
+# - Label skynet.jameshomelab.org/spread=infra on every covered pod.
+# - Preferred podAntiAffinity against that label in ALL namespaces
+#   (namespaceSelector: {}), so a node that already runs infrastructure pods
+#   scores lower and different components land on different nodes.
+# - topologySpreadConstraints (ScheduleAnyway, maxSkew 1) on the same label,
+#   which spreads pods within a namespace, e.g. the three cert-manager pods.
+# - Preferred nodeAffinity away from skynet-wrk-04, the laptop on a
+#   smart-plug battery cycle (docs/os-updates.md).
+# - Multi-replica components (cloudflared, longhorn-ui) also prefer to keep
+#   their own replicas on different nodes.
+#
+# Every rule is a preference. Nothing is required, no nodeSelector, toleration
+# or replica count changes. If the preferred nodes are down or full the pods
+# still schedule anywhere they can today (wrk-04 and control-plane included).
+# The scheduler applies these only when a pod is (re)scheduled.
+#
+# Chart values are used where the chart renders them (cert-manager,
+# plugin-barman-cloud, longhorn-ui). csi-driver-smb only renders
+# controller.affinity when it has required nodeSelectorTerms, and the
+# Longhorn chart has no affinity value for longhorn-driver-deployer, so those
+# two use a HelmRelease post-renderer patch. The CNPG operator gets the same
+# values in infrastructure/controllers/skynet/cloudnative-pg.
+#
+# Left out on purpose: Flux controllers (self-managing), Garage (already
+# required one-per-node on local-path volumes), Longhorn CSI sidecars and
+# global-manager (created/spread by Longhorn itself), DaemonSets, CronJobs,
+# and k3s-bundled traefik/coredns/metrics-server/local-path-provisioner.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  - path: cert-manager.yaml
+  - path: plugin-barman-cloud.yaml
+  - path: csi-driver-smb.yaml
+  - path: longhorn.yaml
+  - path: cloudflared.yaml

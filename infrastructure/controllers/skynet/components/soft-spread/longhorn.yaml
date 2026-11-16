@@ -1,0 +1,95 @@
+# longhorn-ui (2 replicas) through chart values, keeping the chart's own
+# "replicas apart" term (raised from weight 1 to 100). longhorn-driver-deployer
+# (1 replica) has no affinity value, so it gets a post-renderer patch. The
+# longhorn-manager DaemonSet, CSI sidecars and global-manager are unchanged.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+spec:
+  values:
+    longhornUI:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values: [skynet-wrk-04]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values: [longhorn-ui]
+            - weight: 50
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                namespaceSelector: {}
+                labelSelector:
+                  matchLabels:
+                    skynet.jameshomelab.org/spread: infra
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: longhorn-ui
+  postRenderers:
+    - kustomize:
+        patches:
+          # The chart has no podLabels value; label longhorn-ui here so the
+          # other infra pods see it.
+          - target:
+              kind: Deployment
+              name: longhorn-ui
+            patch: |-
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: longhorn-ui
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      skynet.jameshomelab.org/spread: infra
+          - target:
+              kind: Deployment
+              name: longhorn-driver-deployer
+            patch: |-
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: longhorn-driver-deployer
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      skynet.jameshomelab.org/spread: infra
+                  spec:
+                    affinity:
+                      nodeAffinity:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          - weight: 50
+                            preference:
+                              matchExpressions:
+                                - key: kubernetes.io/hostname
+                                  operator: NotIn
+                                  values: [skynet-wrk-04]
+                      podAntiAffinity:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          - weight: 50
+                            podAffinityTerm:
+                              topologyKey: kubernetes.io/hostname
+                              namespaceSelector: {}
+                              labelSelector:
+                                matchLabels:
+                                  skynet.jameshomelab.org/spread: infra
