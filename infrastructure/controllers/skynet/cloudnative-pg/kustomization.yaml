@@ -3,11 +3,15 @@
 # Soft spreading only, same rules as components/soft-spread: label
 # skynet.jameshomelab.org/spread=infra, prefer nodes without other infra
 # pods, prefer nodes other than skynet-wrk-04. Nothing is required.
+# Two operator replicas (leader-elected, --leader-elect is on by default in
+# the chart) with a PodDisruptionBudget (pdb.yaml), and a preference to keep
+# the two copies on different nodes.
 # The Postgres instance pods are managed by CNPG and are not touched.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base/cloudnative-pg
+  - pdb.yaml
 patches:
   - patch: |-
       apiVersion: helm.toolkit.fluxcd.io/v2
@@ -17,6 +21,7 @@ patches:
         namespace: cnpg-system
       spec:
         values:
+          replicaCount: 2
           podLabels:
             skynet.jameshomelab.org/spread: infra
           affinity:
@@ -30,6 +35,13 @@ patches:
                         values: [skynet-wrk-04]
             podAntiAffinity:
               preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: cloudnative-pg
+                        app.kubernetes.io/instance: cloudnative-pg
                 - weight: 50
                   podAffinityTerm:
                     topologyKey: kubernetes.io/hostname

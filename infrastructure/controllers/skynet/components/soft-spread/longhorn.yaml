@@ -10,6 +10,10 @@ metadata:
 spec:
   values:
     longhornUI:
+      # Two replicas (chart default); keep one up during a node drain.
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

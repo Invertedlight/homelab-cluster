@@ -1,0 +1,13 @@
+# Two operator replicas (leader election via the db9c8771.cnpg.io Lease; the
+# standby also serves the admission webhooks). The chart has no PDB value.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudnative-pg
+  namespace: cnpg-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudnative-pg
+      app.kubernetes.io/instance: cloudnative-pg

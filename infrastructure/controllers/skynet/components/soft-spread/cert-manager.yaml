@@ -1,5 +1,10 @@
-# controller, webhook and cainjector: one replica each, all three were on
-# skynet-wrk-04 on Nov 16. startupapicheck (a hook Job) is unchanged.
+# controller, webhook and cainjector: two replicas each with a
+# PodDisruptionBudget (minAvailable 1). The controller and cainjector use
+# leader election (Lease in kube-system), so the second copy is a hot
+# standby; both webhook copies serve requests. Each component prefers its two
+# copies on different nodes (weight 100), then away from other infra pods
+# and from skynet-wrk-04. All preferences; nothing is required.
+# startupapicheck (a hook Job) is unchanged.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -7,10 +12,14 @@ metadata:
   namespace: cert-manager
 spec:
   values:
+    replicaCount: 2
+    podDisruptionBudget: &pdb
+      enabled: true
+      minAvailable: 1
     podLabels: &labels
       skynet.jameshomelab.org/spread: infra
-    affinity: &affinity
-      nodeAffinity:
+    affinity:
+      nodeAffinity: &avoidWrk04
         preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 50
             preference:
@@ -20,7 +29,15 @@ spec:
                   values: [skynet-wrk-04]
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 50
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: cert-manager
+                  app.kubernetes.io/component: controller
+          - &infraTerm
+            weight: 50
             podAffinityTerm:
               topologyKey: kubernetes.io/hostname
               namespaceSelector: {}
@@ -35,10 +52,36 @@ spec:
           matchLabels:
             skynet.jameshomelab.org/spread: infra
     webhook:
+      replicaCount: 2
+      podDisruptionBudget: *pdb
       podLabels: *labels
-      affinity: *affinity
+      affinity:
+        nodeAffinity: *avoidWrk04
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: cert-manager
+                    app.kubernetes.io/component: webhook
+            - *infraTerm
       topologySpreadConstraints: *spread
     cainjector:
+      replicaCount: 2
+      podDisruptionBudget: *pdb
       podLabels: *labels
-      affinity: *affinity
+      affinity:
+        nodeAffinity: *avoidWrk04
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: cert-manager
+                    app.kubernetes.io/component: cainjector
+            - *infraTerm
       topologySpreadConstraints: *spread

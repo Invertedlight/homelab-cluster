@@ -1,0 +1,12 @@
+# Two connector replicas (base Deployment); keep at least one up during a
+# node drain. skynet only.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared
+  namespace: cloudflare
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflared
