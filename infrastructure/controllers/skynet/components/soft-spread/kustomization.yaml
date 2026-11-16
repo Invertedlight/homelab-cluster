@@ -13,8 +13,11 @@
 # - Multi-replica components (cloudflared, longhorn-ui) also prefer to keep
 #   their own replicas on different nodes.
 #
-# Every rule is a preference. Nothing is required, no nodeSelector, toleration
-# or replica count changes. If the preferred nodes are down or full the pods
+# Every rule is a preference. Nothing is required and there is no
+# nodeSelector or toleration change. Second copies + PDBs (minAvailable 1):
+# cert-manager controller/webhook/cainjector and the CNPG operator run 2
+# replicas; cloudflared and longhorn-ui (already 2) get PDBs. If the
+# preferred nodes are down or full the pods
 # still schedule anywhere they can today (wrk-04 and control-plane included).
 # The scheduler applies these only when a pod is (re)scheduled.
 #
