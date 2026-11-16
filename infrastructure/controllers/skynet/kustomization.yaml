@@ -11,6 +11,7 @@ resources:
   - ../base/kube-vip
   - ../base/longhorn
   - ../base/traefik-tls
+  - traefik
   - renovate
   - kjobs
 # Soft node spreading for infrastructure Deployments (skynet only).
