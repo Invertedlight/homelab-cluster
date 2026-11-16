@@ -3,6 +3,12 @@
 Host-level bootstrap that Flux cannot manage. Node OS package updates use
 `playbooks/os-unattended-upgrades.yaml`; cluster reboots stay with kured.
 
+## What Ansible does not manage
+
+Everything inside the cluster is Flux, from this repo. That includes replica counts, PodDisruptionBudgets, soft pod placement (`components/soft-spread` and the skynet overlays), Longhorn PVCs for Prometheus and Grafana, and Traefik's second replica. Traefik is the k3s-packaged chart; its values come from the Flux-applied `HelmChartConfig` `kube-system/traefik` in `infrastructure/controllers/skynet/traefik/`. Do not add a Traefik `HelmChartConfig` or other cluster manifests to `/var/lib/rancher/k3s/server/manifests` from a playbook; k3s would re-apply that file on every server start and fight Flux. These playbooks only touch node OS packages and the kubelet resolv drop-in in `/etc/rancher/k3s/config.yaml.d/`.
+
+The k3s install itself and the Flux bootstrap/restore playbook live in `Invertedlight/VM-Cluster-Build`.
+
 ## SSH
 
 Inventory uses a **software** ed25519 key at `~/.ssh/id_ed25519_ansible` (no YubiKey
