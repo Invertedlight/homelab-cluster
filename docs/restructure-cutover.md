@@ -9,7 +9,9 @@ Production paths:
 - `./infrastructure/controllers/skynet`
 - `./monitoring/controllers/skynet`
 - `./monitoring/configs/skynet`
-- `./infrastructure/controllers/base/cloudnative-pg` (unchanged)
+- `./infrastructure/controllers/skynet/cloudnative-pg` (`database-operator`)
+
+`database-operator` pointed at `./infrastructure/controllers/base/cloudnative-pg` through the cutover. On 2026-11-16 #197 moved it to the skynet overlay `./infrastructure/controllers/skynet/cloudnative-pg`, which builds the same base and adds skynet-only soft spreading, and #198 added a second operator replica and a PodDisruptionBudget there. vm-staging keeps its own overlay at `./infrastructure/controllers/vm-staging/cloudnative-pg`. Later sections show the paths as they were during the cutover.
 
 The rest of this document is the record of how the cutover was done, including why a same-commit rename with nothing left at `./clusters/staging` would not have updated the live path.
 
