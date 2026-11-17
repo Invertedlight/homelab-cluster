@@ -1,0 +1,25 @@
+---
+# Included only in check mode. Package installs are simulated, so a unit that
+# ships in one of those packages may not exist yet. Later tasks skip that case.
+# A real run does not include this file, and systemd still fails if the unit is missing.
+
+- name: Record which baseline units are already installed
+  ansible.builtin.set_fact:
+    baseline_timesyncd_ready: "{{ ('systemd-timesyncd' in ansible_facts['packages']) or ('systemd-timesyncd.service' in ansible_facts['services']) }}"
+    baseline_iscsid_ready: "{{ ('open-iscsi' in ansible_facts['packages']) or ('iscsid.service' in ansible_facts['services']) }}"
+
+- name: Report that an apply would enable systemd-timesyncd
+  ansible.builtin.debug:
+    msg: >-
+      systemd-timesyncd.service is not on this host yet.
+      An apply installs systemd-timesyncd, then enables and starts the unit.
+      Check mode skips that enable because the package install was only simulated.
+  when: not (baseline_timesyncd_ready | bool)
+
+- name: Report that an apply would enable iscsid
+  ansible.builtin.debug:
+    msg: >-
+      iscsid.service is not on this host yet.
+      An apply installs open-iscsi, then enables and starts the unit.
+      Check mode skips that enable because the package install was only simulated.
+  when: not (baseline_iscsid_ready | bool)

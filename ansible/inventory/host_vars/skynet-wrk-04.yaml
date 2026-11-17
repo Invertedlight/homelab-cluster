@@ -1,0 +1,8 @@
+---
+# Former skynet-wrk-02 laptop (MAC C8:2A:14:02:91:23). The build manual
+# recorded its NIC as enp2s0. Confirm with `ip -br link` after a reinstall.
+# Battery-plug scripts, the systemd timer, and /etc/battery-plug.env are not
+# in Git and must be restored by hand. Do not add kernel packages or sysctl
+# settings beyond the shared baseline. Garage keeps a local-path replica here.
+baseline_kernel_metapackage_family: hwe
+k3s_flannel_iface: enp2s0

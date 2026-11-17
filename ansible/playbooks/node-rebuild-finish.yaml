@@ -1,0 +1,66 @@
+---
+# Uncordon one node and remove maintenance=true.
+# Requires -e confirm_node_return=return-one-node and -e target_host=<node>.
+# The node must already be Ready.
+- name: Return one skynet node to service
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  tasks:
+    - name: Require the target node
+      ansible.builtin.include_tasks: ../tasks/require-target-host.yaml
+
+    - name: Require the return confirmation
+      ansible.builtin.assert:
+        that:
+          - confirm_node_return | default('') == 'return-one-node'
+        fail_msg: >-
+          Pass -e confirm_node_return=return-one-node to uncordon
+          {{ target_host }} and remove maintenance=true.
+
+    - name: Require the skynet kubeconfig
+      ansible.builtin.include_tasks: ../tasks/kubeconfig-skynet.yaml
+
+    - name: Wait until the node is Ready
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - node
+          - "{{ target_host }}"
+          - -o
+          - 'jsonpath={.status.conditions[?(@.type=="Ready")].status}'
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: finish_ready
+      changed_when: false
+      retries: 40
+      delay: 15
+      until: finish_ready.stdout == "True"
+
+    - name: Uncordon the node
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - uncordon
+          - "{{ target_host }}"
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: finish_uncordon
+      changed_when: "'already uncordoned' not in finish_uncordon.stdout"
+
+    - name: Remove the maintenance label
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - label
+          - node
+          - "{{ target_host }}"
+          - maintenance-
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: finish_label
+      changed_when: "'not labeled' not in finish_label.stdout and 'not found' not in finish_label.stderr"
+      failed_when: finish_label.rc != 0 and 'not found' not in finish_label.stderr

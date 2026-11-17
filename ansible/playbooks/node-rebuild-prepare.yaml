@@ -1,0 +1,516 @@
+---
+# Take one skynet node out of the cluster before a disk reinstall.
+# Destructive. Requires -e target_host=<node> and
+# -e confirm_node_rebuild=rebuild-one-node.
+#
+# Does not delete PersistentVolumeClaims. Garage pods are left in place unless
+# -e confirm_garage_pod_delete=delete-garage-pod is also set.
+- name: Drain one skynet node
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  vars:
+    skynet_garage_nodes:
+      - skynet-wrk-02
+      - skynet-wrk-03
+      - skynet-wrk-04
+    longhorn_evict_retries: 40
+    longhorn_evict_delay: 15
+  tasks:
+    - name: Require the target node
+      ansible.builtin.include_tasks: ../tasks/require-target-host.yaml
+
+    - name: Warn about control-plane quorum and CloudNativePG
+      ansible.builtin.debug:
+        msg: >-
+          {{ target_host }} is a control plane. Embedded etcd needs the other
+          two members healthy. Rebuild one control plane at a time.
+          The CloudNativePG instance on this node uses a local-path PVC.
+          That data is destroyed with the disk. The operator rebuilds the
+          replica. Do not delete Cluster database/homelab-postgres.
+          kube-vip stays in Flux and is pinned to eno1.
+      when: target_host in groups['control_plane']
+
+    - name: Warn about Garage local-path data
+      ansible.builtin.debug:
+        msg: >-
+          {{ target_host }} holds a Garage local-path replica. Drain will not
+          move that pod, and this playbook does not delete its PVCs.
+          Wiping the disk destroys that replica. The other two Garage pods
+          must be Ready first. Pass -e confirm_garage_pod_delete=delete-garage-pod
+          to delete only the pod on this node so drain can finish.
+      when: target_host in skynet_garage_nodes
+
+    - name: Warn about skynet-wrk-03 host software
+      ansible.builtin.debug:
+        msg: >-
+          skynet-wrk-03 host software is not in Git. Before the disk is wiped,
+          inventory ubuntu-desktop, nginx, php8.5-fpm, mariadb, wezterm, and
+          the NetworkManager profile for enp3s0f0. A Server install does not
+          restore them. k3s must keep node-ip 192.168.68.113 and flannel
+          interface enp3s0f0 so Wi-Fi is not selected.
+      when: target_host == "skynet-wrk-03"
+
+    - name: Warn about skynet-wrk-04 battery automation
+      ansible.builtin.debug:
+        msg: >-
+          skynet-wrk-04 battery-plug scripts, the systemd timer, and
+          /etc/battery-plug.env are not in Git. Copy them off the machine
+          before the wipe and restore them by hand. Do not commit the env
+          file. Do not add kernel packages or sysctl settings beyond the
+          shared baseline.
+      when: target_host == "skynet-wrk-04"
+
+    - name: Require the rebuild confirmation
+      ansible.builtin.assert:
+        that:
+          - confirm_node_rebuild | default('') == 'rebuild-one-node'
+        fail_msg: >-
+          Pass -e confirm_node_rebuild=rebuild-one-node to evict, drain,
+          uninstall k3s, and delete node {{ target_host }}.
+
+    - name: Require the skynet kubeconfig
+      ansible.builtin.include_tasks: ../tasks/kubeconfig-skynet.yaml
+
+    - name: Read nodes
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - nodes
+          - -o
+          - json
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_nodes
+      changed_when: false
+
+    - name: Count Ready control planes other than the target
+      ansible.builtin.set_fact:
+        rebuild_other_cp_ready: >-
+          {{
+            rebuild_other_cp_ready | default(0) | int
+            + (
+                1 if (
+                  item.metadata.name != target_host
+                  and item.metadata.name in groups['control_plane']
+                  and (
+                    item.status.conditions
+                    | selectattr('type', 'equalto', 'Ready')
+                    | map(attribute='status')
+                    | first | default('')
+                  ) == 'True'
+                )
+                else 0
+              )
+          }}
+      loop: "{{ (rebuild_nodes.stdout | from_json)['items'] }}"
+
+    - name: Require the other two control planes to be Ready
+      ansible.builtin.assert:
+        that:
+          - rebuild_other_cp_ready | int == 2
+        fail_msg: >-
+          Refusing to drain {{ target_host }}. The other two control planes
+          must be Ready so etcd keeps quorum. Ready others:
+          {{ rebuild_other_cp_ready | default(0) }}.
+      when: target_host in groups['control_plane']
+
+    - name: Read CloudNativePG pods
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - database
+          - get
+          - pods
+          - -l
+          - cnpg.io/cluster=homelab-postgres
+          - -o
+          - json
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_cnpg
+      changed_when: false
+      when: target_host in groups['control_plane']
+
+    - name: Count CloudNativePG pods Ready on the other control planes
+      ansible.builtin.set_fact:
+        rebuild_cnpg_ready_elsewhere: "{{ rebuild_cnpg_ready_elsewhere | default(0) | int + cnpg_ready_here | int }}"
+      vars:
+        cnpg_ready_here: >-
+          {{
+            1 if (
+              item.spec.nodeName | default('') not in ['', target_host]
+              and (
+                item.status.conditions | default([])
+                | selectattr('type', 'equalto', 'Ready')
+                | map(attribute='status')
+                | first | default('')
+              ) == 'True'
+            )
+            else 0
+          }}
+      loop: "{{ (rebuild_cnpg.stdout | from_json)['items'] | default([]) }}"
+      when: target_host in groups['control_plane']
+
+    - name: Require the other CloudNativePG instances
+      ansible.builtin.assert:
+        that:
+          - rebuild_cnpg_ready_elsewhere | int == 2
+        fail_msg: >-
+          Refusing to drain {{ target_host }}. Both other homelab-postgres
+          instances must be Ready. The operator rebuilds the instance on
+          this node after the disk is wiped. Do not delete the Cluster.
+      when: target_host in groups['control_plane']
+
+    - name: Read Garage pods
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - garage
+          - get
+          - pods
+          - -l
+          - app=garage
+          - -o
+          - json
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_garage
+      changed_when: false
+      when: target_host in skynet_garage_nodes
+
+    - name: Count Garage pods Ready on the other nodes
+      ansible.builtin.set_fact:
+        rebuild_garage_ready_elsewhere: "{{ rebuild_garage_ready_elsewhere | default(0) | int + garage_ready_here | int }}"
+      vars:
+        garage_ready_here: >-
+          {{
+            1 if (
+              item.spec.nodeName | default('') not in ['', target_host]
+              and (
+                item.status.conditions | default([])
+                | selectattr('type', 'equalto', 'Ready')
+                | map(attribute='status')
+                | first | default('')
+              ) == 'True'
+            )
+            else 0
+          }}
+      loop: "{{ (rebuild_garage.stdout | from_json)['items'] | default([]) }}"
+      when: target_host in skynet_garage_nodes
+
+    - name: Require the other Garage pods to be Ready
+      ansible.builtin.assert:
+        that:
+          - rebuild_garage_ready_elsewhere | int >= 2
+        fail_msg: >-
+          Refusing to drain {{ target_host }}. The other Garage pods must be
+          Ready. This playbook does not delete Garage PVCs.
+      when: target_host in skynet_garage_nodes
+
+    - name: Read the Longhorn node
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - longhorn-system
+          - get
+          - nodes.longhorn.io
+          - "{{ target_host }}"
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_longhorn_node
+      changed_when: false
+      failed_when: >-
+        rebuild_longhorn_node.rc != 0
+        and 'NotFound' not in rebuild_longhorn_node.stderr
+
+    - name: Request Longhorn eviction
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - longhorn-system
+          - patch
+          - nodes.longhorn.io
+          - "{{ target_host }}"
+          - --type=merge
+          - -p
+          - '{"spec":{"allowScheduling":false,"evictionRequested":true}}'
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_longhorn_patch
+      changed_when: "'patched' in rebuild_longhorn_patch.stdout"
+      when: rebuild_longhorn_node.rc == 0
+
+    - name: Wait until Longhorn has no replicas on this node
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - longhorn-system
+          - get
+          - replicas.longhorn.io
+          - -o
+          - json
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_longhorn_replicas
+      changed_when: false
+      retries: "{{ longhorn_evict_retries }}"
+      delay: "{{ longhorn_evict_delay }}"
+      until: >-
+        (
+          (rebuild_longhorn_replicas.stdout | from_json)['items']
+          | default([])
+          | selectattr('spec.nodeID', 'defined')
+          | selectattr('spec.nodeID', 'equalto', target_host)
+          | list
+          | length
+        ) | int == 0
+      when: rebuild_longhorn_node.rc == 0
+
+    - name: Read Longhorn volumes
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - longhorn-system
+          - get
+          - volumes.longhorn.io
+          - -o
+          - json
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_longhorn_volumes
+      changed_when: false
+      when: rebuild_longhorn_node.rc == 0
+
+    - name: Require Longhorn volumes to be healthy
+      ansible.builtin.assert:
+        that:
+          - >-
+            (
+              (rebuild_longhorn_volumes.stdout | from_json)['items']
+              | default([])
+              | selectattr('status.robustness', 'defined')
+              | selectattr('status.robustness', 'in', ['degraded', 'faulted'])
+              | list
+              | length
+            ) | int == 0
+        fail_msg: >-
+          Longhorn still has a degraded or faulted volume. Stop here.
+          Do not uninstall k3s or delete the node.
+      when: rebuild_longhorn_node.rc == 0
+
+    - name: Label the node for maintenance
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - label
+          - node
+          - "{{ target_host }}"
+          - maintenance=true
+          - --overwrite
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_maintenance
+      changed_when: "'not labeled' not in rebuild_maintenance.stdout"
+      failed_when: rebuild_maintenance.rc != 0 and 'NotFound' not in rebuild_maintenance.stderr
+
+    - name: Cordon the node
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - cordon
+          - "{{ target_host }}"
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_cordon
+      changed_when: "'already cordoned' not in rebuild_cordon.stdout"
+      failed_when: rebuild_cordon.rc != 0 and 'NotFound' not in rebuild_cordon.stderr
+
+    - name: Delete the Garage pod on this node when confirmed
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - garage
+          - delete
+          - pod
+          - -l
+          - app=garage
+          - --field-selector
+          - "spec.nodeName={{ target_host }}"
+          - --wait=false
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_garage_pod
+      changed_when: "'deleted' in rebuild_garage_pod.stdout"
+      when:
+        - target_host in skynet_garage_nodes
+        - confirm_garage_pod_delete | default('') == 'delete-garage-pod'
+
+    - name: Drain the node
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - drain
+          - "{{ target_host }}"
+          - --ignore-daemonsets
+          - --delete-emptydir-data
+          - --timeout=20m
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_drain
+      changed_when: true
+      failed_when: rebuild_drain.rc != 0 and 'NotFound' not in rebuild_drain.stderr
+
+    - name: Record that the drain step finished
+      ansible.builtin.set_fact:
+        rebuild_prepare_drained: true
+
+- name: Uninstall k3s on the drained node
+  hosts: "{{ target_host | default('__refuse__', true) }}"
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - name: Require the drain fact
+      ansible.builtin.assert:
+        that:
+          - hostvars['localhost']['rebuild_prepare_drained'] | default(false) | bool
+          - confirm_node_rebuild | default('') == 'rebuild-one-node'
+          - inventory_hostname == target_host
+          - inventory_hostname in groups['skynet']
+        fail_msg: Refusing to uninstall k3s.
+
+    - name: Ensure the backup directory exists
+      ansible.builtin.file:
+        path: /var/backups
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Stat the k3s configuration directory
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s
+      register: rebuild_k3s_etc
+
+    - name: Back up /etc/rancher/k3s on the node
+      ansible.builtin.archive:
+        path: /etc/rancher/k3s
+        dest: "/var/backups/k3s-{{ inventory_hostname }}-{{ ansible_facts['date_time']['date'] }}.tar.gz"
+        format: gz
+        mode: "0600"
+      when: rebuild_k3s_etc.stat.exists | default(false)
+
+    - name: Stat k3s uninstall scripts
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /usr/local/bin/k3s-uninstall.sh
+        - /usr/local/bin/k3s-agent-uninstall.sh
+      register: rebuild_uninstall_scripts
+
+    - name: Refuse when both uninstall scripts exist
+      ansible.builtin.fail:
+        msg: Both k3s-uninstall.sh and k3s-agent-uninstall.sh exist. Stop and inspect the node.
+      when: rebuild_uninstall_scripts.results | selectattr('stat.exists') | list | length > 1
+
+    - name: Run the k3s uninstall script
+      ansible.builtin.command:
+        argv:
+          - "{{ item.stat.path }}"
+      loop: "{{ rebuild_uninstall_scripts.results }}"
+      when: item.stat.exists | default(false)
+      changed_when: true
+
+    - name: Report that k3s is already uninstalled
+      ansible.builtin.debug:
+        msg: No k3s uninstall script was present on {{ inventory_hostname }}.
+      when: rebuild_uninstall_scripts.results | selectattr('stat.exists') | list | length == 0
+
+- name: Remove the etcd member and the node object
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  tasks:
+    - name: Refuse to delete the node when the drain play did not finish
+      ansible.builtin.assert:
+        that:
+          - hostvars['localhost']['rebuild_prepare_drained'] | default(false) | bool
+          - confirm_node_rebuild | default('') == 'rebuild-one-node'
+          - target_host in groups['skynet']
+        fail_msg: Refusing to delete the node object.
+
+    - name: Require the skynet kubeconfig
+      ansible.builtin.include_tasks: ../tasks/kubeconfig-skynet.yaml
+
+    - name: Remove this control plane from embedded etcd
+      when: target_host in groups['control_plane']
+      block:
+        - name: List embedded etcd members from a surviving control plane
+          ansible.builtin.command:
+            argv:
+              - /usr/local/bin/k3s
+              - etcd-member-list
+          delegate_to: "{{ groups['control_plane'] | difference([target_host]) | first }}"
+          become: true
+          register: rebuild_etcd_members
+          changed_when: false
+
+        - name: Select the etcd member for this node
+          ansible.builtin.set_fact:
+            rebuild_etcd_member_names: >-
+              {{
+                rebuild_etcd_members.stdout_lines
+                | select('search', target_host)
+                | map('split')
+                | flatten
+                | select('match', '^' ~ target_host)
+                | list
+              }}
+
+        - name: Require at most one matching etcd member
+          ansible.builtin.assert:
+            that:
+              - rebuild_etcd_member_names | length < 2
+            fail_msg: >-
+              More than one etcd member matched {{ target_host }}.
+              Remove the member by hand from a surviving control plane.
+
+        - name: Remove the drained node's etcd member
+          ansible.builtin.command:
+            argv:
+              - /usr/local/bin/k3s
+              - etcd-member-remove
+              - "{{ rebuild_etcd_member_names | first }}"
+          delegate_to: "{{ groups['control_plane'] | difference([target_host]) | first }}"
+          become: true
+          when: rebuild_etcd_member_names | length == 1
+          changed_when: true
+
+    - name: Delete the node object
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - delete
+          - node
+          - "{{ target_host }}"
+          - --wait=true
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: rebuild_delete_node
+      changed_when: rebuild_delete_node.rc == 0
+      failed_when: >-
+        rebuild_delete_node.rc != 0
+        and 'NotFound' not in rebuild_delete_node.stderr

@@ -1,0 +1,11 @@
+---
+# For plays that run on the controller and take the node name as a variable.
+- name: Require one skynet target_host
+  ansible.builtin.assert:
+    that:
+      - target_host is defined
+      - target_host | length > 0
+      - target_host in groups['skynet']
+    fail_msg: >-
+      Pass -e target_host=skynet-wrk-01. The host must be one of
+      {{ groups['skynet'] | join(', ') }}.

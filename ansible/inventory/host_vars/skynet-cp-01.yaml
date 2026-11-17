@@ -1,0 +1,5 @@
+---
+# HP EliteDesk. Kernel metapackage is linux-generic, not the HWE metas used
+# on the other six nodes. kube-vip advertises 192.168.68.40 on eno1.
+baseline_kernel_metapackage_family: generic
+k3s_flannel_iface: eno1

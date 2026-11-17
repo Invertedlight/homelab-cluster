@@ -1,0 +1,9 @@
+---
+# Shared production values. Per-node overrides live in host_vars.
+# skynet-cp-01 uses the generic kernel metapackage. Every other node uses
+# the HWE family (linux-generic-hwe-26.04, or linux-generic-hwe-24.04 when
+# that transitional metapackage is already installed).
+baseline_kernel_metapackage_family: hwe
+# kube-vip's DaemonSet pins vip_interface to eno1. Control planes must stay
+# on eno1. Workers override this when the NIC name differs.
+k3s_flannel_iface: eno1

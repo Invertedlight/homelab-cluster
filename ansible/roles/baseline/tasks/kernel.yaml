@@ -1,0 +1,219 @@
+---
+- name: Require Ubuntu 26.04 before pinning the kernel
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['distribution_version'] is match('^26\\.04')
+      - ansible_facts['distribution_release'] == "resolute"
+      - baseline_kernel_target == "7.0.0-43-generic"
+      - baseline_kernel_metapackage_family in ['generic', 'hwe']
+      - "'7.0.0-42' not in (baseline_kernel_abi_packages + baseline_kernel_generic_packages + baseline_kernel_hwe_2604_packages) | join(' ')"
+    fail_msg: >-
+      Refusing the kernel pin. {{ inventory_hostname }} must be Ubuntu 26.04
+      (resolute) and the pin must be 7.0.0-43-generic, never 7.0.0-42.
+
+- name: Read installed packages
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Look for kernel 7.0.0-42
+  ansible.builtin.command:
+    argv:
+      - dpkg-query
+      - -W
+      - -f
+      - "${Package}\\n"
+      - linux-image-7.0.0-42-generic
+  register: baseline_kernel_42
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Refuse kernel 7.0.0-42
+  ansible.builtin.fail:
+    msg: >-
+      Refusing to leave linux-image-7.0.0-42-generic installed on
+      {{ inventory_hostname }}. Remove it by hand before pinning 7.0.0-43.
+  when: baseline_kernel_42.rc == 0
+
+- name: Record which kernel metapackages are installed
+  ansible.builtin.set_fact:
+    baseline_generic_installed: "{{ 'linux-generic' in ansible_facts['packages'] }}"
+    baseline_hwe_2604_installed: "{{ 'linux-generic-hwe-26.04' in ansible_facts['packages'] }}"
+    baseline_hwe_2404_installed: "{{ 'linux-generic-hwe-24.04' in ansible_facts['packages'] }}"
+
+- name: Refuse a generic node that still has an HWE metapackage
+  ansible.builtin.assert:
+    that:
+      - not (baseline_hwe_2604_installed | bool)
+      - not (baseline_hwe_2404_installed | bool)
+    fail_msg: >-
+      {{ inventory_hostname }} is set to the linux-generic metapackage, but an
+      HWE metapackage is already installed. This role will not remove it.
+      Check `dpkg-query -W 'linux-generic*'` and fix host_vars if the family is wrong.
+  when: baseline_kernel_metapackage_family == "generic"
+
+- name: Refuse an HWE node that has only linux-generic
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} has linux-generic and no HWE metapackage.
+      host_vars say hwe. This role will not install a second metapackage.
+      Set baseline_kernel_metapackage_family to generic if that is intentional.
+  when:
+    - baseline_kernel_metapackage_family == "hwe"
+    - baseline_generic_installed | bool
+    - not (baseline_hwe_2604_installed | bool)
+    - not (baseline_hwe_2404_installed | bool)
+
+- name: Select metapackages for a generic node
+  ansible.builtin.set_fact:
+    baseline_kernel_meta_install: "{{ baseline_kernel_generic_packages }}"
+    baseline_kernel_meta_holds: "{{ baseline_kernel_generic_holds }}"
+  when: baseline_kernel_metapackage_family == "generic"
+
+- name: Select the 26.04 HWE metapackage for a new node
+  ansible.builtin.set_fact:
+    baseline_kernel_meta_install: "{{ baseline_kernel_hwe_2604_packages }}"
+    baseline_kernel_meta_holds: "{{ baseline_kernel_hwe_2604_holds }}"
+  when:
+    - baseline_kernel_metapackage_family == "hwe"
+    - not (baseline_hwe_2604_installed | bool)
+    - not (baseline_hwe_2404_installed | bool)
+
+- name: Hold HWE metapackages that are already installed
+  ansible.builtin.set_fact:
+    baseline_kernel_meta_install: "{{ baseline_kernel_hwe_2604_packages if (baseline_hwe_2604_installed | bool) else [] }}"
+    baseline_kernel_meta_holds: >-
+      {{
+        (baseline_kernel_hwe_2604_holds if (baseline_hwe_2604_installed | bool) else [])
+        + (baseline_kernel_hwe_2404_holds | select('in', ansible_facts['packages']) | list)
+        + (baseline_kernel_generic_holds | select('in', ansible_facts['packages']) | list)
+      }}
+  when:
+    - baseline_kernel_metapackage_family == "hwe"
+    - (baseline_hwe_2604_installed | bool) or (baseline_hwe_2404_installed | bool)
+
+- name: Report the running kernel and the target
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }} running={{ ansible_facts['kernel'] }}
+      target={{ baseline_kernel_target }}
+      family={{ baseline_kernel_metapackage_family }}
+      reboot={{ (ansible_facts['kernel'] != baseline_kernel_target) | ternary('yes', 'no') }}
+
+- name: Install the pinned 7.0.0-43 kernel packages
+  ansible.builtin.apt:
+    name: "{{ baseline_kernel_abi_packages + baseline_kernel_meta_install }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Refresh package facts after the kernel install
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Keep holds to packages this run can see
+  ansible.builtin.set_fact:
+    baseline_kernel_hold_names: >-
+      {{
+        (baseline_kernel_abi_holds + baseline_kernel_meta_holds)
+        | unique
+        | select('in', ansible_facts['packages'])
+        | list
+      }}
+
+- name: Require every pinned kernel package to be installed
+  ansible.builtin.assert:
+    that:
+      - item in ansible_facts['packages']
+    fail_msg: >-
+      {{ item }} is not installed on {{ inventory_hostname }} after the pin.
+  loop: "{{ (baseline_kernel_abi_holds + baseline_kernel_meta_holds) | unique }}"
+  when: not ansible_check_mode
+
+- name: Hold installed kernel packages
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: "{{ baseline_kernel_hold_names }}"
+
+- name: Report kernel holds that wait on the simulated install
+  ansible.builtin.debug:
+    msg: >-
+      These kernel packages are not installed yet:
+      {{ (baseline_kernel_abi_holds + baseline_kernel_meta_holds) | unique
+         | reject('in', ansible_facts['packages'] | default({})) | join(', ') }}.
+      An apply installs them and sets their dpkg selection to hold.
+      Check mode skips each hold because the package install was only simulated.
+  when:
+    - ansible_check_mode
+    - >-
+      ((baseline_kernel_abi_holds + baseline_kernel_meta_holds) | unique
+      | reject('in', ansible_facts['packages'] | default({})) | list | length) > 0
+
+- name: Read GRUB defaults
+  ansible.builtin.slurp:
+    src: /etc/default/grub
+  register: baseline_grub_file
+
+- name: Record whether GRUB is already pinned
+  ansible.builtin.set_fact:
+    baseline_grub_pinned: "{{ baseline_grub_default in (baseline_grub_file.content | b64decode) }}"
+
+- name: Back up GRUB defaults before changing the pin
+  ansible.builtin.copy:
+    src: /etc/default/grub
+    dest: "/etc/default/grub.bak-{{ ansible_facts['date_time']['date'] }}"
+    remote_src: true
+    mode: "0644"
+    force: false
+  when: not (baseline_grub_pinned | bool)
+
+- name: Pin GRUB to the 7.0.0-43 advanced menu entry
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^#?GRUB_DEFAULT='
+    line: "{{ baseline_grub_default }}"
+  register: baseline_grub
+
+- name: Update GRUB after the pin changes
+  ansible.builtin.command:
+    argv:
+      - update-grub
+  when:
+    - not ansible_check_mode
+    - baseline_grub is changed
+  changed_when: true
+
+- name: Check whether k3s is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: baseline_k3s_bin
+
+- name: Refuse to reboot a node that still has k3s
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} has /usr/local/bin/k3s and is not running
+      {{ baseline_kernel_target }}. Drain and remove it before a kernel reboot.
+      Pass -e baseline_kernel_reboot_force=true only when that reboot is intended.
+  when:
+    - baseline_kernel_reboot | bool
+    - baseline_k3s_bin.stat.exists
+    - not (baseline_kernel_reboot_force | bool)
+    - >-
+      ansible_facts['kernel'] != baseline_kernel_target
+      or (baseline_grub is changed)
+
+- name: Reboot into the pinned kernel
+  ansible.builtin.reboot:
+    reboot_timeout: 900
+    msg: Reboot into 7.0.0-43-generic
+  when:
+    - baseline_kernel_reboot | bool
+    - >-
+      ansible_facts['kernel'] != baseline_kernel_target
+      or (baseline_grub is changed)
+
+- name: Require the running kernel
+  ansible.builtin.include_tasks: assert_running_kernel.yaml
+  when: not ansible_check_mode

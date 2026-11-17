@@ -1,0 +1,65 @@
+---
+# Ubuntu 26.04 (resolute) baseline for one production skynet node.
+# Kernel packages come from resolute-updates. 7.0.0-42 is the Noble HWE
+# kernel and must not be installed or booted.
+
+baseline_packages:
+  - curl
+  - ca-certificates
+  - open-iscsi
+  - nfs-common
+  - jq
+  - systemd-timesyncd
+
+baseline_timezone: America/Chicago
+
+# Reboot only when the operator passes -e baseline_kernel_reboot=true.
+# A node that already runs 7.0.0-43-generic is not rebooted.
+baseline_kernel_reboot: false
+baseline_kernel_reboot_force: false
+
+# AppArmor SIGURG workaround. On for production, same as staging.
+baseline_apparmor_unconfined_workaround: true
+
+baseline_kernel_target: 7.0.0-43-generic
+baseline_kernel_package_version: 7.0.0-43.43
+
+baseline_kernel_abi_packages:
+  - linux-image-7.0.0-43-generic=7.0.0-43.43
+  - linux-modules-7.0.0-43-generic=7.0.0-43.43
+  - linux-headers-7.0.0-43-generic=7.0.0-43.43
+
+baseline_kernel_abi_holds:
+  - linux-image-7.0.0-43-generic
+  - linux-modules-7.0.0-43-generic
+  - linux-headers-7.0.0-43-generic
+
+baseline_kernel_generic_packages:
+  - linux-image-generic=7.0.0-43.43
+  - linux-headers-generic=7.0.0-43.43
+  - linux-generic=7.0.0-43.43
+
+baseline_kernel_generic_holds:
+  - linux-image-generic
+  - linux-headers-generic
+  - linux-generic
+
+baseline_kernel_hwe_2604_packages:
+  - linux-image-generic-hwe-26.04=7.0.0-43.43
+  - linux-headers-generic-hwe-26.04=7.0.0-43.43
+  - linux-generic-hwe-26.04=7.0.0-43.43
+
+baseline_kernel_hwe_2604_holds:
+  - linux-image-generic-hwe-26.04
+  - linux-headers-generic-hwe-26.04
+  - linux-generic-hwe-26.04
+
+# Transitional metapackage kept on machines upgraded from 24.04.
+# Never installed here. Held only when it is already present.
+baseline_kernel_hwe_2404_holds:
+  - linux-image-generic-hwe-24.04
+  - linux-headers-generic-hwe-24.04
+  - linux-generic-hwe-24.04
+
+baseline_grub_default: >-
+  GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 7.0.0-43-generic"

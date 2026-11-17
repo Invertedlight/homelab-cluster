@@ -1,0 +1,80 @@
+---
+- name: Report that check mode skips the Ready wait
+  ansible.builtin.debug:
+    msg: >-
+      k3s is not running on {{ inventory_hostname }} yet.
+      An apply waits until the node is Ready
+      {% if k3s_node_role == 'server' %}and has the etcd role{% endif %}.
+      Check mode skips that wait because the install was only simulated.
+  when:
+    - ansible_check_mode
+    - not (k3s_already_pinned | bool)
+
+- name: Wait until this node is Ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - node
+      - "{{ inventory_hostname }}"
+      - -o
+      - 'jsonpath={.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: localhost
+  become: false
+  environment:
+    KUBECONFIG: "{{ skynet_kubeconfig }}"
+  register: k3s_node_ready
+  changed_when: false
+  retries: "{{ k3s_ready_retries }}"
+  delay: "{{ k3s_ready_delay }}"
+  until: k3s_node_ready.stdout == "True"
+  check_mode: false
+  when: not ansible_check_mode or (k3s_already_pinned | bool)
+
+- name: Wait until this server has the etcd role
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - node
+      - "{{ inventory_hostname }}"
+      - -o
+      - 'jsonpath={.metadata.labels.node-role\.kubernetes\.io/etcd}'
+  delegate_to: localhost
+  become: false
+  environment:
+    KUBECONFIG: "{{ skynet_kubeconfig }}"
+  register: k3s_etcd_label
+  changed_when: false
+  retries: "{{ k3s_ready_retries }}"
+  delay: "{{ k3s_ready_delay }}"
+  until: k3s_etcd_label.stdout == "true"
+  check_mode: false
+  when:
+    - k3s_node_role == "server"
+    - not ansible_check_mode or (k3s_already_pinned | bool)
+
+- name: Wait until API readiness includes etcd
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - --raw=/readyz?verbose
+  delegate_to: localhost
+  become: false
+  environment:
+    KUBECONFIG: "{{ skynet_kubeconfig }}"
+  register: k3s_readyz
+  changed_when: false
+  retries: "{{ k3s_ready_retries }}"
+  delay: "{{ k3s_ready_delay }}"
+  until:
+    - k3s_readyz.rc == 0
+    - "'etcd' in k3s_readyz.stdout"
+    - "'etcd failed' not in k3s_readyz.stdout"
+    - "'[-]etcd' not in k3s_readyz.stdout"
+    - "'readyz check passed' in k3s_readyz.stdout"
+  check_mode: false
+  when:
+    - k3s_node_role == "server"
+    - not ansible_check_mode or (k3s_already_pinned | bool)

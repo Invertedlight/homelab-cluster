@@ -1,0 +1,83 @@
+---
+- name: Read installed packages
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Read dpkg selections
+  ansible.builtin.command:
+    argv:
+      - dpkg
+      - --get-selections
+  register: baseline_dpkg_selections
+  changed_when: false
+
+- name: Read the running kernel
+  ansible.builtin.command:
+    argv:
+      - uname
+      - -r
+  register: baseline_uname
+  changed_when: false
+
+- name: Record held package names
+  ansible.builtin.set_fact:
+    baseline_held_packages: >-
+      {{
+        baseline_dpkg_selections.stdout_lines
+        | select('search', '\thold$')
+        | map('regex_replace', '\s+hold$', '')
+        | list
+      }}
+    baseline_hwe_2604_installed: "{{ 'linux-generic-hwe-26.04' in ansible_facts['packages'] }}"
+    baseline_hwe_2404_installed: "{{ 'linux-generic-hwe-24.04' in ansible_facts['packages'] }}"
+    baseline_generic_installed: "{{ 'linux-generic' in ansible_facts['packages'] }}"
+
+- name: Select the metapackage holds this node must have
+  ansible.builtin.set_fact:
+    baseline_kernel_meta_holds: "{{ baseline_kernel_generic_holds }}"
+  when: baseline_kernel_metapackage_family == "generic"
+
+- name: Select HWE holds from the metapackages that are installed
+  ansible.builtin.set_fact:
+    baseline_kernel_meta_holds: >-
+      {{
+        (baseline_kernel_hwe_2604_holds if (baseline_hwe_2604_installed | bool) else [])
+        + (baseline_kernel_hwe_2404_holds | select('in', ansible_facts['packages']) | list)
+        + (
+            baseline_kernel_generic_holds
+            if (
+              (baseline_generic_installed | bool)
+              and (
+                (baseline_hwe_2604_installed | bool)
+                or (baseline_hwe_2404_installed | bool)
+              )
+            )
+            else []
+          )
+      }}
+  when: baseline_kernel_metapackage_family == "hwe"
+
+- name: Require the selected metapackage to be installed
+  ansible.builtin.assert:
+    that:
+      - >-
+        (baseline_kernel_metapackage_family == 'generic' and (baseline_generic_installed | bool))
+        or (
+          baseline_kernel_metapackage_family == 'hwe'
+          and ((baseline_hwe_2604_installed | bool) or (baseline_hwe_2404_installed | bool))
+        )
+    fail_msg: >-
+      {{ inventory_hostname }} family {{ baseline_kernel_metapackage_family }}
+      does not have its kernel metapackage installed.
+
+- name: Require the pinned kernel and dpkg holds
+  ansible.builtin.assert:
+    that:
+      - baseline_uname.stdout == baseline_kernel_target
+      - "'7.0.0-42' not in baseline_uname.stdout"
+      - item in baseline_held_packages
+    fail_msg: >-
+      {{ inventory_hostname }} must run {{ baseline_kernel_target }} with
+      {{ item }} held. Running kernel is {{ baseline_uname.stdout }}.
+      Holds: {{ baseline_held_packages | join(', ') }}.
+  loop: "{{ (baseline_kernel_abi_holds + baseline_kernel_meta_holds) | unique }}"

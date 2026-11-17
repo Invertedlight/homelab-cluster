@@ -1,0 +1,17 @@
+---
+# Fail unless this play selected exactly one host from the skynet inventory.
+# Delegated to localhost so a bad limit fails before any node is contacted.
+# Pass --limit skynet-wrk-01 or -e target_host=skynet-wrk-01.
+- name: Require exactly one skynet host
+  ansible.builtin.assert:
+    that:
+      - ansible_play_hosts | length == 1
+      - (ansible_play_hosts | first) in groups['skynet']
+      - target_host is not defined or target_host | length == 0 or target_host == inventory_hostname
+    fail_msg: >-
+      Select exactly one skynet host with --limit skynet-wrk-01 or
+      -e target_host=skynet-wrk-01. This play selected
+      {{ ansible_play_hosts | join(', ') }}.
+  delegate_to: localhost
+  become: false
+  run_once: true

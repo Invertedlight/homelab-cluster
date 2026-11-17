@@ -1,0 +1,303 @@
+---
+- name: Record the k3s role from inventory
+  ansible.builtin.set_fact:
+    k3s_node_role: "{{ 'server' if inventory_hostname in groups['control_plane'] else 'agent' }}"
+    k3s_unit_name: "{{ 'k3s' if inventory_hostname in groups['control_plane'] else 'k3s-agent' }}"
+
+- name: Refuse cluster-init and unknown roles
+  ansible.builtin.assert:
+    that:
+      - k3s_node_role in ['server', 'agent']
+      - not (k3s_cluster_init | default(false) | bool)
+    fail_msg: >-
+      This role joins an existing server or agent through
+      https://{{ k3s_api_host }}:6443. It never sets cluster-init.
+
+- name: Require the per-node flannel interface
+  ansible.builtin.assert:
+    that:
+      - k3s_flannel_iface is defined
+      - k3s_flannel_iface | length > 0
+    fail_msg: Set k3s_flannel_iface in host_vars for {{ inventory_hostname }}.
+
+- name: Require eno1 on control planes
+  ansible.builtin.assert:
+    that:
+      - k3s_flannel_iface == "eno1"
+    fail_msg: >-
+      kube-vip is pinned to eno1 in
+      infrastructure/controllers/base/kube-vip/daemonset.yaml.
+      A control plane must use eno1, or that manifest has to change in Git
+      before this join.
+  when: k3s_node_role == "server"
+
+- name: Record the flannel interface address
+  ansible.builtin.set_fact:
+    k3s_iface_address: >-
+      {{
+        vars['ansible_' ~ (k3s_flannel_iface | replace('-', '_'))].ipv4.address
+        | default('')
+      }}
+
+- name: Require node-ip to be configured on the flannel interface
+  ansible.builtin.assert:
+    that:
+      - k3s_iface_address == ansible_host
+    fail_msg: >-
+      {{ k3s_flannel_iface }} on {{ inventory_hostname }} does not have
+      {{ ansible_host }}. Fix the Deco reservation or host_vars before joining.
+
+- name: Require the skynet kubeconfig
+  ansible.builtin.include_tasks: ../../../tasks/kubeconfig-skynet.yaml
+
+- name: Require kubectl on the controller
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - version
+      - --client=true
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Read whether the node is Ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - node
+      - "{{ inventory_hostname }}"
+      - -o
+      - 'jsonpath={.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: localhost
+  become: false
+  environment:
+    KUBECONFIG: "{{ skynet_kubeconfig }}"
+  register: k3s_ready_now
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Refuse a node that is already Ready
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} is Ready. This playbook joins a node that is
+      not in the cluster. Pass -e k3s_rejoin_override=true only when you
+      intend to run it against a node that is already Ready.
+  when:
+    - k3s_ready_now.rc == 0
+    - k3s_ready_now.stdout == "True"
+    - not (k3s_rejoin_override | bool)
+
+- name: Warn when a stale node object exists
+  ansible.builtin.debug:
+    msg: >-
+      Node {{ inventory_hostname }} exists but is not Ready
+      ({{ k3s_ready_now.stdout | default('empty') }}).
+      Delete it first if that object is left over from the old machine.
+  when:
+    - k3s_ready_now.rc == 0
+    - k3s_ready_now.stdout != "True"
+
+- name: Read installed service state
+  ansible.builtin.service_facts:
+
+- name: Read the installed k3s version
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - --version
+  register: k3s_installed_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Refuse a different installed k3s version
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} has k3s installed, but it is not {{ k3s_version }}.
+      This role does not replace it.
+  when:
+    - k3s_installed_version.rc == 0
+    - k3s_version not in k3s_installed_version.stdout
+
+- name: Record whether the pinned service is already running
+  ansible.builtin.set_fact:
+    k3s_already_pinned: >-
+      {{
+        k3s_installed_version.rc == 0
+        and (k3s_version in k3s_installed_version.stdout)
+        and (ansible_facts['services'][k3s_unit_name ~ '.service'].state | default('')) == 'running'
+      }}
+
+- name: Load the cluster token when k3s still needs to be installed
+  ansible.builtin.include_tasks: token.yaml
+  when: not (k3s_already_pinned | bool)
+
+- name: Create the k3s config directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the k3s config
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  register: k3s_config_file
+
+- name: Read the rendered k3s config
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/config.yaml
+  register: k3s_config_rendered
+  when: not ansible_check_mode or (k3s_config_file is not changed)
+
+- name: Refuse cluster-init in the rendered config
+  ansible.builtin.assert:
+    that:
+      - "'cluster-init' not in (k3s_config_rendered.content | b64decode)"
+    fail_msg: Refusing to start k3s with cluster-init.
+  when: k3s_config_rendered.content is defined
+
+- name: Restart k3s when the config changed on an already pinned node
+  ansible.builtin.systemd:
+    name: "{{ k3s_unit_name }}"
+    state: restarted
+  when:
+    - not ansible_check_mode
+    - k3s_already_pinned | bool
+    - k3s_config_file is changed
+
+- name: Ensure the installer directory exists
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: not (k3s_already_pinned | bool)
+
+- name: Stat the installer directory in check mode
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s
+  register: k3s_installer_dir
+  when:
+    - ansible_check_mode
+    - not (k3s_already_pinned | bool)
+
+- name: Record whether the installer directory already exists
+  ansible.builtin.set_fact:
+    k3s_installer_dir_ready: "{{ k3s_installer_dir.stat.exists | bool }}"
+  when:
+    - ansible_check_mode
+    - not (k3s_already_pinned | bool)
+
+- name: Report that the install script waits on a simulated directory
+  ansible.builtin.debug:
+    msg: >-
+      /var/lib/rancher/k3s does not exist yet.
+      An apply creates it and downloads the pinned install script.
+      Check mode skips that download because the directory create was only simulated.
+  when:
+    - ansible_check_mode
+    - not (k3s_already_pinned | bool)
+    - not (k3s_installer_dir_ready | default(false) | bool)
+
+- name: Report that check mode skips the k3s installer
+  ansible.builtin.debug:
+    msg: >-
+      k3s {{ k3s_version }} is not running on {{ inventory_hostname }} yet.
+      An apply downloads the pinned binary, runs the install script, and waits
+      until the node is Ready. Check mode skips the installer and those waits.
+  when:
+    - ansible_check_mode
+    - not (k3s_already_pinned | bool)
+
+- name: Download the pinned k3s binary
+  ansible.builtin.get_url:
+    url: "{{ k3s_binary_url }}"
+    dest: /usr/local/bin/k3s
+    mode: "0755"
+    owner: root
+    group: root
+    checksum: "sha256:{{ k3s_binary_sha256 }}"
+  when: not (k3s_already_pinned | bool)
+
+- name: Download the pinned k3s install script
+  ansible.builtin.get_url:
+    url: "{{ k3s_install_url }}"
+    dest: /var/lib/rancher/k3s/install.sh
+    mode: "0700"
+    owner: root
+    group: root
+    checksum: "sha256:{{ k3s_install_sha256 }}"
+  when:
+    - not (k3s_already_pinned | bool)
+    - not ansible_check_mode or (k3s_installer_dir_ready | default(true) | bool)
+
+- name: Store the cluster token for the installer
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/cluster-token
+    content: "{{ k3s_token_value }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when:
+    - not (k3s_already_pinned | bool)
+    - not ansible_check_mode
+
+- name: Run the pinned k3s installer
+  ansible.builtin.command:
+    argv:
+      - sh
+      - /var/lib/rancher/k3s/install.sh
+      - "{{ 'agent' if k3s_node_role == 'agent' else 'server' }}"
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_SKIP_DOWNLOAD: "true"
+    K3S_TOKEN_FILE: /etc/rancher/k3s/cluster-token
+  when:
+    - not (k3s_already_pinned | bool)
+    - not ansible_check_mode
+  changed_when: true
+  no_log: true
+
+- name: Remove the installer copy of the cluster token
+  ansible.builtin.file:
+    path: /etc/rancher/k3s/cluster-token
+    state: absent
+  when:
+    - not (k3s_already_pinned | bool)
+    - not ansible_check_mode
+
+- name: Wait until the node is Ready
+  ansible.builtin.include_tasks: wait_ready.yaml
+
+- name: Label the node so Longhorn creates its default disk
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - label
+      - node
+      - "{{ inventory_hostname }}"
+      - node.longhorn.io/create-default-disk=true
+      - --overwrite
+  delegate_to: localhost
+  become: false
+  environment:
+    KUBECONFIG: "{{ skynet_kubeconfig }}"
+  register: k3s_longhorn_label
+  changed_when: "'not labeled' not in k3s_longhorn_label.stdout"
+  when: not ansible_check_mode or (k3s_already_pinned | bool)
+
+- name: Require the pinned kernel and holds
+  ansible.builtin.include_role:
+    name: baseline
+    tasks_from: assert_running_kernel
+  when: not ansible_check_mode or (k3s_already_pinned | bool)

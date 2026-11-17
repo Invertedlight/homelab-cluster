@@ -7,7 +7,7 @@ Host-level bootstrap that Flux cannot manage. Node OS package updates use
 
 Everything inside the cluster is Flux, from this repo. That includes replica counts, PodDisruptionBudgets, soft pod placement (`components/soft-spread` and the skynet overlays), Longhorn PVCs for Prometheus and Grafana, and Traefik's second replica. Traefik is the k3s-packaged chart; its values come from the Flux-applied `HelmChartConfig` `kube-system/traefik` in `infrastructure/controllers/skynet/traefik/`. Do not add a Traefik `HelmChartConfig` or other cluster manifests to `/var/lib/rancher/k3s/server/manifests` from a playbook; k3s would re-apply that file on every server start and fight Flux. These playbooks only touch node OS packages and the kubelet resolv drop-in in `/etc/rancher/k3s/config.yaml.d/`.
 
-The k3s install itself and the Flux bootstrap/restore playbook live in `Invertedlight/VM-Cluster-Build`.
+Rebuilding one production node, including its k3s join, is [docs/node-rebuild.md](../docs/node-rebuild.md). The staging cluster build and the Flux bootstrap playbook stay in `Invertedlight/VM-Cluster-Build`. These playbooks do not target staging hosts, the staging VIP, or the `ubuntu` user.
 
 ## SSH
 
@@ -28,6 +28,17 @@ ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/os-unattended
 ```
 
 See [docs/os-updates.md](../docs/os-updates.md).
+
+## Rebuild one node
+
+`scripts/node-rebuild.zsh` on the Mac mini runs the baseline, the k3s join, the two playbooks above, and the checks for a single inventory host. `plan` prints the commands and does not connect.
+
+```zsh
+cd /Users/cyberstar/homelab-cluster
+scripts/node-rebuild.zsh plan skynet-wrk-01
+```
+
+The first real rebuild should be `skynet-wrk-01`. The full manual install list, Deco and AdGuard steps, token handling, and rollback are in [docs/node-rebuild.md](../docs/node-rebuild.md).
 
 Kubelet search-domain cleanup (optional; Flux already deploys a CoreDNS rewrite):
 

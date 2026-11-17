@@ -1,0 +1,12 @@
+# Production skynet join. kube-vip stays in Flux.
+# Do not set cluster-init. Do not disable the packaged helm controller:
+# Traefik's HelmChartConfig is reconciled by the k3s helm controller.
+node-name: {{ inventory_hostname }}
+node-ip: {{ ansible_host }}
+flannel-iface: {{ k3s_flannel_iface }}
+server: https://{{ k3s_api_host }}:6443
+{% if k3s_node_role == 'server' %}
+tls-san:
+  - {{ k3s_vip }}
+write-kubeconfig-mode: "0600"
+{% endif %}

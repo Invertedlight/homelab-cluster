@@ -1,0 +1,175 @@
+---
+- name: Require Ubuntu 26.04 and the inventory hostname
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['distribution_version'] is match('^26\\.04')
+      - ansible_facts['distribution_release'] == "resolute"
+      - ansible_facts['hostname'] == inventory_hostname
+    fail_msg: >-
+      {{ inventory_hostname }} must be Ubuntu 26.04 (resolute) and its short
+      hostname must match the inventory name before baseline runs.
+      Found {{ ansible_facts['distribution'] | default('unknown') }}
+      {{ ansible_facts['distribution_version'] | default('unknown') }}
+      hostname {{ ansible_facts['hostname'] | default('unknown') }}.
+
+- name: Update the apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install baseline packages
+  ansible.builtin.apt:
+    name: "{{ baseline_packages }}"
+    state: present
+
+- name: Set the time zone
+  ansible.builtin.file:
+    src: "/usr/share/zoneinfo/{{ baseline_timezone }}"
+    dest: /etc/localtime
+    state: link
+    force: true
+
+- name: Record the time zone name
+  ansible.builtin.copy:
+    dest: /etc/timezone
+    content: "{{ baseline_timezone }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Read package and unit facts
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Read installed service units
+  ansible.builtin.service_facts:
+
+- name: Read package and unit facts in check mode
+  ansible.builtin.include_tasks: check_mode.yaml
+  when: ansible_check_mode
+
+- name: Enable systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd.service
+    enabled: true
+    state: started
+  when: >-
+    not ansible_check_mode
+    or (baseline_timesyncd_ready | default(true) | bool)
+
+- name: Install the AppArmor unconfined workaround
+  ansible.builtin.copy:
+    src: 99-apparmor-unconfined-workaround.conf
+    dest: /etc/sysctl.d/99-apparmor-unconfined-workaround.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: baseline_apparmor_unconfined_workaround | bool
+
+- name: Remove the AppArmor unconfined workaround
+  ansible.builtin.file:
+    path: /etc/sysctl.d/99-apparmor-unconfined-workaround.conf
+    state: absent
+  when: not (baseline_apparmor_unconfined_workaround | bool)
+
+- name: Pin the kernel
+  ansible.builtin.include_tasks: kernel.yaml
+
+- name: Load overlay and br_netfilter
+  ansible.builtin.command:
+    argv:
+      - modprobe
+      - "{{ item }}"
+  loop:
+    - overlay
+    - br_netfilter
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Load overlay and br_netfilter on boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k3s.conf
+    content: |
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Persist k3s sysctl settings
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/90-k3s.conf
+    content: |
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward = 1
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Apply sysctl settings
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - --system
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Report that an apply would turn swap off
+  ansible.builtin.debug:
+    msg: Swap is in use. An apply runs swapoff -a and comments swap out of fstab.
+  when:
+    - ansible_check_mode
+    - ansible_facts['memory_mb']['swap']['used'] | default(0) | int > 0
+  changed_when: true
+
+- name: Turn swap off when it is in use
+  ansible.builtin.command:
+    argv:
+      - swapoff
+      - -a
+  when:
+    - not ansible_check_mode
+    - ansible_facts['memory_mb']['swap']['used'] | default(0) | int > 0
+  changed_when: true
+
+- name: Comment swap entries in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s+.*)$'
+    replace: '# \1'
+
+- name: Enable iscsid
+  ansible.builtin.systemd:
+    name: iscsid.service
+    enabled: true
+    state: started
+  when: >-
+    not ansible_check_mode
+    or (baseline_iscsid_ready | default(true) | bool)
+
+- name: Stop and disable ufw when the unit exists
+  ansible.builtin.systemd:
+    name: ufw.service
+    enabled: false
+    state: stopped
+  when: "'ufw.service' in ansible_facts['services']"
+
+- name: Warn that skynet-wrk-03 host software is not in Git
+  ansible.builtin.debug:
+    msg: >-
+      skynet-wrk-03 previously ran Ubuntu Desktop plus nginx, php8.5-fpm,
+      mariadb, wezterm, and a NetworkManager profile for enp3s0f0.
+      None of that is in this repository. Restore it by hand after a Server
+      install. k3s must use enp3s0f0, not the Wi-Fi interface.
+  when: inventory_hostname == "skynet-wrk-03"
+
+- name: Warn that skynet-wrk-04 battery automation is not in Git
+  ansible.builtin.debug:
+    msg: >-
+      skynet-wrk-04 battery-plug scripts, the systemd timer, and
+      /etc/battery-plug.env are not in Git. Restore them from your own backup.
+      Do not commit that env file. Do not add kernel packages or sysctl
+      settings beyond this baseline.
+  when: inventory_hostname == "skynet-wrk-04"
