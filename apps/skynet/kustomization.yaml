@@ -12,6 +12,7 @@ resources:
   - n8n-sandbox
   - netwatch
   - node-red
+  - proxmox-staging
 # Soft node spreading for all app Deployments and StatefulSets (skynet only).
 components:
   - components/soft-spread

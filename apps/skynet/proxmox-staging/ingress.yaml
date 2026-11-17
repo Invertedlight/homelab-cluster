@@ -1,0 +1,28 @@
+# Staging Proxmox UI. Public through the *.jameshomelab.org tunnel wildcard, so a
+# Cloudflare Access app for proxmox-staging.jameshomelab.org MUST exist before this is merged.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: proxmox-staging
+  annotations:
+    dashboard.jameshomelab.org/enable: "true"
+    dashboard.jameshomelab.org/name: "Proxmox (staging)"
+    dashboard.jameshomelab.org/description: "Staging VM host"
+    dashboard.jameshomelab.org/icon: "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/proxmox.png"
+spec:
+  ingressClassName: traefik
+  tls:
+    # Served by the Traefik TLSStore default *.jameshomelab.org certificate.
+    - hosts:
+        - proxmox-staging.jameshomelab.org
+  rules:
+    - host: proxmox-staging.jameshomelab.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: proxmox-staging
+                port:
+                  number: 8006

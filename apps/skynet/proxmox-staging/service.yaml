@@ -1,0 +1,17 @@
+# No selector: skynet-staging (192.168.68.79) is outside the cluster.
+# The EndpointSlice is the backend. Traefik uses HTTPS and the ServersTransport
+# in this namespace; the reference is <namespace>-<name>@kubernetescrd.
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxmox-staging
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+    traefik.ingress.kubernetes.io/service.serverstransport: proxmox-staging-proxmox-staging@kubernetescrd
+spec:
+  ports:
+    - name: https
+      port: 8006
+      targetPort: 8006
+      protocol: TCP
+      appProtocol: https
