@@ -404,10 +404,22 @@
       register: rebuild_k3s_etc
 
     - name: Back up /etc/rancher/k3s on the node
-      ansible.builtin.archive:
-        path: /etc/rancher/k3s
-        dest: "/var/backups/k3s-{{ inventory_hostname }}-{{ ansible_facts['date_time']['date'] }}.tar.gz"
-        format: gz
+      ansible.builtin.command:
+        argv:
+          - tar
+          - -C
+          - /
+          - -czf
+          - "/var/backups/k3s-{{ inventory_hostname }}-{{ ansible_facts['date_time']['date'] }}.tar.gz"
+          - etc/rancher/k3s
+      when: rebuild_k3s_etc.stat.exists | default(false)
+      changed_when: true
+
+    - name: Restrict the k3s backup to root
+      ansible.builtin.file:
+        path: "/var/backups/k3s-{{ inventory_hostname }}-{{ ansible_facts['date_time']['date'] }}.tar.gz"
+        owner: root
+        group: root
         mode: "0600"
       when: rebuild_k3s_etc.stat.exists | default(false)
 
