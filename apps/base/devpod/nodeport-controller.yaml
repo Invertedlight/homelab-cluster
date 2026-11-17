@@ -85,7 +85,7 @@ spec:
                 uid="$(kubectl -n "$ns" get sts "$sts" -o jsonpath='{.metadata.uid}' 2>/dev/null || true)"
                 if [ -z "$replicas" ] || [ -z "$uid" ]; then
                   echo "statefulset $sts not found"
-                  sleep 20
+                  sleep 60
                   continue
                 fi
                 i=0
@@ -130,12 +130,12 @@ spec:
                     kubectl -n "$ns" delete svc "$svcname"
                   fi
                 done
-                sleep 20
+                sleep 60
               done
           resources:
             requests:
               cpu: 20m
               memory: 64Mi
             limits:
-              cpu: 200m
+              cpu: 500m
               memory: 128Mi
