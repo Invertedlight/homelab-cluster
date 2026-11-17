@@ -1,0 +1,11 @@
+# Proxmox on skynet-staging presents a self-signed certificate.
+# noVNC upgrades to a WebSocket on port 8006. Traefik forwards that Upgrade
+# by default. HTTP/2 to the backend does not carry it, so this transport
+# stays on HTTP/1.1. No Ingress middleware is attached.
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: proxmox-staging
+spec:
+  insecureSkipVerify: true
+  disableHTTP2: true

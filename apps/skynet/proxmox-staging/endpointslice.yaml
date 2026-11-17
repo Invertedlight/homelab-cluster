@@ -1,0 +1,20 @@
+# Manual slice for the selector-less Service. kubernetes.io/service-name is
+# what associates it; the endpointslice controller does not own this object.
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: proxmox-staging
+  labels:
+    kubernetes.io/service-name: proxmox-staging
+    endpointslice.kubernetes.io/managed-by: homelab-cluster
+addressType: IPv4
+ports:
+  - name: https
+    port: 8006
+    protocol: TCP
+    appProtocol: https
+endpoints:
+  - addresses:
+      - 192.168.68.79
+    conditions:
+      ready: true
