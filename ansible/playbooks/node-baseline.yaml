@@ -1,0 +1,32 @@
+---
+# Ubuntu 26.04 baseline for exactly one skynet node.
+#
+#   ansible-playbook -i ansible/inventory/hosts.yaml \
+#     ansible/playbooks/node-baseline.yaml -e target_host=skynet-wrk-01
+#   ansible-playbook -i ansible/inventory/hosts.yaml \
+#     ansible/playbooks/node-baseline.yaml --limit skynet-wrk-01
+#
+# Check mode on a node that already matches this role should report no changes.
+# Reboot only with -e baseline_kernel_reboot=true, and only when k3s is gone
+# or -e baseline_kernel_reboot_force=true.
+- name: Baseline one skynet node
+  hosts: >-
+    {%- if target_host is defined and ansible_limit is defined
+        and target_host | length > 0 and ansible_limit | length > 0
+        and target_host != ansible_limit -%}
+    __refuse__
+    {%- else -%}
+    {{ target_host | default(ansible_limit | default('skynet', true), true) }}
+    {%- endif -%}
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  pre_tasks:
+    - name: Require one skynet host before gathering facts
+      ansible.builtin.include_tasks: ../tasks/require-one-skynet-host.yaml
+
+    - name: Gather facts for the selected node
+      ansible.builtin.setup:
+
+  roles:
+    - role: baseline

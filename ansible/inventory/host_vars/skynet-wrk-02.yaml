@@ -1,0 +1,6 @@
+---
+# Replacement hardware added 2026-10-04 (MAC C4:65:16:1B:33:9E). NIC eno1.
+# The previous laptop, whose NIC was enp2s0, is skynet-wrk-04.
+# Garage keeps a local-path replica on this node.
+baseline_kernel_metapackage_family: hwe
+k3s_flannel_iface: eno1

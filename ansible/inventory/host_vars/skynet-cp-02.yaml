@@ -1,0 +1,3 @@
+---
+baseline_kernel_metapackage_family: hwe
+k3s_flannel_iface: eno1

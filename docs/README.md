@@ -29,6 +29,7 @@ Operational guides and migration records for the homelab cluster. Migration reco
 - [Skynet path cutover](restructure-cutover.md)
 - [vm-staging app install plan](plans/vm-staging-apps.md)
 - [k3s-ha-runbook](k3s-ha-runbook.md)
+- [Rebuild one skynet node](node-rebuild.md)
 - [Node maintenance and SMS alerts](node-maintenance.md)
 - [Kured reboot grace for NodeDown](node-reboot-alerts.md)
 - [Node-RED flows and palette packages](../apps/base/node-red/README.md)

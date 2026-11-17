@@ -1,0 +1,21 @@
+---
+# Pinned to the release production skynet runs. Never a channel.
+k3s_version: v1.36.3+k3s1
+k3s_binary_sha256: 2f98a9f8fe5782479ee2d54e70a1b10a7f6fd4cae8d38ed3098452dc6eed76b5
+k3s_install_sha256: c2a2643dd7c259121a876d16538844c60928de3d38ae98f22f7b95a7ffcfab9d
+# amd64 binary named "k3s" in the upstream sha256sum-amd64.txt for this release.
+k3s_binary_url: https://github.com/k3s-io/k3s/releases/download/v1.36.3%2Bk3s1/k3s
+k3s_install_url: https://get.k3s.io
+# Join the existing cluster through kube-vip. Never cluster-init.
+k3s_api_host: 192.168.68.40
+k3s_vip: 192.168.68.40
+# Pass -e k3s_rejoin_override=true to continue when the node is already Ready.
+k3s_rejoin_override: false
+k3s_ready_retries: 60
+k3s_ready_delay: 15
+# Controller token. Environment wins. The file is never committed.
+k3s_token_file: >-
+  {{
+    lookup('ansible.builtin.env', 'K3S_TOKEN_FILE')
+    | default(lookup('ansible.builtin.env', 'HOME') ~ '/.config/homelab/skynet-k3s-token', true)
+  }}

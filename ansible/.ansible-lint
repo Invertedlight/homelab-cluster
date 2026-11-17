@@ -1,0 +1,8 @@
+---
+profile: moderate
+strict: true
+offline: true
+exclude_paths:
+  - .git
+  # Inventory host entries are data, not playbooks.
+  - inventory/hosts.yaml

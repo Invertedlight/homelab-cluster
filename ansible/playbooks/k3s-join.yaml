@@ -1,0 +1,33 @@
+---
+# Join exactly one skynet node to the existing cluster.
+# Control planes join https://192.168.68.40:6443 as servers. Workers join as
+# agents. This playbook never sets cluster-init and does not install kube-vip.
+# Flux already owns kube-vip.
+#
+#   ansible-playbook -i ansible/inventory/hosts.yaml \
+#     ansible/playbooks/k3s-join.yaml -e target_host=skynet-wrk-01
+#
+# Token: K3S_TOKEN, or a mode 0600 file at K3S_TOKEN_FILE
+# (default ~/.config/homelab/skynet-k3s-token). Never commit it.
+# Refuses when the node is already Ready unless -e k3s_rejoin_override=true.
+- name: Join one skynet node to k3s
+  hosts: >-
+    {%- if target_host is defined and ansible_limit is defined
+        and target_host | length > 0 and ansible_limit | length > 0
+        and target_host != ansible_limit -%}
+    __refuse__
+    {%- else -%}
+    {{ target_host | default(ansible_limit | default('skynet', true), true) }}
+    {%- endif -%}
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  pre_tasks:
+    - name: Require one skynet host before gathering facts
+      ansible.builtin.include_tasks: ../tasks/require-one-skynet-host.yaml
+
+    - name: Gather facts for the selected node
+      ansible.builtin.setup:
+
+  roles:
+    - role: k3s

@@ -2,6 +2,8 @@
 # Production Flux root: clusters/skynet. Second root: clusters/vm-staging.
 # This workflow never talks to the cluster and uses no credentials. It does
 # not block merge until branch protection requires the offline-validation check.
+# The ansible job syntax-checks playbooks and lints them. It does not connect
+# to a node or to the Kubernetes API.
 name: validate
 
 on:
@@ -79,3 +81,142 @@ jobs:
 
       - name: Validate manifests offline
         run: python3 .github/scripts/validate-offline.py
+
+  ansible-offline:
+    name: ansible-offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Syntax-check and ansible-lint do not connect. A stray kubeconfig
+      # must not become a default for a later step.
+      KUBECONFIG: /dev/null
+      KUBERNETES_SERVICE_HOST: ""
+      ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
+      ANSIBLE_ROLES_PATH: ${{ github.workspace }}/ansible/roles
+      ANSIBLE_HOST_PATTERN_MISMATCH: error
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Ansible tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y zsh
+          python3 -m venv "${HOME}/ansible-venv"
+          "${HOME}/ansible-venv/bin/pip" install --disable-pip-version-check \
+            "ansible-core==2.18.8" \
+            "ansible-lint==25.8.2"
+          # Prepend for later steps. This step still has the runner's
+          # /opt/pipx ansible 2.21 ahead of the venv, so call the venv directly.
+          echo "${HOME}/ansible-venv/bin" >> "${GITHUB_PATH}"
+          "${HOME}/ansible-venv/bin/ansible" --version
+          "${HOME}/ansible-venv/bin/ansible-lint" --version
+          zsh --version
+
+      - name: Syntax-check the wrapper
+        run: |
+          set -euo pipefail
+          zsh -n scripts/node-rebuild.zsh
+          zsh scripts/node-rebuild.zsh plan skynet-wrk-01 >/tmp/node-rebuild-plan.txt
+          grep -q 'node-rebuild-prepare.yaml' /tmp/node-rebuild-plan.txt
+          grep -q 'node-baseline.yaml' /tmp/node-rebuild-plan.txt
+          grep -q 'k3s-join.yaml' /tmp/node-rebuild-plan.txt
+          grep -q 'os-unattended-upgrades.yaml' /tmp/node-rebuild-plan.txt
+          grep -q 'k3s-upstream-resolv.yaml' /tmp/node-rebuild-plan.txt
+          grep -q 'node-rebuild-verify.yaml' /tmp/node-rebuild-plan.txt
+          if zsh scripts/node-rebuild.zsh plan not-a-node; then
+            echo "plan accepted a host outside the inventory" >&2
+            exit 1
+          fi
+
+      - name: Syntax-check playbooks
+        run: |
+          set -euo pipefail
+          ansible --version | head -n 1 | grep -q 'core 2.18.8'
+          for playbook in ansible/playbooks/*.yaml; do
+            ansible-playbook --syntax-check -i ansible/inventory/hosts.yaml \
+              "$playbook" -e target_host=skynet-wrk-01
+          done
+          ansible-playbook --list-hosts -i ansible/inventory/hosts.yaml \
+            ansible/playbooks/node-baseline.yaml -e target_host=skynet-wrk-01 \
+            | grep -q 'skynet-wrk-01'
+          if ansible-playbook --list-hosts -i ansible/inventory/hosts.yaml \
+            ansible/playbooks/node-baseline.yaml -e target_host=not-a-node; then
+            echo "a host outside the inventory was accepted" >&2
+            exit 1
+          fi
+          # These runs fail on the controller. They do not open SSH.
+          if ansible-playbook -i ansible/inventory/hosts.yaml \
+            ansible/playbooks/node-baseline.yaml \
+            -e target_host=skynet-cp-01 --limit skynet-wrk-01; then
+            echo "a mismatched --limit was accepted" >&2
+            exit 1
+          fi
+          if ansible-playbook -i ansible/inventory/hosts.yaml \
+            ansible/playbooks/node-baseline.yaml \
+            --limit 'skynet-wrk-01,skynet-wrk-02'; then
+            echo "two hosts were accepted" >&2
+            exit 1
+          fi
+
+      - name: Lint Ansible
+        working-directory: ansible
+        run: ansible-lint
+
+      - name: Check kubeconfig context selection offline
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)"
+          mkdir -p "${fixture}/.kube"
+          python3 - <<PY
+          from pathlib import Path
+          Path("${fixture}/.kube/config").write_text(
+              "apiVersion: v1\n"
+              "kind: Config\n"
+              "current-context: skynet\n"
+              "contexts:\n"
+              "  - name: skynet\n"
+              "    context:\n"
+              "      cluster: skynet\n"
+              "      user: skynet\n"
+              "  - name: rancher-desktop\n"
+              "    context:\n"
+              "      cluster: rancher-desktop\n"
+              "      user: rancher-desktop\n"
+              "clusters:\n"
+              "  - name: rancher-desktop\n"
+              "    cluster:\n"
+              "      server: https://127.0.0.1:6443\n"
+              "  - name: skynet\n"
+              "    cluster:\n"
+              "      server: https://192.168.68.40:6443\n"
+              "users:\n"
+              "  - name: skynet\n"
+              "    user:\n"
+              "      token: fixture-not-a-secret\n"
+          )
+          PY
+          home_kubeconfig="${fixture}/.kube/config"
+          # The task reads HOME/.kube/config. Point HOME at the fixture.
+          if ! output="$(HOME="${fixture}" ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/kubeconfig-check.yaml)"; then
+            printf '%s\n' "$output" >&2
+            exit 1
+          fi
+          printf '%s\n' "$output" | grep -q 'https://192.168.68.40:6443'
+          if printf '%s\n' "$output" | grep -q 'fixture-not-a-secret'; then
+            echo "kubeconfig check printed the fixture credential" >&2
+            exit 1
+          fi
+          python3 - <<PY
+          from pathlib import Path
+          text = Path("${home_kubeconfig}").read_text()
+          text = text.replace("current-context: skynet", "current-context: rancher-desktop", 1)
+          Path("${home_kubeconfig}").write_text(text)
+          PY
+          if HOME="${fixture}" ansible-playbook -i ansible/inventory/hosts.yaml ansible/playbooks/kubeconfig-check.yaml; then
+            echo "rancher-desktop context was accepted" >&2
+            exit 1
+          fi

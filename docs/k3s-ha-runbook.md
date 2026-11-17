@@ -30,6 +30,8 @@ Before cordon, drain, or powering a node off, set the node label `maintenance=tr
 
 ## Worker replacement procedure (used 2026-10-04 for skynet-wrk-02)
 
+The next rebuild of one node is [node-rebuild.md](node-rebuild.md). That procedure is one node at a time, after Ubuntu Server 26.04 is installed by hand, and it joins the existing cluster through `https://192.168.68.40:6443`. It does not use `cluster-init`. The steps below are the record of the 2026-10-04 `skynet-wrk-02` replacement.
+
 Old `skynet-wrk-02` (laptop, MAC `C8:2A:14:02:91:23`) became `skynet-wrk-04` at `192.168.68.114`; new hardware (MAC `C4:65:16:1B:33:9E`, NIC `eno1`, 238 GB NVMe) took `skynet-wrk-02` at `192.168.68.112`. Nodes keep DHCP; the address comes from the Deco reservation.
 
 1. Longhorn: set the Longhorn node `allowScheduling=false`, `evictionRequested=true`; wait until it holds zero replicas and every volume has 3 replicas elsewhere.

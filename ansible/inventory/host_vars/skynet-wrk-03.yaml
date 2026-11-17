@@ -1,0 +1,8 @@
+---
+# iMac. k3s must stay on the wired NIC. The machine also has Wi-Fi (wlp2s0).
+# Host software that is not in Git: ubuntu-desktop, nginx, php8.5-fpm,
+# mariadb, wezterm, and the NetworkManager profile that pins enp3s0f0.
+# A Server reinstall does not restore any of that. Confirm the NIC name
+# before joining. Garage keeps a local-path replica on this node.
+baseline_kernel_metapackage_family: hwe
+k3s_flannel_iface: enp3s0f0

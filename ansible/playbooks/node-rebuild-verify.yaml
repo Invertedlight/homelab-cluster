@@ -1,0 +1,130 @@
+---
+# Read-only checks for one rebuilt node. kubectl uses ~/.kube/config.
+- name: Verify one rebuilt skynet node
+  hosts: >-
+    {%- if target_host is defined and ansible_limit is defined
+        and target_host | length > 0 and ansible_limit | length > 0
+        and target_host != ansible_limit -%}
+    __refuse__
+    {%- else -%}
+    {{ target_host | default(ansible_limit | default('skynet', true), true) }}
+    {%- endif -%}
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../roles/k3s/defaults/main.yaml
+  pre_tasks:
+    - name: Require one skynet host before gathering facts
+      ansible.builtin.include_tasks: ../tasks/require-one-skynet-host.yaml
+
+    - name: Gather facts for the selected node
+      ansible.builtin.setup:
+
+  tasks:
+    - name: Require the pinned kernel and holds
+      ansible.builtin.include_role:
+        name: baseline
+        tasks_from: assert_running_kernel
+
+    - name: Read service state
+      ansible.builtin.service_facts:
+
+    - name: Require iscsid
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services']['iscsid.service'].state | default('') == 'running'
+        fail_msg: iscsid is not running.
+
+    - name: Require the kubelet resolv drop-in
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /etc/rancher/k3s/upstream-resolv.conf
+        - /etc/rancher/k3s/config.yaml.d/99-upstream-resolv.yaml
+        - /etc/apt/apt.conf.d/50unattended-upgrades
+        - /etc/sysctl.d/90-k3s.conf
+        - /etc/sysctl.d/99-apparmor-unconfined-workaround.conf
+      register: verify_files
+
+    - name: Require resolv, unattended-upgrades, and sysctl contents
+      ansible.builtin.assert:
+        that:
+          - "'1.1.1.1' in (verify_files.results[0].content | b64decode)"
+          - "'resolv-conf=' in (verify_files.results[1].content | b64decode)"
+          - "'Automatic-Reboot \"false\"' in (verify_files.results[2].content | b64decode)"
+          - "'net.ipv4.ip_forward = 1' in (verify_files.results[3].content | b64decode)"
+          - >-
+            'kernel.apparmor_restrict_unprivileged_unconfined = 0'
+            in (verify_files.results[4].content | b64decode)
+        fail_msg: A baseline file is missing the expected production contents.
+
+    - name: Read live sysctl and module state
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /proc/sys/net/ipv4/ip_forward
+        - /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined
+        - /proc/modules
+      register: verify_proc
+
+    - name: Require forwarding, the AppArmor workaround, and k3s modules
+      ansible.builtin.assert:
+        that:
+          - (verify_proc.results[0].content | b64decode | trim) == '1'
+          - (verify_proc.results[1].content | b64decode | trim) == '0'
+          - "'overlay' in (verify_proc.results[2].content | b64decode)"
+          - "'br_netfilter' in (verify_proc.results[2].content | b64decode)"
+        fail_msg: Sysctl or kernel modules do not match the baseline.
+
+    - name: Read the installed k3s version
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/k3s
+          - --version
+      register: verify_k3s_version
+      changed_when: false
+
+    - name: Require the pinned k3s release
+      ansible.builtin.assert:
+        that:
+          - k3s_version in verify_k3s_version.stdout
+        fail_msg: k3s is not {{ k3s_version }}.
+
+    - name: Require the skynet kubeconfig
+      ansible.builtin.include_tasks: ../tasks/kubeconfig-skynet.yaml
+
+    - name: Read the node
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - node
+          - "{{ inventory_hostname }}"
+          - -o
+          - json
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ skynet_kubeconfig }}"
+      register: verify_node
+      changed_when: false
+
+    - name: Require Ready, schedulable, and the Longhorn disk label
+      ansible.builtin.assert:
+        that:
+          - >-
+            (verify_node.stdout | from_json).status.conditions
+            | selectattr('type', 'equalto', 'Ready')
+            | map(attribute='status')
+            | first == 'True'
+          - not ((verify_node.stdout | from_json).spec.unschedulable | default(false) | bool)
+          - >-
+            (verify_node.stdout | from_json).metadata.labels['node.longhorn.io/create-default-disk']
+            | default('') == 'true'
+          - >-
+            (verify_node.stdout | from_json).metadata.labels['maintenance']
+            | default('') | length == 0
+        fail_msg: >-
+          {{ inventory_hostname }} must be Ready, uncordoned, labeled
+          node.longhorn.io/create-default-disk=true, and not labeled maintenance.

@@ -1,0 +1,41 @@
+---
+- name: Read K3S_TOKEN from the controller environment
+  ansible.builtin.set_fact:
+    k3s_token_value: "{{ lookup('ansible.builtin.env', 'K3S_TOKEN') }}"
+  no_log: true
+
+- name: Stat the controller token file
+  ansible.builtin.stat:
+    path: "{{ k3s_token_file }}"
+  delegate_to: localhost
+  become: false
+  register: k3s_token_stat
+  when: k3s_token_value | length == 0
+
+- name: Read the controller token file
+  ansible.builtin.slurp:
+    src: "{{ k3s_token_file }}"
+  delegate_to: localhost
+  become: false
+  register: k3s_token_slurp
+  no_log: true
+  when:
+    - k3s_token_value | length == 0
+    - k3s_token_stat.stat.exists | default(false)
+
+- name: Use the controller token file
+  ansible.builtin.set_fact:
+    k3s_token_value: "{{ k3s_token_slurp.content | b64decode | trim }}"
+  no_log: true
+  when:
+    - k3s_token_slurp.content is defined
+    - k3s_token_value | length == 0
+
+- name: Require a cluster token
+  ansible.builtin.assert:
+    that:
+      - k3s_token_value | length >= 32
+    fail_msg: >-
+      Set K3S_TOKEN or write the token to {{ k3s_token_file }}.
+      Do not commit that file and do not pass the token on the command line.
+  no_log: true

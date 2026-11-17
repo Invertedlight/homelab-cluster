@@ -1,0 +1,5 @@
+---
+# First rebuild candidate. No Garage replica, no CloudNativePG, no battery
+# scripts, and no desktop stack. NIC from the build manual.
+baseline_kernel_metapackage_family: hwe
+k3s_flannel_iface: eno1
