@@ -109,9 +109,11 @@ jobs:
           "${HOME}/ansible-venv/bin/pip" install --disable-pip-version-check \
             "ansible-core==2.18.8" \
             "ansible-lint==25.8.2"
+          # Prepend for later steps. This step still has the runner's
+          # /opt/pipx ansible 2.21 ahead of the venv, so call the venv directly.
           echo "${HOME}/ansible-venv/bin" >> "${GITHUB_PATH}"
-          ansible --version
-          ansible-lint --version
+          "${HOME}/ansible-venv/bin/ansible" --version
+          "${HOME}/ansible-venv/bin/ansible-lint" --version
           zsh --version
 
       - name: Syntax-check the wrapper
@@ -133,6 +135,7 @@ jobs:
       - name: Syntax-check playbooks
         run: |
           set -euo pipefail
+          ansible --version | head -n 1 | grep -q 'core 2.18.8'
           for playbook in ansible/playbooks/*.yaml; do
             ansible-playbook --syntax-check -i ansible/inventory/hosts.yaml \
               "$playbook" -e target_host=skynet-wrk-01
