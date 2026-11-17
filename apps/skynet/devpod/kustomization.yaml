@@ -4,3 +4,5 @@ namespace: devpod
 resources:
   - ../../base/devpod/
   - github-credentials.yaml
+  # One NodePort Service per StatefulSet replica (skynet runs 2).
+  - ssh-nodeport-services.yaml

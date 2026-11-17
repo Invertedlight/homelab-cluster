@@ -9,7 +9,6 @@ resources:
   - serviceaccount-devpod.yaml
   - clusterrolebinding-devpod-admin.yaml
   - devpod-statefulset.yaml
-  - nodeport-controller.yaml
 configMapGenerator:
   # Bootstrap scripts for every DevPod replica. The name gets a content
   # hash, so editing a script rolls the StatefulSet. No secrets here.

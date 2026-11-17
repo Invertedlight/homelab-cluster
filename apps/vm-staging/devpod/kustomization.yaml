@@ -174,31 +174,3 @@ patches:
       metadata:
         name: devpod-scratch-raidshare
         namespace: devpod
-  - patch: |-
-      $patch: delete
-      apiVersion: v1
-      kind: ServiceAccount
-      metadata:
-        name: devpod-nodeport
-        namespace: devpod
-  - patch: |-
-      $patch: delete
-      apiVersion: rbac.authorization.k8s.io/v1
-      kind: Role
-      metadata:
-        name: devpod-nodeport
-        namespace: devpod
-  - patch: |-
-      $patch: delete
-      apiVersion: rbac.authorization.k8s.io/v1
-      kind: RoleBinding
-      metadata:
-        name: devpod-nodeport
-        namespace: devpod
-  - patch: |-
-      $patch: delete
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: devpod-nodeport
-        namespace: devpod
