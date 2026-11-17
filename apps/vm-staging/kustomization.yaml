@@ -25,10 +25,10 @@ resources:
 replicas:
   - name: n8n
     count: 0
-  - name: node-red
-    count: 0
-  - name: mosquitto
-    count: 0
+  #  - name: node-red
+  #    count: 0
+  #  - name: mosquitto
+  #    count: 0
   - name: linkding
     count: 0
   - name: netwatch
