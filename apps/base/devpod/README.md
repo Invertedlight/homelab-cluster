@@ -22,6 +22,8 @@ A standing workspace so a DevPod exists even when the DevPod CLI is not creating
 
 Bump `spec.replicas`. Each ordinal gets its own Longhorn home PVC and can land on a different worker. Do not switch the home volume to SMB; the scratch share is the RWX disk.
 
+On skynet, also add a Service `devpod-N-ssh` with nodePort `32222+N` (selector `statefulset.kubernetes.io/pod-name: devpod-N`) to `apps/skynet/devpod/ssh-nodeport-services.yaml` in the same PR, so the new replica gets an SSH port. Remove it when you scale down. Staging has no NodePort Services.
+
 Longhorn will not delete the home PVC if the StatefulSet is removed (`reclaimPolicy: Retain`).
 
 ## Cluster access (kubectl in the pod)

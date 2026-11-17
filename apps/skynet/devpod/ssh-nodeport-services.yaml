@@ -1,0 +1,40 @@
+# SSH NodePort for each DevPod workspace, one Service per StatefulSet replica.
+# devpod-N-ssh selects pod devpod-N and listens on nodePort 32222+N.
+# When you scale StatefulSet/devpod, add or remove devpod-N-ssh here in the
+# same PR (for a third replica: devpod-2-ssh on nodePort 32224).
+# These replaced the devpod-nodeport reconciler Deployment on 2026-11-17.
+apiVersion: v1
+kind: Service
+metadata:
+  name: devpod-0-ssh
+  namespace: devpod
+  labels:
+    app.kubernetes.io/name: devpod
+    app.kubernetes.io/part-of: homelab-dev
+spec:
+  type: NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: devpod-0
+  ports:
+    - name: ssh
+      port: 2222
+      targetPort: 2222
+      nodePort: 32222
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devpod-1-ssh
+  namespace: devpod
+  labels:
+    app.kubernetes.io/name: devpod
+    app.kubernetes.io/part-of: homelab-dev
+spec:
+  type: NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: devpod-1
+  ports:
+    - name: ssh
+      port: 2222
+      targetPort: 2222
+      nodePort: 32223
