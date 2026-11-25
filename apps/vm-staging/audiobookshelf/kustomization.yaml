@@ -50,7 +50,7 @@ patches:
             cpu: 20m
             memory: 80Mi
           limits:
-            memory: 160Mi
+            memory: 256Mi
   - patch: |-
       $patch: delete
       apiVersion: v1

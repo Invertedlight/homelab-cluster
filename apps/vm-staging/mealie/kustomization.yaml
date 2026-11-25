@@ -43,9 +43,9 @@ patches:
         value:
           requests:
             cpu: 50m
-            memory: 160Mi
+            memory: 192Mi
           limits:
-            memory: 288Mi
+            memory: 512Mi
       - op: add
         path: /spec/template/spec/containers/0/env/-
         value:
