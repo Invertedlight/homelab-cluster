@@ -1,15 +1,8 @@
 # Database, stateless apps, linkding and mealie, then the local-volume apps.
 # clusters/vm-staging/apps.yaml applies this directory after
 # infrastructure-controller and database-operator.
-# devpod is omitted so Flux prunes it. The overlay stays at ./devpod,
-# including its SOPS secret, and can be added back to this list.
-# audiobookshelf is omitted so Flux prunes it, including its staging PVCs.
-# The overlay stays at ./audiobookshelf and can be added back to this list.
-# apps/base/audiobookshelf and apps/skynet/audiobookshelf are unchanged.
-# n8n-sandbox is omitted so Flux prunes it until n8n returns. Re-add it
-# to this list then, and recreate the sandbox-api PVC (local-path-workers).
-# The overlay stays at ./n8n-sandbox. apps/base/n8n-sandbox and
-# apps/skynet/n8n-sandbox are unchanged.
+# Staging RAM and SATA SSD upgrades are done, so every overlay in this
+# directory is listed and runs at its normal replica count.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -21,19 +14,6 @@ resources:
   - netwatch
   - node-red
   - n8n
-# held at 0 until staging RAM (Nov 20) and SATA SSD (Nov 30) upgrades
-replicas:
-  - name: n8n
-    count: 0
-  #  - name: node-red
-  #    count: 0
-  #  - name: mosquitto
-  #    count: 0
-  - name: linkding
-    count: 0
-  - name: netwatch
-    count: 0
-  - name: cluster-dashboard
-    count: 0
-  - name: mealie
-    count: 0
+  - n8n-sandbox
+  - devpod
+  - audiobookshelf
