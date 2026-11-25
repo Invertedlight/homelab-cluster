@@ -56,7 +56,7 @@ patches:
             memory: 192Mi
           limits:
             cpu: 500m
-            memory: 768Mi
+            memory: 1536Mi
       - op: replace
         path: /spec/template/spec/containers/0/resources
         value:
@@ -65,7 +65,7 @@ patches:
             memory: 192Mi
           limits:
             cpu: 500m
-            memory: 768Mi
+            memory: 1536Mi
       # Same startup as the base, without the background Homebrew installer.
       - op: replace
         path: /spec/template/spec/containers/0/args/0
@@ -137,7 +137,7 @@ patches:
         value: "1"
       - op: replace
         path: /spec/hard/limits.memory
-        value: 1Gi
+        value: 1536Mi
       - op: replace
         path: /spec/hard/pods
         value: "4"
@@ -163,7 +163,7 @@ patches:
         value: 500m
       - op: replace
         path: /spec/limits/0/max/memory
-        value: 768Mi
+        value: 1536Mi
       - op: replace
         path: /spec/limits/1/max/storage
         value: 20Gi
